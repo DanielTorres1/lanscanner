@@ -1,0 +1,3 @@
+[console_scripts]
+interlace = Interlace.interlace:main
+

@@ -1,0 +1,11 @@
+include README.rst
+include INSTALL.md
+include LICENSE
+include VERSION
+
+recursive-include wapitiCore/data *
+recursive-include wapitiCore/language_sources *
+recursive-include wapitiCore/report_template *
+recursive-include doc *
+exclude wapitiCore/language_sources/*.sh
+exclude wapitiCore/language_sources/file_list.txt

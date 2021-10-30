@@ -1,0 +1,66 @@
+wapiti-getcookie(1) -- A Wapiti utility to fetch cookies from a webpage and store them in the Wapiti JSON format.
+=================================================================================================================
+
+## SYNOPSIS
+
+`wapiti-getcookie` -u <URL> -c <COOKIE> [options]
+
+## DESCRIPTION
+
+wapiti-getcookie is a user-friendly interactive console utility that can be used to fill a web-form or fetch an URL 
+and extract the cookies sent by the remote server.  
+Cookie information are stored in the JSON cookie file you have to specify with the -c option.  
+Those cookies can be loaded by Wapiti using the same -c option.
+   
+## OPTIONS
+
+  * `-p`, `--proxy` <PROXY_URL>  
+    The given URL will be used as a proxy for HTTP and HTTPS requests.  
+    This URL can have one of the following scheme : http, https, socks.  
+    To make Wapiti use a Tor listener you can use --proxy socks://127.0.0.1:9050/
+
+  * `--tor`  
+    Make Wapiti use a Tor listener (same as --proxy socks://127.0.0.1:9050/)
+
+  * `-a`, `--auth-cred` <CREDENTIALS>  
+    Set credentials to use for HTTP authentication on the target.  
+    Given value should be in the form login%password (% is used as a separator)
+    
+  * `--auth-type` <TYPE>  
+    Set the authentication mechanism to use. Valid choices are basic, digest and ntlm.  
+    NTLM authentication may require you to install an additional Python module.
+
+  * `-H`, `--header` <HEADER>  
+    Set a custom HTTM header to inject in every request sent by Wapiti.
+    This option can be used several times.  
+    Value should be a standard HTTP header line (parameter and value separated with a : sign).
+    
+  * `-A`, `--user-agent` <AGENT>  
+    Default behavior of Wapiti is to use the same User-Agent as the TorBrowser, making it discreet when crawling standard website or .onion ones.  
+    But you may have to change it to bypass some restrictions so this option is here.
+    
+  * `-d`, `--data` <DATA>  
+    wapiti-getcookie will parse forms and ask your input for each field found.  
+    But you can also pass every parameter and value as a string directly through this option.  
+    Example: -d 'login=admin&password=letmein&submit=Login'
+    
+## LICENSE
+
+Wapiti is covered by the GNU General Public License (GPL), version 2.
+Please read the LICENSE file for more information.
+
+## COPYRIGHT
+
+Copyright (c) 2006-2021 Nicolas Surribas.
+
+## AUTHORS
+
+Nicolas Surribas is the main author, but the whole list of contributors is found in the separate AUTHORS file.
+
+## WWW
+
+https://wapiti.sourceforge.io/
+
+## BUG REPORTS
+
+If you find a bug in Wapiti please report it to https://github.com/wapiti-scanner/wapiti/issues

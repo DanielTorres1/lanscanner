@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+
+
+from wafw00f import main
+
+
+if __name__ == '__main__':
+    main.main()

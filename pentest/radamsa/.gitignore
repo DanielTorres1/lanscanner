@@ -1,0 +1,10 @@
+radamsa.c
+c/libradamsa.c
+tmp
+bin/radamsa
+bin/radamsa.exe
+lib/libradamsa.a
+lib/libradamsa.so
+ol.c*
+bin/ol
+.seal-of-quality
