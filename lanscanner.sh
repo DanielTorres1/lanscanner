@@ -1986,10 +1986,11 @@ then
 
 								if [[ ! -s .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt  ]] ; then
 									strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
+									cp logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
 								fi
 								
 
-								grep "XML-RPC seems" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
+								
 								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
 								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
 								grep -i users logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
@@ -2159,7 +2160,7 @@ then
 						wpscan --enumerate u  --random-user-agent --url http://$ip --format json > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
 						wpscan --random-user-agent --url http://$ip/ --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt
 								
-						grep "Title" > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
+						grep "Title"  logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
 						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
 						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpusers.txt						
 					fi
@@ -2718,7 +2719,7 @@ then
 									
 								fi										
 								
-								grep "Title" > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
+								grep "Title" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
 								grep "XML-RPC seems" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
 								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpusers.txt
 							fi
@@ -2815,7 +2816,9 @@ then
 							
 							testssl.sh --color 0  "https://$subdominio:$port" > logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt 2>/dev/null 
 							grep --color=never "incorrecta" logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$subdominio"_"$port"_confTLS.txt
-							grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt > .vulnerabilidades/"$subdominio"_"$port"_vulTLS.txt							
+							grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt > .vulnerabilidades/"$subdominio"_"$port"_vulTLS.txt
+							grep --color=never "VULNERABLE (actualizar)" -m1 -b0 -A9 logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt > logs/vulnerabilidades/"$subdominio"_"$port"_vulTLS.txt
+							 logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19
 							
 							##########################
 							
@@ -2925,8 +2928,7 @@ then
 					#######  drupal (domain) ######
 					grep -qi drupal .enumeracion/"$ip"_"$port"_webData.txt
 					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						wpscan  --update
+					if [[ $greprc -eq 0 ]];then 								
 						echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($ip)"
 						droopescan scan drupal -u  https://$ip --output json > logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt								
 						cat logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt  > .enumeracion/"$ip"_"$port"_droopescan.txt																																								

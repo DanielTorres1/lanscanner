@@ -160,17 +160,19 @@
 	<codVul>CVE-2019-9670</codVul>
     <score>9.8</score>
     <nombre>Zimbra con vulnerabilidad XXE</nombre>	
-    <vector> Muy probable </vector>
+    <vector> CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H</vector>
     <impacto> Crítico </impacto>
     <riesgoInforme> CRÍTICO </riesgoInforme> 
-   <activo>Servidor web</activo>       
-    <agente_amenaza>USUARIO EXTERNO</agente_amenaza>    
+   <activo>Servidor correo</activo>       
+    <agente_amenaza>USUARIO EXTERNO/INTERNO</agente_amenaza>    
     <impacto_tecnico> Tomar control del servidor de correos </impacto_tecnico>
     <impacto_negocio> Acceder y modificar correos </impacto_negocio>     
     <detallesTest>Mediante la explotación de esta vulnerabilidad en primera instancia es posible leer archivos del servidor (Mediante este método se puede obtener el password del administrador de Zimbra). También es posible lograr ejecución remota de comandos 'RCE' para tomar el control completo del servidor</detallesTest>
     <descripcion>Mediante la explotación de esta vulnerabilidad en primera instancia es posible leer archivos del servidor (Mediante este método se puede obtener el password del administrador de Zimbra). También es posible lograr ejecución remota de comandos 'RCE' para tomar el control completo del servidor.</descripcion>
     <verificacion>Herramienta: Metasploit SALTOLINEAModulo: exploit/linux/http/zimbra_xxe_rce </verificacion>
     <recomendacion>Aplique el parche de seguridad</recomendacion> 
+    <recomendacionMatriz>  Actualizar los parches de seguridad recomendados.</recomendacionMatriz> 
+    <conclusion>Existe una ausencia de actualizaciones críticas en el servidor de correos y existe la posibilidad de comprometer información sensible. </conclusion>
 	<referencias> https://blog.zimbra.com/2019/03/new-zimbra-8-7-11-patch-10/SALTOLINEA-https://jroliva.net/2019/03/25/vulnerabilidades-de-xxe-y-rce-en-zimbra </referencias> 		              
   </vuln>
   
@@ -396,7 +398,7 @@
     <recomendacion>Reforzar la política de contraseñas para que incluya caracteres alfanuméricos y mayúsculos. Se puede usar reglas mnemotécnicas para generar contraseñas fáciles de recordar por los usuarios, pero robustos para que sean difíciles de suponer por los atacantes. También se puede ampliar el tiempo de expiración de contraseñas Windows hasta un máximo de 90 días para equilibrar la política de complejidad de contraseñas. Deshabilitar el protocolo LLMNR y NBT-NS  para evitar la captura de respuestas NTLM (No recomendable si se tienen sistemas Windows 2000 o inferior) </recomendacion> 
 	<referencias> https://www.4armed.com/blog/llmnr-nbtns-poisoning-using-responder </referencias>  		
 	<recomendacionMatriz> Reforzar la política de contraseñas para que incluya caracteres alfanuméricos y mayúsculos. La contraseña debe tener al menos una longitud de 9 caracteres. </recomendacionMatriz> 
-    <conclusion>Se identifico XXX passwords que compromete la informacion de la estación de trabajo</conclusion>
+    <conclusion>Se identificó XXX passwords que compromete la informacion de la estación de trabajo</conclusion>
   </vuln>
 
 
@@ -461,7 +463,7 @@
     <recomendacion>Asignar un password a la base datos que sea difícil de adivinar. El password debe tener una longitud mínima de 8 caracteres, al menos debe tener un carácter minúscula, uno mayúscula, un dígito y un carácter especial</recomendacion> 
 	<referencias>Ninguna</referencias>
 	<recomendacionMatriz> Reforzar la política de contraseñas para que incluya caracteres alfanuméricos y mayúsculos. La contraseña debe tener al menos una longitud de 12 caracteres. </recomendacionMatriz> 
-    <conclusion>Se identifico credenciales que pueden comprometer la informacion almacenada en bases de datos</conclusion>
+    <conclusion>Se identificó credenciales que pueden comprometer la informacion almacenada en bases de datos</conclusion>
   </vuln>  
   
     <vuln>  
@@ -1075,8 +1077,8 @@
    	<cod>slowloris</cod> 
     <nombre>Denegación de servicio al servidor web - slowloris </nombre>
     <codVul>CVE-2007-6750</codVul>
-    <score>5.3</score>	
-    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L </vector>
+    <score>7.5</score>	
+    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H </vector>
     <impacto> Significativo </impacto>
     <riesgoInforme> ALTO </riesgoInforme> 
    <activo>Servidor web</activo>       
@@ -1177,14 +1179,34 @@
     <impacto_tecnico> Acceder a sistemas </impacto_tecnico>
     <impacto_negocio> Acceder y modificar información sensible  </impacto_negocio>        
     <descripcion>Sistemas de gestión de contenidos (CMS) desactualizados representan un riesgo de seguridad para el sitio web de la entidad</descripcion>
-    <detallesTest>Se identifico que la versión XXXXX del CMS tiene las siguientes vulnerabilidades:</detallesTest>
+    <detallesTest>Se identificó que la versión XXXXX del CMS tiene las siguientes vulnerabilidades:</detallesTest>
     <verificacion>Ninguna</verificacion>
     <recomendacion>Actualizar el CMS a la última versión disponible</recomendacion> 
 	<referencias>Ninguna</referencias>
 	<recomendacionMatriz>Actualizar el CMS a la última versión disponible</recomendacionMatriz> 
-    <conclusion>Se identifico vulnerabilidades en el sitio web</conclusion>        
+    <conclusion>Se identificó vulnerabilidades en el sitio web</conclusion>        
   </vuln>
 
+<vuln>
+	<cod>phishing</cod> 			
+	<codVul>ninguno</codVul>
+    <score>7.5</score>	
+    <nombre>Ataque de Phishing</nombre>	
+    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</vector>
+    <impacto>Mayor</impacto>
+    <riesgoInforme>ALTO</riesgoInforme> 
+   <activo>Correo electrónico</activo>       
+    <agente_amenaza>USUARIO EXTERNO</agente_amenaza>    
+    <impacto_tecnico>Acceder a información sensible</impacto_tecnico>
+    <impacto_negocio>La confidencialidad de los datos se puede ver afectada </impacto_negocio>   
+    <detallesTest>Se preparó un sitio que simulaba ser el servidor de correos de la entidad:SALTOLINEASALTOLINEASe envió un correo falso a los funcionarios de la entidad pidiendo que confirmen sus credenciales en el "nuevo" sistema de correos:SALTOLINEA{imagen}SALTOLINEASALTOLINEAEste correo se envió a XXXX direcciones de correo electrónico que fueron obtenidos de redes sociales e internet, con el siguiente resultado:SALTOLINEA{imagen}SALTOLINEA{tabla enviados}SALTOLINEASALTOLINEA{tabla click}SALTOLINEASALTOLINEACredenciales recolectadas:SALTOLINEASALTOLINEA{tabla passwords}SALTOLINEASALTOLINEASe pudo tener acceso a información de la entidad con las credenciales obtenidas:SALTOLINEA{imagen}SALTOLINEA</detallesTest> 
+    <descripcion>No todo el personal de la entidad está preparado para este tipo de ataques</descripcion>
+    <verificacion>Ninguna</verificacion>
+    <recomendacion>Realizar talleres de sensibilización para mitigar ataques de ingeniería social y revisar los sistemas anti-SPAM.</recomendacion> 
+    <recomendacionMatriz>Realizar talleres de sensibilización para ataques de ingeniería social</recomendacionMatriz> 
+    <conclusion>De los correos de phishing enviados más de la mitad abrieron el correo falso y una persona introdujo sus credenciales </conclusion>        
+	<referencias>https://softwarelab.org/es/que-es-ingenieria-social/</referencias> 
+  </vuln>  
 
   <vuln>  
    	<cod>passwordAdivinadoServ</cod> 
@@ -1204,7 +1226,7 @@
     <recomendacion>Asignar un password robusto a los servicios del servidor que sea difícil de adivinar. El password debe tener una longitud mínima de 10 caracteres, al menos debe tener un carácter minúscula, uno mayúscula, un dígito y un carácter especial. Además, no debe tener patrones como años.</recomendacion> 
 	<referencias>Ninguna</referencias>  
 	<recomendacionMatriz> Reforzar la política de contraseñas para que incluya caracteres alfanuméricos y mayúsculos. La contraseña debe tener al menos una longitud de 10 caracteres. </recomendacionMatriz> 
-    <conclusion>Se identifico XXX passwords que compromete la información de servidores</conclusion>
+    <conclusion>Se identificó XXX passwords que compromete la información de servidores</conclusion>
   </vuln>
   
    <vuln>  
@@ -1225,7 +1247,7 @@
     <recomendacion>Actualizar los plugins desactualizados o desactivarlos si no es utilizado. SALTOLINEAActualizar el core de wordpress SALTOLINEASALTOLINEAHabilitar actualizaciones de seguridad automáticas SALTOLINEA-Ingresar al panel de administración https://DOMINIOENTIDAD/wp-admin/plugins.php SALTOLINEA-Seleccionar todos los plugins SALTOLINEA- Seleccionar "Aplicar".</recomendacion> 
 	<referencias>https://es.godaddy.com/blog/como-actualizar-plugins-en-wordpress-paso-a-paso</referencias>
 	<recomendacionMatriz>  Actualizar los plugins listados en el presente informe </recomendacionMatriz> 
-    <conclusion>Se identifico plugins desactualizados</conclusion>        
+    <conclusion>Se identificó plugins desactualizados</conclusion>        
   </vuln>
   
   
@@ -1293,26 +1315,7 @@
 	<referencias>Ninguna</referencias>     	   
   </vuln>
 
-<vuln>
-	<cod>phishing</cod> 			
-	<codVul>ninguno</codVul>
-    <score>6.5</score>	
-    <nombre>Ataque de Phishing</nombre>	
-    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N</vector>
-    <impacto>Mayor</impacto>
-    <riesgoInforme>MEDIO</riesgoInforme> 
-   <activo>Correo electrónico</activo>       
-    <agente_amenaza>USUARIO EXTERNO</agente_amenaza>    
-    <impacto_tecnico>Acceder a información sensible</impacto_tecnico>
-    <impacto_negocio>La confidencialidad de los datos se puede ver afectada </impacto_negocio>   
-    <detallesTest>Se preparó un sitio que simulaba ser el servidor de correos de la entidad:SALTOLINEASALTOLINEASe envió un correo falso a los funcionarios de la entidad pidiendo que confirmen sus credenciales en el "nuevo" sistema de correos:SALTOLINEA{imagen}SALTOLINEASALTOLINEAEste correo se envió a XXXX direcciones de correo electrónico que fueron obtenidos de redes sociales e internet, con el siguiente resultado:SALTOLINEA{imagen}SALTOLINEA{tabla enviados}SALTOLINEASALTOLINEA{tabla click}SALTOLINEASALTOLINEACredenciales recolectadas:SALTOLINEASALTOLINEA{tabla passwords}SALTOLINEASALTOLINEASe pudo tener acceso a información de la entidad con las credenciales obtenidas:SALTOLINEA{imagen}SALTOLINEA</detallesTest> 
-    <descripcion>No todo el personal de la entidad está preparado para este tipo de ataques</descripcion>
-    <verificacion>Ninguna</verificacion>
-    <recomendacion>Realizar talleres de sensibilización para mitigar ataques de ingeniería social y revisar los sistemas anti-SPAM.</recomendacion> 
-    <recomendacionMatriz>Realizar talleres de sensibilización para ataques de ingeniería social</recomendacionMatriz> 
-    <conclusion>De los correos de phishing enviados más de la mitad abrieron el correo falso y una persona introdujo sus credenciales </conclusion>        
-	<referencias>https://softwarelab.org/es/que-es-ingenieria-social/</referencias> 
-  </vuln>  
+
   
   
  <vuln>
@@ -1404,7 +1407,7 @@
     Para las entradas existentes usar la guía: https://www.wpbeginner.com/wp-tutorials/how-to-disable-trackbacks-and-pings-on-existing-wordpress-posts/</recomendacion> 
 	<referencias>Ninguna</referencias> 
 	<recomendacionMatriz> Desactivar los comentarios y pingbacks </recomendacionMatriz> 
-    <conclusion>Se identifico configuraciones no seguras en el sitio wordpress </conclusion>   
+    <conclusion>Se identificó configuraciones no seguras en el sitio wordpress </conclusion>   
   </vuln>
   
   
@@ -1462,7 +1465,7 @@
     <agente_amenaza>USUARIO INTERNO</agente_amenaza>    
     <impacto_tecnico>Acceso a los equipos</impacto_tecnico>
     <impacto_negocio>Afecta a la confidencialidad de información confidencial </impacto_negocio>    
-    <detallesTest>Se realizo un escaneo masivo y se identifico equipos vulnerables</detallesTest>    
+    <detallesTest>Se realizo un escaneo masivo y se identificó equipos vulnerables</detallesTest>    
     <descripcion> Esta vulnerabilidad permite pasar por alto la validación de credenciales y acceder al equipo</descripcion>
     <verificacion> Ninguna </verificacion>
     <recomendacion>Actualizar la versión del software VNC</recomendacion> 
@@ -1517,15 +1520,15 @@
    	<cod>vulTLS</cod> 
     <nombre> Vulnerabilidades en el protocolo TLS/SSL </nombre>
     <codVul>ninguno</codVul>
-    <score>2.6</score>	
-    <vector> CVSS:3.1/AV:A/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N </vector>
+    <score>5.3</score>	
+    <vector> CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N </vector>
     <impacto> Moderado </impacto>
     <riesgoInforme> MEDIO </riesgoInforme> 
    <activo>Servidor web</activo>       
     <agente_amenaza> USUARIO INTERNO </agente_amenaza>    
     <impacto_tecnico> Acceder a datos enviados en la red </impacto_tecnico>
     <impacto_negocio> Acceder a información sensible </impacto_negocio>    
-    <detallesTest> Los servidores son vulnerables a DROWN, POODLE SSL, y BEAST. Estas vulnerabilidades no están orientado a comprometer el sistema, sino a obtener la información que envía cifrada y un atacante no podria descifrar. </detallesTest>    
+    <detallesTest> Los servidores son vulnerables a DROWN, POODLE SSL, y BEAST. Estas vulnerabilidades no están orientado a comprometer el sistema, sino a obtener la información que envía cifrada y un atacante no podria descifrar. SALTOLINEAEl resultado del escaneo de los servicios con TLS es: </detallesTest>    
     <descripcion> Esta vulnerabilidad no está orientado a comprometer el servidor, sino a obtener información del tráfico cifrado como cookies de autenticación, credenciales administrativas u otro dato sensible</descripcion>
     <verificacion> Herramienta: testssl.sh SALTOLINEA
 					testssl.sh https://1.2.3.4 </verificacion>
@@ -1554,7 +1557,7 @@
     <recomendacion>Asignar un password al equipo que sea difícil de adivinar. El password debe tener una longitud mínima de 10 caracteres, al menos debe tener un carácter minúscula, uno mayúscula, un dígito y un carácter especial. Además, no debe tener patrones como años.</recomendacion> 
 	<referencias>Ninguna</referencias>  
 	<recomendacionMatriz> Reforzar la política de contraseñas para que incluya caracteres alfanuméricos y mayúsculos. La contraseña debe tener al menos una longitud de 10 caracteres. </recomendacionMatriz> 
-    <conclusion>Se identifico XXX passwords que compromete la informacion del servidor</conclusion>
+    <conclusion>Se identificó XXX passwords que compromete la informacion del servidor</conclusion>
   </vuln>
   
    <vuln>
@@ -1645,19 +1648,21 @@
 	 <cod>directorioLDAP</cod> 
     <nombre>LDAP con acceso anónimo</nombre>
     <codVul>ninguno</codVul>
-    <score>0</score>	
-	<vector> Posible </vector>
+    <score>4.3</score>	
+	<vector> CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N </vector>
     <impacto> Moderado </impacto>
     <riesgoInforme> MEDIO </riesgoInforme> 
    <activo>Servidor web</activo>       
     <agente_amenaza> USUARIO EXTERNO </agente_amenaza>    
     <impacto_tecnico> Exposición de datos de los usuarios</impacto_tecnico>
     <impacto_negocio> Ninguno </impacto_negocio>     
-    <detallesTest>Se tiene habilitado el acceso anónimo al directorio LDAP del cual se puede extraer información sobre los empleados de la entidad tales como ser nombre, correo electrónico, directorio home, etc</detallesTest>    
+    <detallesTest>Se procedió a obtener del servidor LDAP los datos del personal de la entidad:</detallesTest>    
     <descripcion> Se tiene habilitado el acceso anónimo al directorio LDAP del cual se puede extraer información sobre los empleados de la entidad tales como ser nombre, correo electrónico, directorio home, etc</descripcion>
     <verificacion> Herramienta: ldapsearch SALTOLINEA
 				  ldapsearch -x -p  -h 1.2.3.4 -b '' -s sub '(objectclass=*)'  </verificacion>
     <recomendacion>Restringir conexiones anónimas al directorio LDAP. Sin embargo, como con cualquier remediación potencial, esto debe probarse en un entorno de desarrollo o control de calidad para garantizar que no haya efectos secundarios adversos. Se debe tener especial cuidado cuando las aplicaciones utilizan LDAP para la autenticación de usuarios o la búsqueda de información. El bloqueo del servidor LDAP sin probar las aplicaciones podría provocar el mal funcionamiento de varios servicios</recomendacion> 
+    <recomendacionMatriz>Deshabilitar el usuario anónimo del servidor LDAP</recomendacionMatriz> 
+    <conclusion>El usuario anónimo esta habilitado en el servidor LDAP </conclusion>        
 	<referencias>Ninguna</referencias> 
   </vuln>
   
@@ -1864,7 +1869,7 @@
     <verificacion>Ninguna</verificacion>
     <recomendacion>Activar la funcionalidad BPDU guard si está disponible en el switch. Alternativamente puede deshabilitar el protocolo STP.</recomendacion> 
     <recomendacionMatriz>Activar la funcionalidad BPDU guard si está disponible en el switch.</recomendacionMatriz> 
-    <conclusion>Se identifico que esta habilitado un protocolo que es suceptible a ataques DoS </conclusion>        
+    <conclusion>Se identificó que esta habilitado un protocolo que es suceptible a ataques DoS </conclusion>        
 	<referencias>https://www.securityartwork.es/2015/05/25/defensas-frente-a-ataques-stp/</referencias> 
    </vuln>
 
@@ -1909,7 +1914,7 @@
     <recomendacion>Cambiar la cadena de comunidad por defecto, por otra que sea personalizada y solo de conocimiento del personal autorizado por de la entidad. Esta deberá ser mayor a 8 caracteres y no contener palabras que hagan referencia a la entidad, marcas, modelos o cualquier otra palabra que se encuentre en diccionarios nacionales o internacionales </recomendacion> 
 	<referencias>Ninguna</referencias> 
 	<recomendacionMatriz> Cambiar la cadena de comunidad por defecto</recomendacionMatriz> 
-    <conclusion>Se identifico la cadena comunitaria por defecto</conclusion>
+    <conclusion>Se identificó la cadena comunitaria por defecto</conclusion>
   </vuln>
   
     
@@ -1991,7 +1996,7 @@
     <verificacion>Ninguna</verificacion>
     <recomendacion>Eliminar el contenido no relacionado</recomendacion> 
     <recomendacionMatriz>Eliminar el contenido no relacionado</recomendacionMatriz>         
-    <conclusion>Se identifico contenido no relacionado a la entidad  </conclusion> 
+    <conclusion>Se identificó contenido no relacionado a la entidad  </conclusion> 
 	<referencias>Ninguna</referencias> 			            
   </vuln> 
    
@@ -2186,13 +2191,9 @@
     <verificacion> Herramienta: wpscan SALTOLINEA
 				   wpscan --random-agent --url http://www.dominio.com --enumerate u </verificacion>
     <recomendacion>No usar usuarios por defecto como "admin", "administrador" o "administrator"
-    [bullet] Bloquear el acceso a los archivos de instalación mediante el servidor web (apache/nginx)
-       
-location ~* ^/wp- json/wp/v2/users/ {
-  deny all;
-}
+    [bullet] Instalar y habilitar el plugin https://wordpress.org/plugins/disable-json-api/
     [bullet] Instalar y habilitar el plugin "WP Hardening" https://wordpress.org/plugins/wp-security-hardening/)
-    [bullet] rEliminar el archivo /wp-sitemap-users-1.xml</recomendacion> 
+    [bullet] Eliminar el archivo /wp-sitemap-users-1.xml</recomendacion> 
 	<referencias>Ninguna</referencias>
   <conclusion>Es posible identificar los usuarios que son administradores del sitio web</conclusion>
   <recomendacionMatriz>Bloquear la enumeración de usuarios del sitio web</recomendacionMatriz>    
