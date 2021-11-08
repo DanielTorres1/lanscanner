@@ -512,14 +512,14 @@
 	<cod>webdavVulnerable</cod> 
     <nombre>WebDAV vulnerable</nombre>
     <codVul>ninguno</codVul>
-    <score>0</score>	
-    <vector> Posible </vector>
+    <score>6.5</score>
+    <vector>CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N </vector>
     <impacto> Significativo </impacto>
-    <riesgoInforme> ALTO </riesgoInforme> 
+    <riesgoInforme> MEDIO </riesgoInforme> 
    <activo>Servidor web</activo>       
     <agente_amenaza>USUARIO INTERNO</agente_amenaza>    
     <impacto_tecnico> Acceso al servidor </impacto_tecnico>
-    <impacto_negocio> Acceder y modificar información crítica  </impacto_negocio>    
+    <impacto_negocio> Acceder a información sensible  </impacto_negocio>    
     <detallesTest>Realizando un escaneo se obtuvo el siguiente resultado: IMAGEN SALTOLINEA
 			La imagen expone que el equipo tiene habilitado el módulo WEBDAV. SALTOLINEA
 			Como prueba de concepto se explotó la vulnerabilidad para subir un archivo al servidor: IMAGEN SALTOLINEA</detallesTest>    
@@ -527,6 +527,8 @@
     <verificacion>Herramienta: cadaver SALTOLINEA
 				  cadaver 1.2.3.4 </verificacion>
     <recomendacion> Deshabilitar el directorio webDAV </recomendacion> 
+    <conclusion>El protocolo webDAV del servidor es vulnerable y se pueden subir archivos al servidor</conclusion> 
+    <recomendacionMatriz> Deshabilitar el directorio webDAV </recomendacionMatriz> 
 	<referencias>Ninguna</referencias> 
   </vuln> 
   
@@ -994,8 +996,8 @@
     <cod>passwordDefecto</cod> 
     <nombre>Contraseña por defecto</nombre>
     <codVul>ninguno</codVul>
-    <score>0</score>	
-    <vector> Posible </vector>
+    <score>8.2</score>	
+    <vector> CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N </vector>
     <impacto> Significativo </impacto>
     <riesgoInforme> ALTO </riesgoInforme> 
    <activo>Servidor web</activo>       
@@ -1006,6 +1008,8 @@
     <descripcion>El equipo aún tienen la contraseña por defecto</descripcion>
     <verificacion>Ninguna</verificacion>
     <recomendacion>Asignar un password al equipo que sea difícil de adivinar. El password debe tener una longitud mínima de 8 caracteres, al menos debe tener un carácter minúscula, uno mayúscula, un dígito y un carácter especial</recomendacion> 
+    <conclusion>Es posible ingresar al sistema web con credenciales por defecto</conclusion> 
+    <recomendacionMatriz>Asignar un password al sistema que sea difícil de adivinar </recomendacionMatriz> 
 	<referencias>Ninguna</referencias> 
   </vuln>
   
@@ -1247,7 +1251,7 @@
     <recomendacion>Actualizar los plugins desactualizados o desactivarlos si no es utilizado. SALTOLINEAActualizar el core de wordpress SALTOLINEASALTOLINEAHabilitar actualizaciones de seguridad automáticas SALTOLINEA-Ingresar al panel de administración https://DOMINIOENTIDAD/wp-admin/plugins.php SALTOLINEA-Seleccionar todos los plugins SALTOLINEA- Seleccionar "Aplicar".</recomendacion> 
 	<referencias>https://es.godaddy.com/blog/como-actualizar-plugins-en-wordpress-paso-a-paso</referencias>
 	<recomendacionMatriz>  Actualizar los plugins listados en el presente informe </recomendacionMatriz> 
-    <conclusion>Se identificó plugins desactualizados</conclusion>        
+    <conclusion>3.	Se identificó plugins y/o core desactualizados del sitio web</conclusion>        
   </vuln>
   
   
@@ -1532,9 +1536,9 @@
     <descripcion> Esta vulnerabilidad no está orientado a comprometer el servidor, sino a obtener información del tráfico cifrado como cookies de autenticación, credenciales administrativas u otro dato sensible</descripcion>
     <verificacion> Herramienta: testssl.sh SALTOLINEA
 					testssl.sh https://1.2.3.4 </verificacion>
-    <recomendacion> Deshabilitar  SSL 2.0, SSL 3.0 o TLS 1.0:t/ </recomendacion> 
+    <recomendacion> Deshabilitar  SSL 2.0, SSL 3.0 o TLS 1.0:/tActualizar el certificado de seguridad </recomendacion> 
     <recomendacionMatriz> Deshabilitar los protocolos antiguos: SSL 2.0, SSL 3.0 o TLS 1.0</recomendacionMatriz>         
-    <conclusion>Existe configuraciones no seguras en los servidores que usan el protocolo TLS  </conclusion> 
+    <conclusion>Existe vulnerabilidades en los certificados TLS de servidores web  </conclusion> 
 	<referencias>https://www.leaderssl.com/news/471-how-to-disable-outdated-versións-of-ssl-tls-in-apacheSALTOLINEA-https://support.microsoft.com/es-bo/help/187498/how-to-disable-pct-1-0-ssl-2-0-ssl-3-0-or-tls-1-0-in-internet-informa</referencias>    
   </vuln>
   
@@ -1611,8 +1615,8 @@
     <agente_amenaza>USUARIO INTERNO</agente_amenaza>    
     <impacto_tecnico>Es posible forzar a hosts el envio de sus hashes NTLM a servidores falsos (SMBRelay)</impacto_tecnico>
     <impacto_negocio>La confidencialidad de los datos se vería afectada </impacto_negocio>   
-    <detallesTest>Cuando un equipo Windows necesita resolver un nombre de red, utiliza estos servicios de resolución de nombres con la siguiente prioridad:SALTOLINEA1.	 Archivo local hostSALTOLINEA2.	DNSSALTOLINEA3.	LLMNR (A partir de Windows Vista) y NBT-NSSALTOLINEASALTOLINEATanto LLMNR como NBT-NS utilizan peticiones multicast, por lo que cuando un host pregunta por un nombre y fallan las resoluciones (a través del archivo localhost y la petición DNS), una petición multicast es enviada a la red. En este escenario un atacante puede envenenar la red con el protocolo LLMNR y NBT-NS y obtener respuestas NTLM de varios equipos de la red LAN para luego reenviarlo y autenticarse como ese usuario (SMB Relay) y obtener acceso a sus carpetas compartidas. En la siguiente captura se puede observar que el ataque funciona correctamente autenticando sin embargo no se encontró recursos compartidos.</detallesTest> 
-    <descripcion>Los datos en la red al ser capturados permiten su análisis para identificar contraseñas y datos confidenciales que le brinden a un atacante la información para vulnerar los servicios y equipos críticos</descripcion>
+    <detallesTest>Se pudo tener acceso a recursos compartidos de varias estaciones de trabajo:</detallesTest> 
+    <descripcion>Cuando un equipo Windows necesita resolver un nombre de red, utiliza estos servicios de resolución de nombres con la siguiente prioridad:SALTOLINEA1.	 Archivo local hostSALTOLINEA2.	DNSSALTOLINEA3.	LLMNR (A partir de Windows Vista) y NBT-NSSALTOLINEASALTOLINEATanto LLMNR como NBT-NS utilizan peticiones multicast, por lo que cuando un host pregunta por un nombre y fallan las resoluciones (a través del archivo localhost y la petición DNS), una petición multicast es enviada a la red. En este escenario un atacante puede envenenar la red con el protocolo LLMNR y NBT-NS y obtener respuestas NTLM de varios equipos de la red LAN para luego reenviarlo y autenticarse como ese usuario (SMB Relay) y obtener acceso a sus carpetas compartidas. </descripcion>
     <verificacion>responder -F -f -I eth0</verificacion>    
     <recomendacion>Deshabilitar el protocolo LLMNR y NBT-NS en las estaciones de trabajo</recomendacion> 
     <conclusion>Es posible realizar un envenenamiento con el protocolo LLMNR y NBT-NS</conclusion>
@@ -1823,8 +1827,8 @@
     <detallesTest>Realizando un análisis de la configuración TLS se obtuvo el siguiente resultado:</detallesTest>    
     <descripcion> No cumple los requisitos PCI DSS v3.2. El Estándar de Seguridad de Datos para la Industria de Tarjeta de Pago indica que las versiones de TLS 1.0 y 1.1 no son lo suficientemente robustas. </descripcion>
     <verificacion> testssl.sh https://1.2.3.4 </verificacion>
-    <recomendacion>-Considere deshabilitar las versiones antiguas de TLS (1.0 y 1.1) solo si no requiere que dispositivos antiguos accedan al sitio web, dispositivos antiguos tienen incompatibilidad con la versión TLS 1.3</recomendacion> 
-    <recomendacionMatriz> Deshabilitar los protocolos antiguos: SSL 2.0, SSL 3.0 o TLS 1.0</recomendacionMatriz>         
+    <recomendacion>-Considere deshabilitar las versiones antiguas de TLS (1.0 y 1.1) solo si no requiere que dispositivos antiguos accedan al sitio web, dispositivos antiguos tienen incompatibilidad con la versión TLS 1.3 SALTOLINEAHabilitar HSTS (HTTP Strict-Transport-Security)</recomendacion> 
+    <recomendacionMatriz> Deshabilitar los protocolos antiguos: SSL 2.0, SSL 3.0 o TLS 1.0. Habilitar HSTS (HTTP Strict-Transport-Security)</recomendacionMatriz>         
     <conclusion>Existe configuraciones no recomendadas en los servidores que usan el protocolo TLS  </conclusion> 
 	<referencias>https://libre-software.net/tls-nginx/SALTOLINEA-Habilitar HSTS (Apache): https://lecciones.batiburrillo.net/habilitar-cabeceras-hsts-sitios-web-seguros/ SALTOLINEA-Habilitar TLS 1.2 (Apache): https://comandoit.com/como-habilitar-tls-1-3-1-2-en-apache/ SALTOLINEA-Habilitar TLS 1.2 (IIS): https://eldeza.wordpress.com/2018/02/06/habilitar-protocolo-de-cifrado-tls-1-2/SALTOLINEA-https://www.pcihispano.com/tls-v1-3-y-su-impacto-en-pcidss/</referencias>    
   </vuln>
@@ -1852,6 +1856,33 @@
   </vuln>
 
 
+
+  <vuln>	  
+   	<cod>wpUsers</cod> 
+    <nombre> Enumeración de usuarios de wordpress</nombre>
+    <codVul>ninguno</codVul>
+    <score>3.9</score>	
+    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N</vector>
+    <impacto> Minimo </impacto>
+    <riesgoInforme> BAJO </riesgoInforme> 
+   <activo>Aplicación web</activo>       
+    <agente_amenaza> USUARIO INTERNO </agente_amenaza>    
+    <impacto_tecnico> Obterner el listado de usuarios administradores de wordpress</impacto_tecnico>
+    <impacto_negocio> Ninguno </impacto_negocio>    
+    <detallesTest> Se identificó que es posible enumerar a todos los usuarios que son administradores del sitio web. Esta información puede ser usada para realizar un ataque de diccionario al sitio web. </detallesTest>    
+    <descripcion> Se identificó que es posible enumerar a todos los usuarios que son administradores del sitio web. Esta información puede ser usada para realizar un ataque de diccionario al sitio web. </descripcion>
+    <verificacion> Herramienta: wpscan SALTOLINEA
+				   wpscan --random-agent --url http://www.dominio.com --enumerate u </verificacion>
+    <recomendacion>No usar usuarios por defecto como "admin", "administrador" o "administrator"
+    [bullet] Instalar y habilitar el plugin https://wordpress.org/plugins/disable-json-api/
+    [bullet] Instalar y habilitar el plugin "WP Hardening" https://wordpress.org/plugins/wp-security-hardening/)
+    [bullet] Eliminar el archivo /wp-sitemap-users-1.xml</recomendacion> 
+	<referencias>Ninguna</referencias>
+  <conclusion>Es posible identificar los usuarios que son administradores del sitio web</conclusion>
+  <recomendacionMatriz>Bloquear la enumeración de usuarios del sitio web</recomendacionMatriz>    
+  </vuln>
+     
+     
    <vuln>
   	<cod>stp</cod> 
 	<codVul>ninguno</codVul>
@@ -2174,30 +2205,5 @@
   </vuln> 
 
 
-  <vuln>	  
-   	<cod>wpUsers</cod> 
-    <nombre> Enumeración de usuarios de wordpress</nombre>
-    <codVul>ninguno</codVul>
-    <score>3.9</score>	
-    <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N</vector>
-    <impacto> Minimo </impacto>
-    <riesgoInforme> BAJO </riesgoInforme> 
-   <activo>Aplicación web</activo>       
-    <agente_amenaza> USUARIO INTERNO </agente_amenaza>    
-    <impacto_tecnico> Obterner el listado de usuarios administradores de wordpress</impacto_tecnico>
-    <impacto_negocio> Ninguno </impacto_negocio>    
-    <detallesTest> Se identificó que es posible enumerar a todos los usuarios que son administradores del sitio web. Esta información puede ser usada para realizar un ataque de diccionario al sitio web. </detallesTest>    
-    <descripcion> Se identificó que es posible enumerar a todos los usuarios que son administradores del sitio web. Esta información puede ser usada para realizar un ataque de diccionario al sitio web. </descripcion>
-    <verificacion> Herramienta: wpscan SALTOLINEA
-				   wpscan --random-agent --url http://www.dominio.com --enumerate u </verificacion>
-    <recomendacion>No usar usuarios por defecto como "admin", "administrador" o "administrator"
-    [bullet] Instalar y habilitar el plugin https://wordpress.org/plugins/disable-json-api/
-    [bullet] Instalar y habilitar el plugin "WP Hardening" https://wordpress.org/plugins/wp-security-hardening/)
-    [bullet] Eliminar el archivo /wp-sitemap-users-1.xml</recomendacion> 
-	<referencias>Ninguna</referencias>
-  <conclusion>Es posible identificar los usuarios que son administradores del sitio web</conclusion>
-  <recomendacionMatriz>Bloquear la enumeración de usuarios del sitio web</recomendacionMatriz>    
-  </vuln>
-     
 </vulnerabilidades>
 

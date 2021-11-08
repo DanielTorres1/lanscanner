@@ -1678,7 +1678,7 @@ then
 				echo -e "\t\t[+] Revisando server-status"
 				curl --max-time 2 http://$ip:$port/server-status 2>/dev/null | grep --color=never nowrap | sed 's/<\/td>//g' | sed 's/<td nowrap>/;/g' | sed 's/<\/td><td>//g'| sed 's/<\/td><\/tr>//g' | sed 's/amp;//g' > .enumeracion/"$ip"_"$port"_serverStatus.txt 
 				echo -e "\t[+] Obteniendo informacion web"
-				webData.pl -t $ip -p $port -s 0 -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &					
+				webData.pl -t $ip -p $port -s 0 -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
 				sleep 0.1;
 			
 				######## revisar por dominio #######
@@ -1983,7 +1983,7 @@ then
 								fi
 	
 								grep "Title" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-
+								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "Title" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
 								if [[ ! -s .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt  ]] ; then
 									strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
 									cp logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
@@ -2142,10 +2142,9 @@ then
 					fi	
 
 					#######  drupal (IP) ######
-					grep -qi drupal .enumeracion/"$subdominio"_"$port"_webData.txt
+					grep -qi drupal .enumeracion/"$ip"_"$port"_webData.txt
 					greprc=$?
 					if [[ $greprc -eq 0 ]];then 		
-						wpscan  --update
 						echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($ip)"
 						droopescan scan drupal -u  https://$ip --output json > logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt								
 						cat logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt  > .enumeracion/"$ip"_"$port"_droopescan.txt																																								
@@ -2155,14 +2154,14 @@ then
 					grep -qi wordpress .enumeracion/"$ip"_"$port"_webData.txt
 					greprc=$?
 					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress (IP)"
+						echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($ip)"
 						wpscan  --update >/dev/null						
 						wpscan --enumerate u  --random-user-agent --url http://$ip --format json > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
 						wpscan --random-user-agent --url http://$ip/ --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt
 								
 						grep "Title"  logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
 						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
-						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpusers.txt						
+						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpUsers.txt						
 					fi
 					###########################
 					
@@ -2703,25 +2702,39 @@ then
 							#######  wordpress (dominio) ######
 							grep -qi wordpress .enumeracion/"$subdominio"_"$port"_webData.txt
 							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisar wordpress "						    																
-								wpscan --disable-tls-checks --enumerate u  --random-user-agent --url https://$subdominio --disable-tls-checks --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-								wpscan --disable-tls-checks --random-user-agent --url https://$subdominio/ --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --disable-tls-checks  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+							if [[ $greprc -eq 0 ]];then 	
+
+								wpscan  --update
+								echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($subdominio)"
+								wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url https://$subdominio --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
+								wpscan --disable-tls-checks  --random-user-agent --url https://$subdominio/ --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 								
-								grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
+								#msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
+								
+								grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
 								greprc=$?
 								if [[ $greprc -eq 0 ]];then 		
 									echo -e "\t\t\t[+] Redireccion en wordpress"
-									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
+									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
 									
-									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url --disable-tls-checks --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --disable-tls-checks  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt									
+									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate p --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 									
-								fi										
-								
+								fi
+	
 								grep "Title" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								grep "XML-RPC seems" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
-								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpusers.txt
+								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "Title" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
+								if [[ ! -s .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt  ]] ; then
+									strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
+									cp logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
+								fi
+								
+								
+								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
+								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
+								grep -i users logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
+
+
 							fi
 							###########################	
 							
@@ -2946,7 +2959,7 @@ then
 								
 						grep "Title" .enumeracion/"$ip"_"$port"_wpscanPlugins.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
 						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
-						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpusers.txt
+						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpUsers.txt
 					fi
 					###########################	
 					
@@ -4819,13 +4832,19 @@ done
 grep PROPFIND .enumeracion2/* 2>/dev/null| while read -r line ; do	
 	echo -e  "$OKRED[!] Método PROPFIND detectado $RESET"
     archivo_origen=`echo $line | cut -d ':' -f1`
+	cp $archivo_origen
     archivo_destino=$archivo_origen       
-	archivo_destino=${archivo_destino/.enumeracion2/.vulnerabilidades}   
+	archivo_logs=$archivo_origen 
+	archivo_logs=${archivo_logs/.enumeracion2/logs\/vulnerabilidades}
+
+	archivo_destino=${archivo_destino/.enumeracion2/.vulnerabilidades}	
 	archivo_destino=${archivo_destino/admin/webdavVulnerable}
 	archivo_destino=${archivo_destino/webdirectorios/webdavVulnerable}
 	archivo_destino=${archivo_destino/webarchivos/webdavVulnerable}
     contenido=`echo $line | cut -d ':' -f2-4`    
-    echo $contenido >> $archivo_destino    
+    
+	echo $contenido >> $archivo_destino
+	echo $contenido >> $archivo_logs    
 done
 #################################
 
