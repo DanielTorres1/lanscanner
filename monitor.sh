@@ -27,7 +27,7 @@ for line in $( ps aux | egrep --color=never "grep|get_ssl_cert|bin\/lbd" | grep 
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 1 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 1 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -52,7 +52,7 @@ for line in $( ps aux | egrep --color=never "blackwidow|testssl" | awk '{print $
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 5 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 5 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -77,7 +77,7 @@ for line in $( ps aux | egrep --color=never 'snmpwalk|snmpbrute' | grep -v color
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 2 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 2 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -102,7 +102,7 @@ for line in $( ps aux | egrep --color=never "nc|msfconsole" | grep -v color | gr
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 3 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 3 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -127,7 +127,7 @@ for line in $( ps aux | grep --color=never perl  | grep -v color | egrep -v "pas
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 2 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 2 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -152,7 +152,7 @@ for line in $( ps aux | grep --color=never web-buster | grep -v color | awk '{pr
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 40 && $diff -lt 70 ]];then 
+	if [[  $diff -gt 40 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -176,7 +176,7 @@ for line in $( ps aux | egrep --color=never "hydra|medusa|patator|prtgadmin" | g
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 2 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 2 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -200,7 +200,7 @@ for line in $( ps aux | egrep --color=never "masscan|udp-hunter" | grep -v color
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 10 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 10 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -224,7 +224,7 @@ for line in $( ps aux | egrep --color=never "reaver|pptp" | grep -v color | awk 
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 0 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 0 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -249,7 +249,7 @@ for line in $( ps aux | grep --color=never nmap | egrep -v "getBanners|color|nma
 	echo "Idle time: $diff minutes"	
 	
 	
-	if [[  $diff -gt 8 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 8 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -274,7 +274,7 @@ for line in $( ps aux | egrep --color=never "wpscan|joomscan"  | awk '{print $2,
 	echo "Idle time: $diff minutes"	
 	
 	
-	if [[  $diff -gt 15 && $diff -lt 60 ]];then 
+	if [[  $diff -gt 15 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		

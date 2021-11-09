@@ -1251,7 +1251,7 @@
     <recomendacion>Actualizar los plugins desactualizados o desactivarlos si no es utilizado. SALTOLINEAActualizar el core de wordpress SALTOLINEASALTOLINEAHabilitar actualizaciones de seguridad automáticas SALTOLINEA-Ingresar al panel de administración https://DOMINIOENTIDAD/wp-admin/plugins.php SALTOLINEA-Seleccionar todos los plugins SALTOLINEA- Seleccionar "Aplicar".</recomendacion> 
 	<referencias>https://es.godaddy.com/blog/como-actualizar-plugins-en-wordpress-paso-a-paso</referencias>
 	<recomendacionMatriz>  Actualizar los plugins listados en el presente informe </recomendacionMatriz> 
-    <conclusion>3.	Se identificó plugins y/o core desactualizados del sitio web</conclusion>        
+    <conclusion>Se identificó plugins y/o core desactualizados del sitio web</conclusion>        
   </vuln>
   
   
@@ -1882,7 +1882,7 @@
   <recomendacionMatriz>Bloquear la enumeración de usuarios del sitio web</recomendacionMatriz>    
   </vuln>
      
-     
+
    <vuln>
   	<cod>stp</cod> 
 	<codVul>ninguno</codVul>
@@ -2158,7 +2158,7 @@
     <descripcion>  Los archivos exponen datos del servidor como versiones exactas de PHP, módulos cargados, direcciones IP, etc.</descripcion>
     <verificacion> Herramienta: wget SALTOLINEAwget http://1.2.3.4/archivo.php </verificacion>
    <recomendacion> Eliminar los archivos identificados </recomendacion> 
-   <conclusion> Se identificó archivos que divulgación de información del servidor </conclusion> 
+   <conclusion> Se identificó archivos que divulgan de información del servidor </conclusion> 
    <recomendacionMatriz> Eliminar los archivos identificados que divulgan información del servidor</recomendacionMatriz> 
   </vuln>
 
