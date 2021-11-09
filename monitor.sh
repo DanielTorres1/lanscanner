@@ -263,7 +263,7 @@ done
 echo -e "$OKBLUE[+] Revisando procesos de wpscan/joomscan $RESET"		
 for line in $( ps aux | egrep --color=never "wpscan|joomscan"  | awk '{print $2,$9}' | tr " " ";" ); do
 	pid=`echo $line | cut -f1 -d";"`
-	time=`echo $line | cut -f2 -d";"`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
+	time=`echo $line | cut -f2 -d";"`
     #echo process time: $time
     echo "pid: $pid time $time"
                
