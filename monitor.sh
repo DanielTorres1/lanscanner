@@ -152,7 +152,7 @@ for line in $( ps aux | grep --color=never web-buster | grep -v color | awk '{pr
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 40 && $diff -lt 120 ]];then 
+	if [[  $diff -gt 10 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
@@ -275,6 +275,32 @@ for line in $( ps aux | egrep --color=never "wpscan|joomscan"  | awk '{print $2,
 	
 	
 	if [[  $diff -gt 15 && $diff -lt 120 ]];then 
+		
+		echo -e "$OKRED[-] Killing $pid) $RESET"
+		kill -9 $pid		
+	else
+		echo -e "$OKGREEN[+] OK $RESET"		
+	fi
+	echo ""		
+done
+
+
+
+echo -e "$OKBLUE[+] Revisando procesos de msfconsole $RESET"		
+for line in $( ps aux | egrep --color=never "msfconsole"  | awk '{print $2,$9}' | tr " " ";" ); do
+	pid=`echo $line | cut -f1 -d";"`
+	time=`echo $line | cut -f2 -d";"`
+    #echo process time: $time
+    echo "pid: $pid time $time"
+               
+	diff=$(  echo "$current_time - $time"  | sed 's%:%+(1/60)*%g' | bc -l )	
+	diff=$(echo "($diff - $delta)*60" | bc  ) # fix with delta
+	diff=`printf "%.0f\n" "$diff"` # round
+	diff=`echo $diff | tr -d -`
+	echo "Idle time: $diff minutes"	
+	
+	
+	if [[  $diff -gt 4 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
