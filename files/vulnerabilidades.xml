@@ -1074,6 +1074,8 @@
     <descripcion> El equipo DVR permite extraer todos sus usuarios y hashes</descripcion>
     <verificacion>Herramienta: metasploit SALTOLINEAmsfconsole -x 'use auxiliary/scanner/misc/dahua_dvr_auth_bypass;set RHOSTS 1.2.3.4; set ACTION USER;run;exit' </verificacion>
     <recomendacion> Dahua no saco un parche para esta vulnerabilidad. Para mitigar esta vulnerabilidad cambiar la contraseña por otra que sea difícil de adivinar y asignar el equipo DVR en otro segmento de red</recomendacion> 
+    <recomendacionMatriz>Instalar el parche liberado por el fabricante en el servidor de correos exchange</recomendacionMatriz> 
+    <conclusion>Existe una ausencia de actualizaciones críticas. Lo que permitiría el acceso al servidor de correos y la posibilidad de comprometer información sensible.</conclusion> 
 	<referencias> https://depthsecurity.com/blog/dahua-dvr-authentication-bypass-cve-2013-6117 </referencias> 	
   </vuln>
   
