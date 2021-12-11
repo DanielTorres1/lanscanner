@@ -260,7 +260,7 @@ else
 	for listaIP in $(ls .arp | egrep -v "all|done"); do      	
 		cat .arp/$listaIP | egrep -v "DUP|packets" | grep ^1 | awk '{print $1}' | sort >> $arp_list
 		mv .arp/$listaIP .arp/$listaIP.done	
-	done;   
+	done;
   fi
 
   #######################  
@@ -506,7 +506,7 @@ if [[ $TYPE = "completo" ]] || [ $tcp_escaneando == "s" ]; then
 			echo "USANDO NMAP COMO PORT SCANNER"
 
 			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291 -oG .escaneo_puertos/tcp-especificos.grep
+			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -oG .escaneo_puertos/tcp-especificos.grep
 			# parsear salida nmap  --> 200.87.68.149:443 
 			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >  .escaneo_puertos/tcp-especificos.txt
 				
@@ -516,10 +516,10 @@ if [[ $TYPE = "completo" ]] || [ $tcp_escaneando == "s" ]; then
 		else
 			echo "USANDO NAABU COMO PORT SCANNER"
 			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-			naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291 -o .escaneo_puertos/tcp-especificos.txt
+			naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -c 5 -o .escaneo_puertos/tcp-especificos.txt
 
 			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 
-			naabu -list $live_hosts -top-ports 1000  -o .escaneo_puertos/tcp-1000.txt
+			naabu -list $live_hosts -top-ports 100 -c 5  -o .escaneo_puertos/tcp-1000.txt
 
 		fi
 		
@@ -546,7 +546,8 @@ if [[ $TYPE = "completo" ]] || [ $tcp_escaneando == "s" ]; then
 		else
 			echo -e "[+] Realizando escaneo tcp (TODOS LOS PUERTOS)" 		
 			echo "USANDO NAABU COMO PORT SCANNER"
-			naabu -list $live_hosts -p - -exclude-cdn --rate 500 -o  .escaneo_puertos/tcp.txt		
+			#naabu -list $live_hosts -p - -exclude-cdn -c 5 -rate 10 -o  .escaneo_puertos/tcp.txt
+			naabu -list $live_hosts -top-ports 100 -c 5 -rate 10 -o .escaneo_puertos/tcp.txt
 		
 		fi
 
@@ -632,6 +633,7 @@ grep ":106" tcp.txt  >> ../servicios/pop3pw.txt
 ## ldap																	 
 grep ":389" tcp.txt  >> ../servicios/ldap.txt
 grep ":636" tcp.txt  >> ../servicios/ldaps.txt
+grep ":11211" tcp.txt  >> ../servicios/memcached.txt
 
 
 
@@ -742,6 +744,19 @@ echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VU
 # IP publica
 
 curl  --max-time 10 'https://api.ipify.org?format=json' > .enumeracion/"$ip"_ip_publica.txt
+
+if [ -f servicios/memcached.txt]
+	then
+	echo -e "$OKBLUE #################### memcached (`wc -l servicios/memcached.txt`) ######################$RESET"	    
+	for line in $(cat servicios/memcached.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		memcstat --servers=$ip > logs/vulnerabilidades/"$ip"_"$port"_memcached.txt
+		memccat --servers=$ip `memcdump --servers=$ip` > .vulnerabilidades/"$ip"_"$port"_memcached.txt
+	done
+
+	insert_data
+fi
 
 if [ -f servicios/smtp.txt ]
 	then
@@ -2034,6 +2049,19 @@ then
 								
 							fi
 							###################################		
+
+
+							#######  grafana (domain) ######
+							egrep -qi "Grafana" .enumeracion/"$subdominio"_"$port"_webData.txt
+							greprc=$?
+							if [[ $greprc -eq 0 ]];then 		
+								echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($subdominio)"
+								
+								grafana.py -H $subdominio -p $port  > logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt 2>/dev/null
+								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt > .vulnerabilidades/"$subdominio"_"$port"_grafana.txt
+								
+							fi
+							###################################	
 							
 							
 							
@@ -2203,6 +2231,18 @@ then
 						
 						owa.pl -host $ip -port $port  > logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt
 						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt > .vulnerabilidades/"$ip"_"$port"_owaVul.txt
+						
+					fi
+					###################################	
+
+					#######  grafana (domain) ######
+					egrep -qi "Grafana" .enumeracion/"$ip"_"$port"_webData.txt
+					greprc=$?
+					if [[ $greprc -eq 0 ]];then 		
+						echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($ip)"
+						
+						grafana.py -H $ip -p $port  > logs/vulnerabilidades/"$ip"_"$port"_grafana.txt 2>/dev/null
+						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_grafana.txt > .vulnerabilidades/"$ip"_"$port"_grafana.txt
 						
 					fi
 					###################################	
@@ -2787,6 +2827,18 @@ then
 								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_owaVul.txt > .vulnerabilidades/"$subdominio"_"$port"_owaVul.txt
 								
 							fi
+							###################################	
+
+							#######  grafana (domain) ######
+							egrep -qi "Grafana" .enumeracion/"$subdominio"_"$port"_webData.txt
+							greprc=$?
+							if [[ $greprc -eq 0 ]];then 		
+								echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($subdominio)"
+								
+								grafana.py -H $subdominio -p $port  > logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt 2>/dev/null
+								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt > .vulnerabilidades/"$subdominio"_"$port"_grafana.txt
+								
+							fi
 							###################################								
 							
 							#######  joomla (domain) ######
@@ -3022,6 +3074,18 @@ then
 						
 						owa.pl -host $ip -port $port  > logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt
 						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt > .vulnerabilidades/"$ip"_"$port"_owaVul.txt
+						
+					fi
+					###################################	
+
+					#######  grafana (domain) ######
+					egrep -qi "Grafana" .enumeracion/"$ip"_"$port"_webData.txt
+					greprc=$?
+					if [[ $greprc -eq 0 ]];then 		
+						echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($ip)"
+						
+						grafana.py -H $ip -p $port  > logs/vulnerabilidades/"$ip"_"$port"_grafana.txt 2>/dev/null
+						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_grafana.txt > .vulnerabilidades/"$ip"_"$port"_grafana.txt
 						
 					fi
 					###################################					
