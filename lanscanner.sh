@@ -588,125 +588,125 @@ udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.tx
 cd .escaneo_puertos	
 
 
-grep ":80" tcp.txt  > ../servicios/web.txt	
-grep ":81" tcp.txt  >> ../servicios/web.txt	
-grep ":82" tcp.txt  >> ../servicios/web.txt	
-grep ":83" tcp.txt  >> ../servicios/web.txt	
-grep ":84" tcp.txt  >> ../servicios/web.txt	
-grep ":85" tcp.txt  >> ../servicios/web.txt	
-grep ":86" tcp.txt  >> ../servicios/web.txt	
-grep ":87" tcp.txt  >> ../servicios/web.txt	
-grep ":88" tcp.txt  >> ../servicios/web.txt	
-grep ":89" tcp.txt  >> ../servicios/web.txt	
-grep ":8080" tcp.txt  >> ../servicios/web.txt	
-grep ":8081" tcp.txt  >> ../servicios/web.txt	
-grep ":8082" tcp.txt  >> ../servicios/web.txt		
-grep ":8010" tcp.txt  >> ../servicios/web.txt		
-grep ":8800" tcp.txt  >> ../servicios/web.txt		
+grep ":80$" tcp.txt  > ../servicios/web.txt	
+grep ":81$" tcp.txt  >> ../servicios/web.txt	
+grep ":82$" tcp.txt  >> ../servicios/web.txt	
+grep ":83$" tcp.txt  >> ../servicios/web.txt	
+grep ":84$" tcp.txt  >> ../servicios/web.txt	
+grep ":85$" tcp.txt  >> ../servicios/web.txt	
+grep ":86$" tcp.txt  >> ../servicios/web.txt	
+grep ":87$" tcp.txt  >> ../servicios/web.txt	
+grep ":88$" tcp.txt  >> ../servicios/web.txt	
+grep ":89$" tcp.txt  >> ../servicios/web.txt	
+grep ":8080$" tcp.txt  >> ../servicios/web.txt	
+grep ":8081$" tcp.txt  >> ../servicios/web.txt	
+grep ":8082$" tcp.txt  >> ../servicios/web.txt		
+grep ":8010$" tcp.txt  >> ../servicios/web.txt		
+grep ":8800$" tcp.txt  >> ../servicios/web.txt		
 
-grep ":10000" tcp.txt  >> ../servicios/webmin.txt 
-grep ":111" tcp.txt  >> ../servicios/rpc.txt 
+grep ":10000$" tcp.txt  >> ../servicios/webmin.txt 
+grep ":111$" tcp.txt  >> ../servicios/rpc.txt 
 
 # web-ssl
-grep ":443" tcp.txt  > ../servicios/web-ssl.txt
-grep ":8443" tcp.txt  >> ../servicios/web-ssl.txt
-grep ":4443" tcp.txt  >> ../servicios/web-ssl.txt
-grep ":4433" tcp.txt  >> ../servicios/web-ssl.txt	
+grep ":443$" tcp.txt  > ../servicios/web-ssl.txt
+grep ":8443$" tcp.txt  >> ../servicios/web-ssl.txt
+grep ":4443$" tcp.txt  >> ../servicios/web-ssl.txt
+grep ":4433$" tcp.txt  >> ../servicios/web-ssl.txt	
 	
-grep ":21" tcp.txt  >> ../servicios/ftp.txt
-grep ":513" tcp.txt  >> ../servicios/rlogin.txt
+grep ":21$" tcp.txt  >> ../servicios/ftp.txt
+grep ":513$" tcp.txt  >> ../servicios/rlogin.txt
 
 ## ssh																	 
-grep ":22" tcp.txt >> ../servicios/ssh.txt
+grep ":22$" tcp.txt >> ../servicios/ssh.txt
 	
 ## telnet
-grep ":23" tcp.txt >> ../servicios/telnet.txt
+grep ":23$" tcp.txt >> ../servicios/telnet.txt
 
 ## MAIL																	 
-grep ":25" tcp.txt  >> ../servicios/smtp.txt
-grep ":587" tcp.txt  >> ../servicios/smtp.txt
-grep ":465" tcp.txt  >> ../servicios/smtp.txt
-grep ":110" tcp.txt  >> ../servicios/pop.txt 
-grep ":143" tcp.txt  >> ../servicios/imap.txt 
-grep ":106" tcp.txt  >> ../servicios/pop3pw.txt 
+grep ":25$" tcp.txt  >> ../servicios/smtp.txt
+grep ":587$" tcp.txt  >> ../servicios/smtp.txt
+grep ":465$" tcp.txt  >> ../servicios/smtp.txt
+grep ":110$" tcp.txt  >> ../servicios/pop.txt 
+grep ":143$" tcp.txt  >> ../servicios/imap.txt 
+grep ":106$" tcp.txt  >> ../servicios/pop3pw.txt 
 
 ## ldap																	 
-grep ":389" tcp.txt  >> ../servicios/ldap.txt
-grep ":636" tcp.txt  >> ../servicios/ldaps.txt
-grep ":11211" tcp.txt  >> ../servicios/memcached.txt
+grep ":389$" tcp.txt  >> ../servicios/ldap.txt
+grep ":636$" tcp.txt  >> ../servicios/ldaps.txt
+grep ":11211$" tcp.txt  >> ../servicios/memcached.txt
 
 
 
-grep ":445" tcp.txt>> ../servicios/smb2.txt
-grep ":139" tcp.txt >> ../servicios/smb2.txt
+grep ":445$" tcp.txt>> ../servicios/smb2.txt
+grep ":139$" tcp.txt >> ../servicios/smb2.txt
 sort ../servicios/smb2.txt > ../servicios/smb.txt; rm ../servicios/smb2.txt	
 
 
 # Java related
-grep ":8009" tcp.txt  >> ../servicios/java.txt
-grep ":9001" tcp.txt  >> ../servicios/java.txt
+grep ":8009$" tcp.txt  >> ../servicios/java.txt
+grep ":9001$" tcp.txt  >> ../servicios/java.txt
 		
-grep ":1525" tcp.txt   >> ../servicios/informix.txt
-grep ":1530" tcp.txt   >> ../servicios/informix.txt
-grep ":1526" tcp.txt   >> ../servicios/informix.txt	
+grep ":1525$" tcp.txt   >> ../servicios/informix.txt
+grep ":1530$" tcp.txt   >> ../servicios/informix.txt
+grep ":1526$" tcp.txt   >> ../servicios/informix.txt	
 
 
-grep ":1521" tcp.txt   >> ../servicios/oracle.txt
-grep ":1630" tcp.txt   >> ../servicios/oracle.txt
-grep ":5432" tcp.txt >> ../servicios/postgres.txt     
-grep ":3306" tcp.txt   >> ../servicios/mysql.txt 
-grep ":27017" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":28017" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":27080" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":5984" tcp.txt  >> ../servicios/couchDB.txt 
-grep ":6379" tcp.txt  >> ../servicios/redis.txt 
-grep ":9000" tcp.txt  >> ../servicios/Hbase.txt 
-grep ":9160" tcp.txt  >> ../servicios/cassandra.txt 
-grep ":7474" tcp.txt  >> ../servicios/neo4j.txt 
-grep ":8098" tcp.txt  >> ../servicios/riak.txt 
+grep ":1521$" tcp.txt   >> ../servicios/oracle.txt
+grep ":1630$" tcp.txt   >> ../servicios/oracle.txt
+grep ":5432$" tcp.txt >> ../servicios/postgres.txt     
+grep ":3306$" tcp.txt   >> ../servicios/mysql.txt 
+grep ":27017$" tcp.txt  >> ../servicios/mongoDB.txt 
+grep ":28017$" tcp.txt  >> ../servicios/mongoDB.txt 
+grep ":27080$" tcp.txt  >> ../servicios/mongoDB.txt 
+grep ":5984$" tcp.txt  >> ../servicios/couchDB.txt 
+grep ":6379$" tcp.txt  >> ../servicios/redis.txt 
+grep ":9000$" tcp.txt  >> ../servicios/Hbase.txt 
+grep ":9160$" tcp.txt  >> ../servicios/cassandra.txt 
+grep ":7474$" tcp.txt  >> ../servicios/neo4j.txt 
+grep ":8098$" tcp.txt  >> ../servicios/riak.txt 
 	
 
 # remote desk
-grep ":3389" tcp.txt>> ../servicios/rdp.txt
-grep ":4899" tcp.txt  >> ../servicios/radmin.txt  
-grep ":5800" tcp.txt  >> ../servicios/vnc-http.txt
-grep ":5900" tcp.txt  >> ../servicios/vnc.txt
-grep ":5901" tcp.txt  >> ../servicios/vnc.txt
+grep ":3389$" tcp.txt>> ../servicios/rdp.txt
+grep ":4899$" tcp.txt  >> ../servicios/radmin.txt  
+grep ":5800$" tcp.txt  >> ../servicios/vnc-http.txt
+grep ":5900$" tcp.txt  >> ../servicios/vnc.txt
+grep ":5901$" tcp.txt  >> ../servicios/vnc.txt
 
 #Virtual
-grep ":902" tcp.txt  >> ../servicios/vmware.txt	
-grep ":1494" tcp.txt  >> ../servicios/citrix.txt    
+grep ":902$" tcp.txt  >> ../servicios/vmware.txt	
+grep ":1494$" tcp.txt  >> ../servicios/citrix.txt    
 
 	
 #Misc      
-grep ":8291" tcp.txt  >> ../servicios/winbox.txt	
-grep ":6000" tcp.txt  >> ../servicios/x11.txt
-grep ":631" tcp.txt  >> ../servicios/cups.txt
-grep ":9100" tcp.txt  >> ../servicios/printers.txt	
-grep ":2049" tcp.txt  >> ../servicios/nfs.txt
-grep ":5723" tcp.txt  >> ../servicios/SystemCenter.txt
-grep ":5724" tcp.txt  >> ../servicios/SystemCenter.txt
-grep ":1099" tcp.txt  >> ../servicios/rmi.txt
-grep ":1433" tcp.txt  >> ../servicios/mssql.txt 
-grep ":37777" tcp.txt  >> ../servicios/dahua_dvr.txt
-grep ":9200" tcp.txt  >> ../servicios/elasticsearch.txt 	
-grep ":3221" tcp.txt  >> ../servicios/juniper.txt 	
+grep ":8291$" tcp.txt  >> ../servicios/winbox.txt	
+grep ":6000$" tcp.txt  >> ../servicios/x11.txt
+grep ":631$" tcp.txt  >> ../servicios/cups.txt
+grep ":9100$" tcp.txt  >> ../servicios/printers.txt	
+grep ":2049$" tcp.txt  >> ../servicios/nfs.txt
+grep ":5723$" tcp.txt  >> ../servicios/SystemCenter.txt
+grep ":5724$" tcp.txt  >> ../servicios/SystemCenter.txt
+grep ":1099$" tcp.txt  >> ../servicios/rmi.txt
+grep ":1433$" tcp.txt  >> ../servicios/mssql.txt 
+grep ":37777$" tcp.txt  >> ../servicios/dahua_dvr.txt
+grep ":9200$" tcp.txt  >> ../servicios/elasticsearch.txt 	
+grep ":3221$" tcp.txt  >> ../servicios/juniper.txt 	
 
-grep ":554" tcp.txt  >> ../servicios/camaras-ip.txt
+grep ":554$" tcp.txt  >> ../servicios/camaras-ip.txt
 	
 
 #Esp
-grep ":16992" tcp.txt  >> ../servicios/intel.txt 	
-grep ":5601" tcp.txt  >> ../servicios/kibana.txt 	
+grep ":16992$" tcp.txt  >> ../servicios/intel.txt 	
+grep ":5601$" tcp.txt  >> ../servicios/kibana.txt 	
 
-grep ":47808" tcp.txt  >> ../servicios/BACnet.txt 
-grep ":502" tcp.txt  >> ../servicios/ModBus.txt 	
+grep ":47808$" tcp.txt  >> ../servicios/BACnet.txt 
+grep ":502$" tcp.txt  >> ../servicios/ModBus.txt 	
 
 #backdoor
-grep ":32764" tcp.txt  >> ../servicios/backdoor32764.txt
+grep ":32764$" tcp.txt  >> ../servicios/backdoor32764.txt
 
 #pptp
-grep ":1723" tcp.txt  >> ../servicios/pptp.txt
+grep ":1723$" tcp.txt  >> ../servicios/pptp.txt
 	
 	
 cd ..
