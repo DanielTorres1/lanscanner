@@ -25,7 +25,7 @@ netC="192.168.X.0/24";
 #netC="192.168.X.0/24";
 port_scan_num=1;
 min_ram=400;
-port_scanner='naabu' #nmap o naabu
+port_scanner='all' #nmap/naabu/all
 #############################
 
 live_hosts=".datos/total-host-vivos.txt"
@@ -500,59 +500,57 @@ fi
 if [[ $TYPE = "completo" ]] || [ $tcp_escaneando == "s" ]; then 
 	echo -e "#################### Escaneo de puertos TCP ######################"	  
 		
-	if [ $internet == "n" ]; then 	# 
-	    
-		if [ $port_scanner == "nmap" ]; then 
-			echo "USANDO NMAP COMO PORT SCANNER"
-
-			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -oG .escaneo_puertos/tcp-especificos.grep
-			# parsear salida nmap  --> 200.87.68.149:443 
-			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >  .escaneo_puertos/tcp-especificos.txt
-				
-			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-			nmap -iL  $live_hosts -oG .escaneo_puertos/tcp-1000.grep
-			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >  .escaneo_puertos/tcp-1000.txt
-		else
+	if [ $internet == "n" ]; then 	#escaneo LAN 
+	    				
+		if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "all" ]; then 
 			echo "USANDO NAABU COMO PORT SCANNER"
 			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
 			naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -c 5 -o .escaneo_puertos/tcp-especificos.txt
 
 			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 
-			naabu -list $live_hosts -top-ports 100 -c 5  -o .escaneo_puertos/tcp-1000.txt
-
+			#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
+			naabu -list $live_hosts -p -  -c 5 -rate 100 -o .escaneo_puertos/tcp-1000.txt
 		fi
-		
-		cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-1000.txt | sort | uniq >  .escaneo_puertos/tcp.txt		
-		
-	else #escaneo de IPs publicas
-	
-		if [ $port_scanner == "nmap" ]; then
-			echo "USANDO NMAP COMO PORT SCANNER"		
-			
-			
-			
+
+		if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "all" ]; then 
+			echo "USANDO NMAP COMO PORT SCANNER"
+
 			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291 -oG .escaneo_puertos/tcp-especificos.grep
+			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -oG .escaneo_puertos/tcp-especificos-nmap.grep
 			# parsear salida nmap  --> 200.87.68.149:443 
-			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >  .escaneo_puertos/tcp-especificos.txt
+			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
 				
 			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-			nmap -iL  $live_hosts -oG .escaneo_puertos/tcp-1000.grep
-			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >  .escaneo_puertos/tcp-1000.txt
-			
-			cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-1000.txt | sort | uniq >  .escaneo_puertos/tcp.txt					
+			nmap -iL  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
+			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-1000.txt
+		fi
 		
-		else
-			echo -e "[+] Realizando escaneo tcp (TODOS LOS PUERTOS)" 		
+	else #escaneo de IPs publicas
+
+		if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "all" ]; then 
 			echo "USANDO NAABU COMO PORT SCANNER"
-			#naabu -list $live_hosts -p - -exclude-cdn -c 5 -rate 10 -o  .escaneo_puertos/tcp.txt
-			naabu -list $live_hosts -top-ports 100 -c 5 -rate 10 -o .escaneo_puertos/tcp.txt
-		
+			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
+			naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -c 5 -o .escaneo_puertos/tcp-especificos.txt
+
+			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 
+			#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
+			naabu -list $live_hosts -p - -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-1000.txt
 		fi
 
+		if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "all" ]; then 
+			echo "USANDO NMAP COMO PORT SCANNER"
+
+			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
+			nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -oG .escaneo_puertos/tcp-especificos-nmap.grep
+			# parsear salida nmap  --> 200.87.68.149:443 
+			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
+				
+			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
+			nmap -iL  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
+			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-1000.txt
+		fi
 		
-	
+		cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-1000.txt | sort | uniq >  .escaneo_puertos/tcp.txt				
 	fi    
      	
  fi # completo 
