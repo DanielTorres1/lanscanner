@@ -1832,7 +1832,7 @@
     <recomendacion>-Considere deshabilitar las versiones antiguas de TLS (1.0 y 1.1) solo si no requiere que dispositivos antiguos accedan al sitio web, dispositivos antiguos tienen incompatibilidad con la versión TLS 1.3 SALTOLINEAHabilitar HSTS (HTTP Strict-Transport-Security)</recomendacion> 
     <recomendacionMatriz> Deshabilitar los protocolos antiguos: SSL 2.0, SSL 3.0 o TLS 1.0. Habilitar HSTS (HTTP Strict-Transport-Security)</recomendacionMatriz>         
     <conclusion>Existe configuraciones no recomendadas en los servidores que usan el protocolo TLS  </conclusion> 
-	<referencias>https://libre-software.net/tls-nginx/SALTOLINEA-Habilitar HSTS (Apache): https://lecciones.batiburrillo.net/habilitar-cabeceras-hsts-sitios-web-seguros/ SALTOLINEA-Habilitar TLS 1.2 (Apache): https://comandoit.com/como-habilitar-tls-1-3-1-2-en-apache/ SALTOLINEA-Habilitar TLS 1.2 (IIS): https://eldeza.wordpress.com/2018/02/06/habilitar-protocolo-de-cifrado-tls-1-2/SALTOLINEA-https://www.pcihispano.com/tls-v1-3-y-su-impacto-en-pcidss/</referencias>    
+	<referencias>https://libre-software.net/tls-nginx/SALTOLINEA-Habilitar HSTS (Apache): https://lecciones.batiburrillo.net/habilitar-cabeceras-hsts-sitios-web-seguros/ SALTOLINEA-Habilitar TLS 1.2 (Apache): https://comandoit.com/como-habilitar-tls-1-3-1-2-en-apache/ SALTOLINEA-Habilitar TLS 1.2 (IIS): https://eldeza.wordpress.com/2018/02/06/habilitar-protocolo-de-cifrado-tls-1-2/SALTOLINEA-https://www.pcihispano.com/tls-v1-3-y-su-impacto-en-pcidss/SALTOLINEA-https://techexpert.tips/es/iis-es/habilitar-hsts-en-iis/</referencias>    
   </vuln>
   
   

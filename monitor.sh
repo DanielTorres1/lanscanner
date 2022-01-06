@@ -39,7 +39,7 @@ done
 echo ""
 
 
-
+echo -e "$OKBLUE[+] Revisando procesos de blackwidow|testssl $RESET"		
 for line in $( ps aux | egrep --color=never "blackwidow|testssl" | awk '{print $2,$9}' | tr " " ";" ); do
 	pid=`echo $line | cut -f1 -d";"`
 	time=`echo $line | cut -f2 -d";"`

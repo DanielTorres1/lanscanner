@@ -44,7 +44,8 @@ pip install netaddr colorama argparse ifaddr datetime jsbeautifier
 pip install sqlite-utils   
 
 echo -e "${GREEN} [+] Instalando naabu ${RESET}" 
-GO111MODULE=on go get -v github.com/projectdiscovery/naabu/v2/cmd/naabu
+#GO111MODULE=on go get -v github.com/projectdiscovery/naabu/v2/cmd/naabu
+go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
 sudo cp ~/go/bin/naabu /usr/bin/naabu 
 chmod a+x /usr/bin/naabu
 
