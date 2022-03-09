@@ -27,7 +27,7 @@ RESET="\033[00m"       # Normal
 
 echo -e "${GREEN} [+] Instalando herramientas disponibles en repositorio ${RESET}" 
 sudo apt-get update
-sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit crackmapexec tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools
+sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner
 
 echo -e "${GREEN} [+] Instalando ofuscador de bash ${RESET}" 
 npm install -g bash-obfuscate
@@ -41,7 +41,7 @@ sed -i 's/MinProtocol = TLSv1.2/MinProtocol = TLSv1.0/' /etc/ssl/openssl.cnf
 
 echo -e "${GREEN} [+] Instalando requisitos udp-hunter ${RESET}" 
 pip install netaddr colorama argparse ifaddr datetime jsbeautifier
-pip install sqlite-utils   
+pip install sqlite-utils paramiko
 
 echo -e "${GREEN} [+] Instalando naabu ${RESET}" 
 #GO111MODULE=on go get -v github.com/projectdiscovery/naabu/v2/cmd/naabu
@@ -168,25 +168,30 @@ mkdir -p /usr/share/wordlists/ 2>/dev/null
 #cd /usr/share/wordlists/
 #wget https://raw.githubusercontent.com/DanielTorres1/passwords/master/usuarios-es.txt
 
+echo -e "${RED}[+]${GREEN} Instalando Empire  ${RESET}"
+cd  /opt/
+git clone --recursive https://github.com/BC-SECURITY/Empire.git
+cd Empire
+sudo ./setup/install.sh
 
-echo -e "${RED}[+]${GREEN} Instalando Covenant ${RESET}"
-sudo dpkg -i files/libicu57_57.1-6+deb9u4_amd64.deb
+# echo -e "${RED}[+]${GREEN} Instalando Covenant ${RESET}"
+# sudo dpkg -i files/libicu57_57.1-6+deb9u4_amd64.deb
 
-cp -r exploits/Covenant2/ /opt
+# cp -r exploits/Covenant2/ /opt
 
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.asc.gpg
-sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/
-wget -q https://packages.microsoft.com/config/debian/10/prod.list
-sudo mv prod.list /etc/apt/sources.list.d/microsoft-prod.list
-sudo chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg
-sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
-sudo apt-get update
-sudo apt-get install -y apt-transport-https
-sudo apt-get update
-sudo apt install -y dotnet-sdk-3.1
-cd /opt/Covenant2/Covenant
-dotnet build
-echo ""
+# wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.asc.gpg
+# sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/
+# wget -q https://packages.microsoft.com/config/debian/10/prod.list
+# sudo mv prod.list /etc/apt/sources.list.d/microsoft-prod.list
+# sudo chown root:root /etc/apt/trusted.gpg.d/microsoft.asc.gpg
+# sudo chown root:root /etc/apt/sources.list.d/microsoft-prod.list
+# sudo apt-get update
+# sudo apt-get install -y apt-transport-https
+# sudo apt-get update
+# sudo apt install -y dotnet-sdk-3.1
+# cd /opt/Covenant2/Covenant
+# dotnet build
+# echo ""
 
 
 echo -e "${GREEN} [+] LISTO!! TODO OK"
