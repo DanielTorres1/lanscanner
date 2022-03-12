@@ -28,7 +28,7 @@ min_ram=400;
 hilos_web=30;
 max_perl_instancias=50;
 port_scanner='nmap_masscan' #nmap/naabu/masscan/nmap_masscan/nmap_naabu
-common_user_list = "/usr/share/wordlists/usuarios-en.txt"
+common_user_list="/usr/share/wordlists/usuarios-en.txt"
 #/usr/share/seclists/Usernames/cirt-default-usernames.txt
 #############################
 
@@ -522,7 +522,10 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-	naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -c 5 -o .escaneo_puertos/tcp-especificos.txt
+	naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211,5985,47001,5986 -c 5 -o .escaneo_puertos/tcp-especificos.txt
+
+
+
     
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
 	#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
@@ -537,13 +540,13 @@ fi
 if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NMAP COMO PORT SCANNER" 
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-	nmap -iL  $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211 -oG .escaneo_puertos/tcp-especificos-nmap.grep
-	
+	nmap -iL  $live_hosts -Pn -p 81,32764,82,83,84,85,37777,5432,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211,17001,464,593,3269,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915 -oG .escaneo_puertos/tcp-especificos-nmap.grep
+	 
 	# parsear salida nmap  --> 200.87.68.149:443 
 	egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
 		
 	echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-	nmap -iL  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
+	nmap -iL -Pn  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
 	egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
 fi
 
@@ -594,7 +597,6 @@ grep ":84$" tcp.txt  >> ../servicios/web.txt
 grep ":85$" tcp.txt  >> ../servicios/web.txt	
 grep ":86$" tcp.txt  >> ../servicios/web.txt	
 grep ":87$" tcp.txt  >> ../servicios/web.txt	
-grep ":88$" tcp.txt  >> ../servicios/web.txt	
 grep ":89$" tcp.txt  >> ../servicios/web.txt	
 grep ":8080$" tcp.txt  >> ../servicios/web.txt	
 grep ":8081$" tcp.txt  >> ../servicios/web.txt	
@@ -604,6 +606,7 @@ grep ":8800$" tcp.txt  >> ../servicios/web.txt
 
 grep ":10000$" tcp.txt  >> ../servicios/webmin.txt 
 grep ":111$" tcp.txt  >> ../servicios/rpc.txt 
+grep ":135$" tcp.txt  >> ../servicios/msrpc.txt 
 
 # web-ssl
 grep ":443$" tcp.txt  > ../servicios/web-ssl.txt
@@ -632,6 +635,7 @@ grep ":106$" tcp.txt  >> ../servicios/pop3pw.txt
 grep ":389$" tcp.txt  >> ../servicios/ldap.txt
 grep ":636$" tcp.txt  >> ../servicios/ldaps.txt
 grep ":11211$" tcp.txt  >> ../servicios/memcached.txt
+grep ":88$" tcp.txt  >> ../servicios/kerberos.txt	
 
 
 
@@ -705,6 +709,12 @@ grep ":32764$" tcp.txt  >> ../servicios/backdoor32764.txt
 
 #pptp
 grep ":1723$" tcp.txt  >> ../servicios/pptp.txt
+
+grep ":5985$" tcp.txt  >> ../servicios/WinRM.txt
+grep ":47001$" tcp.txt  >> ../servicios/WinRM.txt
+grep ":5986$" tcp.txt  >> ../servicios/WinRM.txt
+
+grep ":9389$" tcp.txt  >> ../servicios/RSAT.txt
 	
 	
 cd ..
@@ -906,6 +916,8 @@ then
 	cp $live_hosts .smbinfo/	
 	cat servicios/smb.txt | cut -d ":" -f1 | sort | uniq > servicios/smb_uniq.txt 
 	
+	
+	
 	#OS discovery
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -Pn --script smb-os-discovery.nse -p445 _target_ | grep '|'> .smbinfo/_target_.txt" --silent	
 
@@ -980,7 +992,11 @@ if [ -f servicios/smb.txt ]
 then  
 	echo -e "$OKBLUE #################### SMB (`wc -l servicios/smb.txt`) ######################$RESET"	
 	mkdir -p .smbinfo/
-	for ip in $(cat servicios/smb_uniq.txt); do																
+	for ip in $(cat servicios/smb_uniq.txt); do		
+	
+		getArch.py -target $ip > logs/enumeracion/"$ip"_445_arch.txt
+		grep --color=never "is" logs/enumeracion/"$ip"_445_arch.txt > .enumeracion/"$ip"_445_arch.txt
+															
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms08067.txt| egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms08067.txt 					
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms17010.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms17010.txt  			
 		grep "|" logs/vulnerabilidades/"$ip"_445_doublepulsar.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_doublepulsar.txt  			
@@ -1171,6 +1187,24 @@ then
 	#insert clean data	
 	insert_data	
 fi
+
+if [ -f servicios/msrpc.txt ]
+then
+	echo -e "$OKBLUE #################### MSRPC (`wc -l servicios/msrpc.txt`)  ######################$RESET"	  
+	for line in $(cat servicios/msrpc.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`	
+		echo -e "[+] Escaneando $ip:$port"		
+		echo "nmap -Pn -n -sT -p $port --script=msrpc-enum $ip" > logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
+		nmap -Pn -n -p $port --script=msrpc-enum $ip>> logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
+		grep "|" logs/enumeracion/"$ip"_"$port"_msrpc.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_"$port"_msrpc.txt 
+				
+	done	
+	insert_data	
+fi
+
+
+
 
 
 
@@ -1734,18 +1768,18 @@ then
 		echo -e "[+] Escaneando $ip:$port"	
 		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
 		nmap -n -Pn -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
-		dominio=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
+		dominioAD=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
 		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
 		
 		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt			
-		echo $dominio > .enumeracion/"$ip"_"$port"_dominio.txt		
+		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominio.txt		
 		###### LDAP ######
 		if [ -z "$dominio" ]; then			
 			echo -e "\t[i] No se pudo obtener el dominio "
 		else
 			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
-			echo "ldapsearch -x -p $port -h $ip -b $dominio -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-			ldapsearch -x -p $port -h $ip -b $dominio -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			echo "ldapsearch -x -p $port -h $ip -b $dominioAD -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			ldapsearch -x -p $port -h $ip -b $dominioAD -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
 					
 			egrep -iq "successful bind must be completed|Not bind|Operation unavailable|Can't contact LDAP server" logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
 			greprc=$?
@@ -1766,6 +1800,34 @@ then
 	#insert clean data	
 	insert_data
 fi	
+
+
+if [ -f servicios/kerberos.txt ]
+then
+	echo -e "$OKBLUE #################### kerberos (`wc -l servicios/kerberos.txt`) ######################$RESET"	    		
+	for line in $(cat servicios/kerberos.txt); do
+        ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"` 	
+		
+		echo -e "[+] Escaneando $ip:$port"			
+		echo -e "[+] \t keybrute"	
+		kerbrute userenum $common_user_list --dc $ip -d $dominioAD > logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		
+		GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip > logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+		grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+		
+		
+		echo -e "[+] \t _rpcEnumUsers"	
+		msfconsole -x "use auxiliary/scanner/smb/smb_enumusers;set RHOSTS $ip;run;exit" > logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt 2>/dev/null							   
+		egrep --color=never -i "Administrator" logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt  >> .enumeracion/"$ip"_"$port"_rpcEnumUsers.txt
+		
+			
+    done;           
+	insert_data
+    
+fi	
+
 
 
 if [ -f servicios/printers.txt ]

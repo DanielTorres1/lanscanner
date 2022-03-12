@@ -174,6 +174,9 @@ git clone --recursive https://github.com/BC-SECURITY/Empire.git
 cd Empire
 sudo ./setup/install.sh
 
+
+gem install evil-winrm
+
 # echo -e "${RED}[+]${GREEN} Instalando Covenant ${RESET}"
 # sudo dpkg -i files/libicu57_57.1-6+deb9u4_amd64.deb
 
