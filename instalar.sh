@@ -139,6 +139,13 @@ python3 setup.py install
 echo ""
 cd ../
 
+echo -e "${RED}[+]${GREEN} Instalando SirepRAT ${RESET}"
+cd pentest/SirepRAT
+pip install -r requirements.txt
+echo ""
+cd ../../
+
+
 
 echo -e "${GREEN} [+] Modificando PATH ${RESET}"
 echo export PATH="$PATH:/usr/bin/pentest" >> ~/.bashrc
