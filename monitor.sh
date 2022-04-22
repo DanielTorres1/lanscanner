@@ -104,7 +104,7 @@ for line in $( ps aux | egrep --color=never 'snmpwalk|snmpbrute' | grep -v color
 	diff=`echo $diff | tr -d -`
 	echo "Idle time: $diff minutes"	
 	
-	if [[  $diff -gt 5 && $diff -lt 120 ]];then 
+	if [[  $diff -gt 15 && $diff -lt 120 ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		

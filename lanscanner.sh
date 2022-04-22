@@ -554,7 +554,7 @@ fi
 if [[ $port_scanner = "masscan" ]] || [ $port_scanner == "nmap_masscan" ]; then 
 	echo "USANDO MASSCAN COMO PORT SCANNER"		    
 	echo -e "[+] Realizando escaneo tcp (puertos 1-10514)" 	
-	masscan --interface $iface -p1-10514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+	masscan --interface $iface -p1-15514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 	masscan --interface $iface -p1-10514 --rate=80 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 	cat .escaneo_puertos/mass-scan.txt | awk '{print $6 ":" $4}' | cut -d "/" -f1 >> .escaneo_puertos/tcp-ports.txt 
 fi
@@ -603,6 +603,8 @@ grep ":8082$" tcp.txt  >> ../servicios/web.txt
 grep ":8010$" tcp.txt  >> ../servicios/web.txt		
 grep ":8800$" tcp.txt  >> ../servicios/web.txt		
 
+grep ":50000$" tcp.txt  >> ../servicios/jenkins.txt
+
 grep ":10000$" tcp.txt  >> ../servicios/webmin.txt 
 grep ":111$" tcp.txt  >> ../servicios/rpc.txt 
 grep ":135$" tcp.txt  >> ../servicios/msrpc.txt 
@@ -615,6 +617,8 @@ grep ":4433$" tcp.txt  >> ../servicios/web-ssl.txt
 	
 grep ":21$" tcp.txt  >> ../servicios/ftp.txt
 grep ":513$" tcp.txt  >> ../servicios/rlogin.txt
+
+grep ":873$" tcp.txt  >> ../servicios/rsync.txt
 
 ## ssh																	 
 grep ":22$" tcp.txt >> ../servicios/ssh.txt
@@ -729,7 +733,7 @@ if [[ $TYPE = "completo" ]] || [ $udp_escaneando == "s" ]; then
 	
 	#grep "53/open/" nmap-udp.grep | awk '{print $2}' | perl -ne '$_ =~ s/\n//g; print "$_:53\n"' >> ../servicios/dns.txt
 	grep --color=never ":53$" udp.txt  >> ../servicios/dns.txt
-	grep --color=never ":162$" udp.txt  >> ../servicios/snmp2.txt
+	grep --color=never ":161$" udp.txt | uniq >> ../servicios/snmp2.txt
 	grep --color=never ":67$" udp.txt  >> ../servicios/dhcp.txt
 	grep --color=never ":69$" udp.txt  >> ../servicios/tftp.txt		
 	grep --color=never ":500$" udp.txt  >> ../servicios/vpn.txt		
@@ -1326,11 +1330,30 @@ then
 
 fi
 
+
+if [ -f servicios/rsync.txt ]
+then
+	echo -e "$OKBLUE #################### rsync (`wc -l servicios/rsync.txt`)######################$RESET"	    
+	while read line; do		
+		ip=`echo $line | cut -f1 -d ":"`		
+		port=`echo $line | cut -f2 -d ":"`
+		rsync -av --list-only rsync://$ip:$port > logs/enumeracion/"$ip"_"$port"_rsyncList.txt 2>/dev/null
+		cat logs/enumeracion/"$ip"_"$port"_rsyncList.txt > .enumeracion/"$ip"_"$port"_rsyncList.txt				
+	 	nmap -p $port --script rsync-list-modules $ip > logs/enumeracion/"$ip"_"$port"_rsync.txt 2>/dev/null
+		grep '|' logs/enumeracion/"$ip"_"$port"_rsync.txt > .enumeracion/"$ip"_"$port"_rsync.txt
+		 
+ 	done <servicios/rsync.txt
+		
+	#insert clean data	
+	insert_data
+fi # postgres
+
+
 if [ -f servicios/postgres.txt ]
 then
 	echo -e "$OKBLUE #################### POSTGRES (`wc -l servicios/postgres.txt`)######################$RESET"	    
 	while read line; do		
-		ip=`echo $line | cut -f1 -d";"`		
+		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 	 	 grep --color=never SUCCESS logs/vulnerabilidades/"$ip"_5432_passwordBD.tx > .vulnerabilidades/"$ip"_5432_passwordBD.tx 2>/dev/null
 		 echo ""
@@ -1346,7 +1369,7 @@ if [ -f servicios/telnet.txt ]
 then
 	echo -e "$OKBLUE #################### TELNET (`wc -l servicios/telnet.txt`)######################$RESET"	    
 	while read line; do		
-		ip=`echo $line | cut -f1 -d";"`		
+		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 	 	 grep --color=never SUCCESS logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt > .vulnerabilidades/"$ip"_23_passwordDefecto.txt 2>/dev/null
 		 echo ""
@@ -1388,11 +1411,11 @@ if [ -f servicios/ssh.txt ]
 then
 	echo -e "$OKBLUE #################### SSH (`wc -l servicios/ssh.txt`)######################$RESET"	    
 	while read line; do
-		ip=`echo $line | cut -f1 -d";"`		
+		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		
 
-		enumeracionUsuariosSSH2.py -p $port -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
+		enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
 
 		#SSHBypass
 		echo -e "\t[+] Probando vulnerabilidad libSSH bypass"	
@@ -1435,7 +1458,7 @@ if [ -f servicios/finger.txt ]
 then
 	echo -e "$OKBLUE #################### FINGER ######################$RESET"	    
 	while read line; do
-		ip=`echo $line | cut -f1 -d";"`		
+		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		echo -e "[+] Escaneando $ip:$port"		
 		finger @$ip > .vulnerabilidades/"$ip"_79_usuariosSistema.txt &
@@ -1449,7 +1472,7 @@ if [ -f servicios/vpn.txt ]
 then
 	echo -e "$OKBLUE #################### VPN (`wc -l servicios/vpn.txt`) ######################$RESET"	    
 	for line in $(cat servicios/vpn.txt); do		
-		ip=`echo $line | cut -f1 -d";"`		
+		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 			
 		echo -e "[+] Escaneando $ip:500"
@@ -1859,6 +1882,22 @@ then
 			
     done;   
     rm command.txt   
+    #insert clean data	
+	insert_data
+    
+fi	
+
+if [ -f servicios/jenkins.txt ]
+then
+	echo -e "$OKBLUE #################### jenkins (`wc -l servicios/jenkins.txt`) ######################$RESET"	    		
+	for line in $(cat servicios/jenkins.txt); do
+        ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"` 	
+		
+		echo -e "[+] Escaneando $ip:$port"				
+		web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt  &			
+			
+    done;       
     #insert clean data	
 	insert_data
     
@@ -4957,7 +4996,8 @@ find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # borrar archivos vacio
 					esac				
 					sleep 1										
 				fi		
-				#######################				
+				#######################		
+				snmpwalk -v2c -c $community $ip .1 > logs/vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null &
 				break
 			
 			else
@@ -4983,6 +5023,7 @@ find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # borrar archivos vacio
 	##############################
 
 	cp logs/vulnerabilidades/*_161_snmpCommunity.txt .vulnerabilidades/ 2>/dev/null
+	cp logs/vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null .vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null 
 	insert_data
 	##################################
 
