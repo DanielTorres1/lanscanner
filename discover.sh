@@ -66,7 +66,7 @@ fi
 if [ $TYPE == "oscp" ]; then 	
 	#cd EXTERNO
 
-	lanscanner.sh -m extended -i $IP_LIST_FILE -d $DOMAIN
+	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner
 	cd $directory
