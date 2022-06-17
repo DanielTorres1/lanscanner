@@ -80,6 +80,11 @@ cd ..
 echo ""
 
 
+echo -e "${RED}[+]${GREEN} Descomprimiendo odat ${RESET}"
+cd pentest/odat-libc/
+tar -jxvf libociei.so.tar.bz2
+cd ../../
+
 echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
 cp -r pentest /usr/bin
 cp lanscanner.sh /usr/bin
@@ -157,6 +162,7 @@ cd pentest/SirepRAT
 pip install -r requirements.txt
 echo ""
 cd ../../
+
 
 
 
