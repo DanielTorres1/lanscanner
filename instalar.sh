@@ -24,10 +24,10 @@ YELLOW="\033[01;33m"   # Warnings/Information
 BLUE="\033[01;34m"     # Heading
 BOLD="\033[01;01m"     # Highlight
 RESET="\033[00m"       # Normal
-
+sJB}RM>6Z~64_
 echo -e "${GREEN} [+] Instalando herramientas disponibles en repositorio ${RESET}" 
 sudo apt-get update
-sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes
+sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes rusers kinit krb5-user tnscmd10g nfs-common open-iscsi erlang xdotool php-memcached glusterfs-cli
 
 echo -e "${GREEN} [+] Instalando ofuscador de bash ${RESET}" 
 npm install -g bash-obfuscate
@@ -39,9 +39,12 @@ npm i -g wappalyzer
 # usar TLS 1.0 
 sed -i 's/MinProtocol = TLSv1.2/MinProtocol = TLSv1.0/' /etc/ssl/openssl.cnf
 
-echo -e "${GREEN} [+] Instalando requisitos udp-hunter ${RESET}" 
+echo -e "${GREEN} [+] Instalando requisitos PIP ${RESET}" 
 pip install netaddr colorama argparse ifaddr datetime jsbeautifier
 pip install sqlite-utils paramiko
+pip install requests==2.25.1 argparse rich urllib3
+pip install cqlsh
+pip3 install cpppo
 
 echo -e "${GREEN} [+] Instalando naabu ${RESET}" 
 #GO111MODULE=on go get -v github.com/projectdiscovery/naabu/v2/cmd/naabu
@@ -55,6 +58,9 @@ cd DumpsterDiver
 docker build -t dumpster-diver .
 cd ..
 
+
+echo -e "${GREEN} [+] Instalando hakrevdns ${RESET}"
+go install github.com/hakluke/hakrevdns@latest
 
 echo -e "${GREEN} [+] Copiando archivos ${RESET}"
 mkdir /usr/share/lanscanner 2>/dev/null
@@ -96,7 +102,14 @@ echo -e "${GREEN} [+] Instalando scripts de SMBRelay ${RESET}"
 mkdir ~/.config/terminator 2>/dev/null
 cp files/smbrelay/config ~/.config/terminator   
 cp -r files/smbrelay/ /usr/share/lanscanner    
-    
+
+
+echo -e "${GREEN} [+] Instalando scripts de SMBRelay ${RESET}"
+cd pentest/ipmiPwner
+cp files/smbrelay/config ~/.config/terminator   
+cp -r files/smbrelay/ /usr/share/lanscanner    
+
+
     
 echo -e "${GREEN} [+] Instalando librerias de perl ${RESET}"
 sudo cpan G/GR/GROMMEL/Math-Round-0.07.tar.gz

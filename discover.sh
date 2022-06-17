@@ -12,22 +12,22 @@ do
             n)     NOMBRE=$OPTARG;;
             k)     KEYWORD=$OPTARG;;
             t)     TYPE=$OPTARG;;
-            i)     IPS=$OPTARG;;
-            s)     SUBNET=$OPTARG;;
-            m)     MODE=$OPTARG;;
+            i)     IP_LIST_FILE=$OPTARG;;
+            s)     SUBNET_FILE=$OPTARG;;            
             ?)     printf "Opcion invalida: -$OPTARG\n" $0
                           exit 2;;
            esac
 done
 
-TYPE=${TYPE:=NULL}
+TYPE=${TYPE:=NULL} #internet/lan/oscp
 DOMAIN=${DOMAIN:=NULL}
-MODE=${MODE:=NULL}
-SUBNET=${SUBNET:=NULL}
-IPS=${IPS:=NULL}
-KEYWORD=${KEYWORD:=NULL} # para cracker
+SUBNET_FILE=${SUBNET_FILE:=NULL} # lista de subredes
+IP_LIST_FILE=${IP_LIST_FILE:=NULL} # lista de IPs
+KEYWORD=${KEYWORD:=NULL} # nombre de la entidad
 echo "TYPE $TYPE"
-if [ "$KEYWORD" == NULL ] || [ "$DOMAIN" == NULL ] &&  [ "$TYPE" != 'oscp' ]; then
+#if [ "$KEYWORD" == NULL ] || [ "$DOMAIN" == NULL ] &&  [ "$TYPE" != 'oscp' ]; then
+#if [ "$TYPE" == NULL ] || [ "$DOMAIN" == NULL ]; then
+if [ "$TYPE" == NULL ]; then
 
 cat << "EOF"
 
@@ -38,16 +38,15 @@ Opciones:
 
 Ejemplo 1: Escanear el listado de subredes (completo)
     discover.sh -t oscp -d htb.local -i ips.txt 
-	discover.sh -d agetic.gob.bo -k agetic -t internet
-	discover.sh -d agetic.gob.bo -k agetic -t lan -s subnet.txt
-	discover.sh -d agetic.gob.bo -k agetic -t lan -s subnet.txt -m vpn
-	discover.sh -d agetic.gob.bo -k agetic -t lan -i ips.txt 
+	discover.sh -t lan -d htb.local -k agetic -i ips.txt 
+	discover.sh -t lan -d htb.local -k agetic  -s subnet.txt
+	discover.sh -t internet -d agetic.gob.bo -k agetic 
+	discover.sh -t oscp -d htb.local -i ips.txt 
 	
 EOF
 
 exit
 fi
-
 
 echo -e "[+] Lanzando monitor $RESET" 
 xterm -hold -e monitor.sh 2>/dev/null&
@@ -60,21 +59,19 @@ if [ $TYPE == "internet" ]; then
 	cd EXTERNO
 	recon.sh -d $DOMAIN -k $KEYWORD
 	cd $DOMAIN
-	lanscanner.sh -t completo -i $IPS -d $DOMAIN -m $MODE
-	cracker.sh -e $KEYWORD -t completo
+	lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN
+	cracker.sh -e $KEYWORD
 fi
 
 if [ $TYPE == "oscp" ]; then 	
 	#cd EXTERNO
 
-	lanscanner.sh -t completo -i $IPS -d $DOMAIN -m vpn
+	lanscanner.sh -m extended -i $IP_LIST_FILE -d $DOMAIN
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner
 	cd $directory
-
-	#cracker.sh -d /usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt -t completo
-	cracker.sh -d /usr/share/wordlists/top200.txt -t completo
-	
+	cracker.sh -d /usr/share/wordlists/top200.txt
+	#cracker.sh -d /usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt -t completo	
 fi
 
 if [ $TYPE == "lan" ]; then 	
@@ -89,48 +86,26 @@ if [ $TYPE == "lan" ]; then
 	xterm -hold -e responder.sh -F -f -I $iface 2>/dev/null& 	
 	
 		
-	if [ "$SUBNET" != NULL ]; then 	
+	if [ "$SUBNET_FILE" != NULL ]; then 	
 	
-		if [ "$MODE" != NULL ]; then 	
-			lanscanner.sh -t completo -s $SUBNET -d $DOMAIN -m $MODE
-		else
-			lanscanner.sh -t completo -s $SUBNET -d $DOMAIN
-		fi
+		lanscanner.sh -m normal -s $SUBNET_FILE -d $DOMAIN
 		
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		pwd
 		echo "entrando al directorio $directory" # creado por lanscanner
 		cd $directory
-		cracker.sh -e $KEYWORD -t completo
+		cracker.sh -e $KEYWORD
 		
 	fi
-	if [ "$IPS" != NULL ]; then 	
+	if [ "$IP_LIST_FILE" != NULL ]; then 	
 	
-		if [ "$MODE" != NULL ]; then 	
-			lanscanner.sh -t completo -i $IPS -d $DOMAIN -m $MODE
-		else
-			lanscanner.sh -t completo -i $IPS -d $DOMAIN
-		fi
-				
+		lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN				
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		echo "entrando al directorio $directory" # creado por lanscanner
 		cd $directory
-		cracker.sh -e $KEYWORD -t completo
+		cracker.sh -e $KEYWORD
 	fi
 	
-	if [ "$IPS" = NULL ] && [ "$SUBNET" = NULL ]; then
-	
-		if [ "$MODE" != NULL ]; then 	
-			lanscanner.sh -t completo -d $DOMAIN -m $MODE #vpn
-		else
-			lanscanner.sh -t completo -d $DOMAIN
-		fi
-				
-		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`		
-		echo "entrando al directorio $directory" # creado por lanscanner
-		cd $directory
-		cracker.sh -e $KEYWORD -t completo		
-	fi		
 	mv /usr/bin/pentest/Responder/logs/* `pwd`/responder 2>/dev/null
 
 	########  SMBRelay 32 bits #########

