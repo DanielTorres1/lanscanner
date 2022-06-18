@@ -1440,7 +1440,7 @@ then
 			echo -e "[+] DOMINIO_INTERNO $DOMINIO_INTERNO"
 		fi
 			
-		if [ ! -z "$DOMINIO" ]; then
+		if [ ! -z "$DOMINIO" ] && [ "$DOMINIO" != NULL ]  ; then
 			### zone transfer ###	
 			echo -e "\t [+] Probando transferencia de zona (DOMINIO $DOMINIO)" 		
 			zone_transfer=`dig -tAXFR @$ip $DOMINIO`
@@ -1455,9 +1455,9 @@ then
 			fi	
 
 			echo -e "\t [+] Bruteforce domains"
-			echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_53_dnsenum.txt 
-			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO >> logs/enumeracion/"$ip"_53_dnsenum.txt 2>/dev/null
-			grep -i $DOMINIO logs/enumeracion/"$ip"_53_dnsenum.txt | grep -v dnsenum > .enumeracion/"$ip"_53_dnsenum.txt
+			echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
+			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
+			grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | grep -v dnsenum > .enumeracion/"$ip"_dns_enum.txt
 			
 			if [ $internet == "s" ]; then 			
 				#open resolver
@@ -1619,7 +1619,7 @@ if [ -f servicios/mDNS.txt ]
 	
 		echo "pholus3.py eth0 -rq -stimeout 10" > logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
 		pholus3.py eth0 -rq -stimeout 10 | tee -a logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
-		cat logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null > .enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
+		#cat logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null > .enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
 	done
 
 	insert_data
@@ -1698,7 +1698,7 @@ if [ -f servicios/NDMP.txt ]
 		port=`echo $line | cut -f2 -d":"`
 
 		echo "nmap -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip" > logs/enumeracion/"$ip"_NDMP_info.txt 2>/dev/null
-		nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/vulnerabilidades/"$ip"_NDMP_info.txt 2>/dev/null
+		nmap -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip >> logs/vulnerabilidades/"$ip"_NDMP_info.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt > .vulnerabilidades/"$ip"_NDMP_info.txt 
 		
 	done
@@ -2047,7 +2047,7 @@ if [ -f servicios/smtp.txt ]
 			# Vulnerabilidades
 			echo "nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
 			nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip>> logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
-			grep "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
+			grep "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
 
 			
 			########## open relay #######
