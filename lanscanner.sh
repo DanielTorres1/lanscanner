@@ -139,7 +139,7 @@ function enumeracionApache () {
    port=$3  
    echo -e "\t\t[+] Enumerar Apache ($proto : $host : $port)"	
 
-webData.pl -t $ip -d /nonexists134 -p $port -e todo -l /dev/null -r 1 2>/dev/null | cut -d "~" -f1
+#webData.pl -t $ip -d /nonexists134 -p $port -e todo -l /dev/null -r 1 2>/dev/null | cut -d "~" -f1
 
    	if [[ ${host} != *"nube"* && ${host} != *"webmail"* && ${host} != *"cpanel"* && ${host} != *"autoconfig"* && ${host} != *"ftp"* && ${host} != *"whm"* && ${host} != *"webdisk"*  && ${host} != *"autodiscover"* ]];then 
         echo -e "\t\t[+] Revisando directorios comunes ($host - Apache/nginx)"
