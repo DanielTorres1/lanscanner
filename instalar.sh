@@ -24,7 +24,7 @@ YELLOW="\033[01;33m"   # Warnings/Information
 BLUE="\033[01;34m"     # Heading
 BOLD="\033[01;01m"     # Highlight
 RESET="\033[00m"       # Normal
-sJB}RM>6Z~64_
+
 echo -e "${GREEN} [+] Instalando herramientas disponibles en repositorio ${RESET}" 
 sudo apt-get update
 sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes rusers kinit krb5-user tnscmd10g nfs-common open-iscsi erlang xdotool php-memcached glusterfs-cli

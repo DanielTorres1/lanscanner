@@ -2721,8 +2721,7 @@ then
 		if [[ $greprc -eq 0 ]] ; then	
 			echo -e "\t[+] Realizando enumeracion de usuarios mediante la  vulnerabilidad CVE-2018-15473 en $ip"
 			cat logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt > .vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 			
-			enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt
-			grep "is a valid" logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt
+			enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip | grep "is a valid" > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
 		fi		
 	
 		
