@@ -140,6 +140,7 @@ cd ../
 echo -e "${RED}[+]${GREEN} Instalando Interlace ${RESET}"
 pwd
 cd Interlace
+pip install -r requirements.txt
 python3 setup.py install
 echo ""
 cd ../

@@ -3878,7 +3878,7 @@ then
 		port=`echo $line | cut -f2 -d":"`
 		
 		echo -e "[+] Obteniendo extensiones $ip:$port"		
-		svwar -m INVITE -e1-500 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 
+		svwar -m INVITE -e1-500 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 2>/dev/null
 		grep reqauth logs/enumeracion/"$ip"_voip_extensions.txt > .enumeracion/"$ip"_voip_extensions.txt
 				
 	done		
