@@ -3936,9 +3936,9 @@ then
         		
 		echo -e "$OKBLUE #################### CGI (`wc -l servicios/cgi.txt`) ######################$RESET"	  
 
-		num_lines=`wc -l servicios/cgi.txt`
+		num_lines=`wc -l servicios/cgi.txt | awk '{print $1}'`
 		echo "num_lines ($num_lines)"
-		
+		#if [ "$smtp_user_enum_instancias" -gt 1 ]
 		if [ "$num_lines" -le 3 ] ; then		
 
 			for line in $(cat servicios/cgi.txt); do
