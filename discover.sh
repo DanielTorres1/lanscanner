@@ -69,10 +69,12 @@ if [ $TYPE == "oscp" ]; then
 	if [ $SUBNET_FILE != NULL ] ; then
 		sub=`cat $SUBNET_FILE| head -1`
 		num_targets='prips $sub | wc -l'
+		echo "num_targets $num_targets"
 		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
 	fi
 
 	if [ $IP_LIST_FILE != NULL ] ; then
+		echo "num_targets $num_targets"
 		num_targets=$((`wc -l $IP_LIST_FILE | awk '{print $1}'`*2))		 
 		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
 	fi
