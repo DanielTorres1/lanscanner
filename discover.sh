@@ -48,15 +48,15 @@ EOF
 exit
 fi
 
-echo -e "[+] Lanzando monitor $RESET" 
-xterm -hold -e monitor.sh 2>/dev/null&
-sleep 5
+
 
 ######################
 if [ $TYPE == "internet" ]; then 	
 	mkdir INTERNO
 	mkdir EXTERNO
 	cd EXTERNO
+	echo -e "[+] Lanzando monitor $RESET" 
+	xterm -hold -e monitor.sh 2>/dev/null&
 	recon.sh -d $DOMAIN -k $KEYWORD
 	cd $DOMAIN
 	lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN
@@ -65,7 +65,19 @@ fi
 
 if [ $TYPE == "oscp" ]; then 	
 	#cd EXTERNO
+	echo -e "[+] Lanzando monitor $RESET" 
+	if [ $SUBNET_FILE != NULL ] ; then
+		sub=`cat $SUBNET_FILE| head -1`
+		num_targets='prips $sub | wc -l'
+		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
+	fi
 
+	if [ $IP_LIST_FILE != NULL ] ; then
+		num_targets=$((`wc -l $IP_LIST_FILE | awk '{print $1}'`*2))		 
+		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
+	fi
+	
+	
 	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner

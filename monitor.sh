@@ -5,7 +5,7 @@ OKBLUE='\033[94m'
 OKRED='\033[91m'
 OKGREEN='\033[92m'
 RESET='\e[0m'
-
+targets=$1
 while true; do 
 current_time=`date +"%H:%M"`
 echo "Current time: $current_time"
@@ -225,8 +225,8 @@ for line in $( ps aux | egrep --color=never "masscan" | grep -v color | awk '{pr
 	# diff=`printf "%.0f\n" "$diff"` # round
 	# diff=`echo $diff | tr -d -`
 	# echo "Idle time: $diff minutes"	
-	
-	if [[  $time -gt 3 && $time -lt 180 ]];then 
+	echo "targets $targets"
+	if [  $time -gt $targets];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
