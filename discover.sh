@@ -74,8 +74,8 @@ if [ $TYPE == "oscp" ]; then
 	fi
 
 	if [ $IP_LIST_FILE != NULL ] ; then
-		echo "num_targets $num_targets"
 		num_targets=$((`wc -l $IP_LIST_FILE | awk '{print $1}'`*2))		 
+		echo "num_targets $num_targets"
 		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
 	fi
 	
