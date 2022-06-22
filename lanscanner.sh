@@ -68,6 +68,29 @@ function insert_data () {
 	mv .banners/* .banners2 2>/dev/null
 	}
 
+function enumeracionSharePoint () {
+   proto=$1
+   host=$2
+   port=$3     
+   echo -e "\t\t[+] Enumerar Sharepoint ($proto : $host : $port)"	
+
+    if [[ ${host} != *"nube"* && ${host} != *"webmail"*  && ${host} != *"autodiscover"* ]];then 
+		echo -e "\t\t[+] Revisando directorios comunes ($host - SharePoint)"		
+		echo "web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1 -e \'something went wrong\'" > logs/enumeracion/"$host"_SharePoint_webdirectorios.txt 	
+		web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -e 'something went wrong' -q 1  >> logs/enumeracion/"$host"_SharePoint_webdirectorios.txt 	
+		egrep --color=never "^200|^401" logs/enumeracion/"$host"_SharePoint_webdirectorios.txt 	> .enumeracion/"$host"_SharePoint_webdirectorios.txt
+		sleep 1					
+	fi	
+
+
+    echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($host - SharePoint)"
+    echo "web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -q 1 -e \'something went wrong\'" > logs/enumeracion/"$host"_SharePoint_webarchivos.txt  
+	web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -e 'something went wrong' -q 1 >> logs/enumeracion/"$host"_SharePoint_webarchivos.txt  
+    egrep --color=never "^200|^401" logs/enumeracion/"$host"_SharePoint_webarchivos.txt >> .enumeracion/"$host"_SharePoint_webarchivos.txt  
+    sleep 1
+
+
+}
 
 function enumeracionIIS () {
    proto=$1
@@ -104,11 +127,6 @@ function enumeracionIIS () {
     echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - IIS)"
     web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt
     egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
-    sleep 1
-
-    echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($host - IIS)"
-    web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt  
-    egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt >> .enumeracion/"$host"_iis_webarchivos.txt  
     sleep 1
 
     echo -e "\t\t[+] Revisando archivos comunes de webservices ($host - IIS)"
@@ -273,8 +291,8 @@ function enumeracionCMS () {
     if [[ $greprc -eq 0 ]];then 		
         wpscan  --update
         echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($host)"
-        wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url "$proto"//$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
-        wpscan --disable-tls-checks  --random-user-agent --url "$proto"//$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+        wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url "$proto"://$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
+        wpscan --disable-tls-checks  --random-user-agent --url "$proto"://$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
         
 
         #msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $host;run;exit" > logs/vulnerabilidades/"$host"_3389_BlueKeep.txt
@@ -1046,7 +1064,7 @@ cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort 
 ################### UDP escaneo  ###################  
 
 echo -e "#################### Escaneo de puertos UDP ######################"	  
-nmap -Pn -n -sU -p 53,69,123,161,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
 egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
 udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
@@ -1995,130 +2013,6 @@ if [ -f servicios/mysql.txt ]
 	insert_data
 fi
 
-if [ -f servicios/smtp.txt ]
-	then
-		echo -e "$OKBLUE #################### SMTP (`wc -l servicios/smtp.txt`) ######################$RESET"	    
-		while read line
-		do  	
-			ip=`echo $line | cut -f1 -d":"`
-			port=`echo $line | cut -f2 -d":"`
-			
-			echo -e "[+] Escaneando $ip:$port"
-
-			if [ ! -z "$DOMINIO_EXTERNO" ]; then
-				DOMINIO=$DOMINIO_EXTERNO
-			fi
-
-			if [ ! -z "$DOMINIO_INTERNO" ]; then
-				DOMINIO=$DOMINIO_INTERNO
-			fi
-			
-			########## Banner #######
-			echo -e "\t[+] Obteniendo banner"
-			nc -w 3 $ip $port <<<"EHLO localhost"& > .banners/"$ip"_"$port".txt						
-			#interlace -tL .servicios/smtp-interlace.txt -threads 5 -c "nc -w 3 _target_ _port_ <<'EHLO localhost' > ./_target___port__nc.txt" -p 25 --silent
-						
-			########## VRFY #######
-			echo -e "\t[+] Comprobando comando vrfy"
-			echo "vrfy-test.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
-			
-			#prueba usuario@dominio.com
-			vrfy-test.py $ip $port $DOMINIO >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
-			echo "" >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
-			
-			#prueba usuario
-			echo "vrfy-test2.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
-			vrfy-test2.py $ip $port $DOMINIO >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
-			
-			egrep -iq "User unknown" logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t$OKRED[!] Comando VRFY habilitado \n $RESET"
-				cp logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt  .vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 				
-				echo -e "\t[+] Enumerando usuarios en segundo plano"
-				smtp-user-enum.pl -M VRFY -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
-				
-			else
-				echo -e "\t$OKGREEN[ok] No tiene el comando VRFY habilitado $RESET"
-			fi		
-			#########################
-
-			
-			# Vulnerabilidades
-			echo "nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
-			nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip>> logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
-			grep "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
-
-			
-			########## open relay #######
-			echo ""
-			echo -e "\t[+] Probando si es un open relay"
-			
-			#### probar con root@$DOMINIO
-			echo -e "\t\t[+] Probando con el correo root@$DOMINIO"
-			#if [ $internet == "s" ]; then 
-				#hackWeb.pl -t $ip -p $port -m openrelay -c "root@$DOMINIO" -s 0 > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-			#else	
-			open-relay.py $ip $port "root@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-			#fi	
-									
-			sleep 5							
-			
-			#### si no existe el correo probar con info@$DOMINIO
-			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then	
-				echo -e "\t\t[+] Upps el correo root@$DOMINIO no existe probando con info@$DOMINIO"
-				#if [ $internet == "s" ]; then 
-					#hackWeb.pl -t $ip -p $port -m openrelay -c "info@$DOMINIO" -s 0> logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-				#else	
-					open-relay.py $ip $port "info@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-				#fi							
-			fi	
-			
-			#### si no existe el correo probar con sistemas@$DOMINIO
-			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t\t[+] Upps el correo info@$DOMINIO no existe probando con sistemas@$DOMINIO"
-				#if [ $internet == "s" ]; then 
-					hackWeb.pl -t $ip -p $port -m openrelay -c "sistemas@$DOMINIO" -s 0> logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-				#else	
-					#open-relay.py $ip $port "sistemas@$DOMINIO_EXTERNO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-				#fi							
-			fi	
-			
-			# IP en lista negra
-			egrep -iq "JunkMail rejected|REGISTER IN BLACK|Client host rejected" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t$OKRED[!] No se pudo completar la prueba (Nuestra IP esta en lista negra)$RESET"
-			fi
-			
-			# usuario desconocido
-			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t$OKRED[!] No se pudo completar la prueba (No existe el usuario destinatario)$RESET"
-			fi
-				
-			#Envio exitoso	
-			egrep -iq "queued as|250 OK id=|accepted for delivery|message saved" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t$OKRED[!] Open Relay detectado \n $RESET"
-				cp logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt  .vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
-			else
-				echo -e "\t$OKGREEN[ok] No es un open relay $RESET"
-				
-			fi		
-			#########################
-													
- 			echo ""
-		done <servicios/smtp.txt				
-	insert_data	
-fi
-
 if [ -f servicios/smb.txt ]
 then 
 	echo -e "[+] Obteniendo OS/dominio"
@@ -2830,6 +2724,7 @@ then
  	done <servicios/mssql.txt
  		
 	#insert clean data	
+	#sqsh -S 10.10.10.59 -U sa -P 'GWE3V65#6KFH93@4GWTG2G'
 	insert_data
 fi
 		
@@ -3124,26 +3019,39 @@ then
 
 		
 		if [ $MODE == "extended" ]; then 							
-				echo -e "\t [+] Buscando mas virtual hosts"
-				DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
-				echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
-				if [ ! -z "$DOMINIO_INTERNO" ]; then
+			echo -e "\t [+] Buscando mas virtual hosts"
+			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`			
 
-					echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
-					echo "wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H 'Host: FUZZ.$DOMINIO_INTERNO' -u http://$DOMINIO_INTERNO -t 100 --hc 302 -f logs/enumeracion/'$ip'_'$port'_vhosts.txt"
-					wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 --hc 302 -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
-					grep C=200 logs/enumeracion/"$ip"_"$port"_vhosts.txt | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
-					vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
+			#Extraer dominio del status
+			if [ -z "$DOMINIO_INTERNO" ]; then
+				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s http -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
+			fi
 
-					for vhost in $vhosts; do					
-							echo -e "\t\t[+] Adicionando vhost $vhost a los targets"	
-							echo "$ip $vhost.$DOMINIO_INTERNO" >> /etc/hosts
-							echo "$ip,$vhost.$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE						
-					done
-					
-				fi
+			echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
+
+			if [ ! -z "$DOMINIO_INTERNO" ]; then
+
+
+				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
+				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+
+				#base line request
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
+				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
+				echo "chars $chars" # no incluir las respuestas con x chars (sitios iguales)
 
 				
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 --hh $chars -f logs/enumeracion/"$ip"_"$port"_vhosts.txt 2>/dev/null				
+				grep 'Ch' logs/enumeracion/"$ip"_"$port"_vhosts.txt | grep -v 'Word'  | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
+				vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
+
+				for vhost in $vhosts; do					
+						echo -e "\t\t[+] Adicionando vhost $vhost a los targets"	
+						echo "$ip $vhost.$DOMINIO_INTERNO" >> /etc/hosts
+						echo "$ip,$vhost.$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE					
+				done
+				
+			fi				
 		fi	
 
 		while true; do
@@ -3161,7 +3069,7 @@ then
 			
 				######## revisar por subdominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
-					lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2`
+					lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
 						# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
@@ -3206,7 +3114,7 @@ then
 			#echo "FILE $prefijo$IP_LIST_FILE"			
 				#################  Realizar el escaneo por dominio  ##############				
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2`
+					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do													
 						echo -e "\t[+] subdominio: $subdominio"							
@@ -3267,8 +3175,22 @@ then
 							fi						
 							####################################	
 							
+							
+						
+
+							#######  if the server is SharePoint ######
+							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							greprc=$?
+							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
+								enumeracionSharePoint "http" $subdominio $port
+							else
+								echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+							fi										
+							####################################	
+							
+
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|SharePoint"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
 								enumeracionIIS "http" $subdominio $port
@@ -3359,8 +3281,18 @@ then
 					echo -e "\t\t[+] Revisando vulnerabilidades CMS"
 					enumeracionCMS "http" $ip $port
 
+					#######  if the server is SharePoint ######
+					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+					greprc=$?
+					if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
+						enumeracionSharePoint "http" $ip $port
+					else
+						echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+					fi										
+					####################################	
+
 					#######  if the server is IIS ######
-					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare"  # no redirecciona
+					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare"  # no redirecciona
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes						
 						enumeracionIIS "http" $ip $port						
@@ -3438,7 +3370,52 @@ then
 	# Extraer informacion web y SSL
 	for line in $(cat servicios/web-ssl.txt); do    
 		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"`						
+		port=`echo $line | cut -f2 -d":"`	
+		get_ssl_cert.py $ip $port  2>/dev/null > .enumeracion/"$ip"_"$port"_cert.txt 
+		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'`
+		for SUBDOMINIO_INTERNO in $SUBDOMINIOS_INTERNOS; do	
+			echo "$ip $SUBDOMINIO_INTERNO" >> /etc/hosts
+			echo "$ip,$SUBDOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+		done
+
+		if [ $MODE == "extended" ]; then 							
+			echo -e "\t [+] Seeking virtual hosts"
+			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
+			if [  -z "$DOMINIO_INTERNO" ]; then
+				echo -e "\t\t [+] Extract domain from SSL Cert"			
+				DOMINIO_INTERNO=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq '.["commonName"]'|tr -d '"'`				
+			fi
+			
+			#Extraer dominio del status
+			if [ -z "$DOMINIO_INTERNO" ]; then 
+				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s https -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
+			fi
+
+			echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
+			if [ ! -z "$DOMINIO_INTERNO" ]; then
+
+				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
+				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE							
+
+
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
+				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
+				echo "chars $chars"
+				
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 --hh $chars -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
+				grep 'Ch' logs/enumeracion/"$ip"_"$port"_vhosts.txt | grep -v 'Word' | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
+				vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
+
+				for vhost in $vhosts; do					
+						echo -e "\t\t[+] Adicionando vhost $vhost a los targets"	
+						echo "$ip $vhost.$DOMINIO_INTERNO" >> /etc/hosts
+						echo "$ip,$vhost.$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+				done
+				
+			fi				
+		fi
+
+
 		while true; do
 			free_ram=`free -m | grep -i mem | awk '{print $7}'`		
 			perl_instancias=$((`ps aux | grep webData | wc -l` - 1)) 
@@ -3450,14 +3427,13 @@ then
 				echo -e "[+] Escaneando $ip:$port"
 				echo -e "\t[+] Obteniendo información web"
 				webData.pl -t $ip -p $port -s https -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
-				echo -e "\t[+] Obteniendo información del certificado SSL"
-				get_ssl_cert.py $ip $port  2>/dev/null | grep "("> .enumeracion/"$ip"_"$port"_cert.txt  &
+				echo -e "\t[+] Obteniendo información del certificado SSL"				
 				echo -e "\t"	
 				sleep 0.5;	
 				
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
-					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | cut -d "," -f2`
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
@@ -3502,7 +3478,7 @@ then
 				#echo "FILE $prefijo$IP_LIST_FILE"				
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2`
+					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						echo -e "\t[+] subdominio: $subdominio"	
@@ -3554,9 +3530,19 @@ then
 								enumeracionApache "https" $subdominio $port
 							fi						
 							####################################	
+
+							#######  if the server is SharePoint ######
+							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							greprc=$?
+							if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
+								enumeracionSharePoint "https" $subdominio $port
+							else
+								echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+							fi										
+							####################################
 							
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
 								enumeracionIIS "https" $subdominio $port								   
@@ -3647,9 +3633,19 @@ then
 						enumeracionApache "https" $ip $port
 					fi						
 					####################################
+
+					#######  if the server is SharePoint ######
+					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+					greprc=$?
+					if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
+						enumeracionSharePoint "https" $ip $port
+					else
+						echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+					fi										
+					####################################
 		
 					#######  if the server is IIS ######
-					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" 
+					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" 
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes											
 						enumeracionIIS "https" $ip $port																
@@ -3770,6 +3766,132 @@ then
 	find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
 	insert_data
 	###################
+fi
+
+
+
+if [ -f servicios/smtp.txt ]
+	then
+		echo -e "$OKBLUE #################### SMTP (`wc -l servicios/smtp.txt`) ######################$RESET"	    
+		while read line
+		do  	
+			ip=`echo $line | cut -f1 -d":"`
+			port=`echo $line | cut -f2 -d":"`
+			
+			echo -e "[+] Escaneando $ip:$port"
+
+			if [ ! -z "$DOMINIO_EXTERNO" ]; then
+				DOMINIO=$DOMINIO_EXTERNO
+			fi
+
+			if [ ! -z "$DOMINIO_INTERNO" ]; then
+				DOMINIO=$DOMINIO_INTERNO
+			fi
+			
+			########## Banner #######
+			echo -e "\t[+] Obteniendo banner"
+			nc -w 3 $ip $port <<<"EHLO localhost"& > .banners/"$ip"_"$port".txt						
+			#interlace -tL .servicios/smtp-interlace.txt -threads 5 -c "nc -w 3 _target_ _port_ <<'EHLO localhost' > ./_target___port__nc.txt" -p 25 --silent
+						
+			########## VRFY #######
+			echo -e "\t[+] Comprobando comando vrfy"
+			echo "vrfy-test.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
+			
+			#prueba usuario@dominio.com
+			vrfy-test.py $ip $port $DOMINIO >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
+			echo "" >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
+			
+			#prueba usuario
+			echo "vrfy-test2.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
+			vrfy-test2.py $ip $port $DOMINIO >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
+			
+			egrep -iq "User unknown" logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t$OKRED[!] Comando VRFY habilitado \n $RESET"
+				cp logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt  .vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 				
+				echo -e "\t[+] Enumerando usuarios en segundo plano"
+				smtp-user-enum.pl -M VRFY -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
+				
+			else
+				echo -e "\t$OKGREEN[ok] No tiene el comando VRFY habilitado $RESET"
+			fi		
+			#########################
+
+			
+			# Vulnerabilidades
+			echo "nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
+			nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip>> logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
+			grep "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
+
+			
+			########## open relay #######
+			echo ""
+			echo -e "\t[+] Probando si es un open relay"
+			
+			#### probar con root@$DOMINIO
+			echo -e "\t\t[+] Probando con el correo root@$DOMINIO"
+			#if [ $internet == "s" ]; then 
+				#hackWeb.pl -t $ip -p $port -m openrelay -c "root@$DOMINIO" -s 0 > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+			#else	
+			open-relay.py $ip $port "root@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+			#fi	
+									
+			sleep 5							
+			
+			#### si no existe el correo probar con info@$DOMINIO
+			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then	
+				echo -e "\t\t[+] Upps el correo root@$DOMINIO no existe probando con info@$DOMINIO"
+				#if [ $internet == "s" ]; then 
+					#hackWeb.pl -t $ip -p $port -m openrelay -c "info@$DOMINIO" -s 0> logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+				#else	
+					open-relay.py $ip $port "info@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+				#fi							
+			fi	
+			
+			#### si no existe el correo probar con sistemas@$DOMINIO
+			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t\t[+] Upps el correo info@$DOMINIO no existe probando con sistemas@$DOMINIO"
+				#if [ $internet == "s" ]; then 
+					hackWeb.pl -t $ip -p $port -m openrelay -c "sistemas@$DOMINIO" -s 0> logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+				#else	
+					#open-relay.py $ip $port "sistemas@$DOMINIO_EXTERNO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
+				#fi							
+			fi	
+			
+			# IP en lista negra
+			egrep -iq "JunkMail rejected|REGISTER IN BLACK|Client host rejected" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t$OKRED[!] No se pudo completar la prueba (Nuestra IP esta en lista negra)$RESET"
+			fi
+			
+			# usuario desconocido
+			egrep -iq "Sender unknown|Recipient unknown|No Such User Here|no valid recipients" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t$OKRED[!] No se pudo completar la prueba (No existe el usuario destinatario)$RESET"
+			fi
+				
+			#Envio exitoso	
+			egrep -iq "queued as|250 OK id=|accepted for delivery|message saved" logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t$OKRED[!] Open Relay detectado \n $RESET"
+				cp logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt  .vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 
+			else
+				echo -e "\t$OKGREEN[ok] No es un open relay $RESET"
+				
+			fi		
+			#########################
+													
+ 			echo ""
+		done <servicios/smtp.txt				
+	insert_data	
 fi
 
 
@@ -5538,7 +5660,7 @@ then
 		
         ######## revisar por dominio #######
         if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
-	        lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2`
+	        lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 	        for subdominio in $lista_subdominios; do	
 
 			###  if the server is apache/nginx ######

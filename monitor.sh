@@ -226,7 +226,7 @@ for line in $( ps aux | egrep --color=never "masscan" | grep -v color | awk '{pr
 	# diff=`echo $diff | tr -d -`
 	# echo "Idle time: $diff minutes"	
 	echo "targets $targets"
-	if [  $time -gt $targets];then 
+	if [  $time -gt $targets ];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
