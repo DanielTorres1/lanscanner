@@ -435,7 +435,7 @@ function testSSL ()
     egrep -qi "VULNERABLE" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt
     greprc=$?
     if [[ $greprc -eq 0 ]] ; then						
-        echo -e "\t\ŧ$OKRED[!] Vulnerable a heartbleed \n $RESET"
+        echo -e "\t\t$OKRED[!] Vulnerable a heartbleed \n $RESET"
         grep "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
         heartbleed.py $host -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$host"_"$port"_heartbleedRAM.txt
         heartbleed.sh $host $port &
@@ -2051,6 +2051,7 @@ then
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms17-010 _target_' >> logs/vulnerabilidades/_target__445_ms17010.txt " --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-ms17-010 _target_ >> logs/vulnerabilidades/_target__445_ms17010.txt" --silent
 	#https://pentesting.mrw0l05zyn.cl/explotacion/vulnerabilidades/eternalblue-cve-2017-0144-ms17-010
+	#docker run  -v "$PWD":/tmp -it exploit eternalblue  10.11.1.5  /tmp/192.168.119.205-443.exe
 
 	#smb-double-pulsar-backdoor 
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-double-pulsar-backdoor _target_' > logs/vulnerabilidades/_target__445_doublepulsar.txt 2>/dev/null" --silent
@@ -2121,16 +2122,16 @@ then
 		getArch.py -target $ip > logs/enumeracion/"$ip"_445_arch.txt
 		grep --color=never "is" logs/enumeracion/"$ip"_445_arch.txt > .enumeracion/"$ip"_445_arch.txt
 															
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms08067.txt| egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms08067.txt 					
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms17010.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms17010.txt  			
-		grep "|" logs/vulnerabilidades/"$ip"_445_doublepulsar.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_doublepulsar.txt  			
-		grep "|" logs/vulnerabilidades/"$ip"_445_conficker.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_conficker.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms10061.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms10061.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms07029.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms06025.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_445_ms09050.txt
-		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | grep -v "Enter WORKGROUP" > .vulnerabilidades/"$ip"_445_nullsession.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms08067.txt| egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms08067.txt 					
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms17010.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms17010.txt  			
+		grep "|" logs/vulnerabilidades/"$ip"_445_doublepulsar.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_doublepulsar.txt  			
+		grep "|" logs/vulnerabilidades/"$ip"_445_conficker.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_conficker.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms10061.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms10061.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms07029.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
+		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for" > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
 		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
@@ -2688,8 +2689,8 @@ then
 			echo -e "\tVNC bypass ($vnc_response)" > .vulnerabilidades/"$ip"_"$port"_VNCbypass.txt 
 		fi	
 		echo -e "\t[+] Verificando autenticación"
-		msfconsole -x "use auxiliary/scanner/vnc/vnc_none_auth;set RHOSTS $ip; set rport $port;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_VNCnopass.txt 2>/dev/null		
-		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_"$port"_VNCnopass.txt  > .vulnerabilidades/"$ip"_"$port"_VNCnopass.txt 
+		msfconsole -x "use auxiliary/scanner/vnc/vnc_none_auth;set RHOSTS $ip; set rport $port;run;exit" > logs/vulnerabilidades/"$ip"_VNC_nopass.txt 2>/dev/null		
+		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_VNC_nopass.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$ip"_VNC_nopass.txt 
 		
 		echo -e "\t[+] Verificando Vulnerabilidad de REALVNC"
 		echo "nmap -n -sT -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip" > logs/vulnerabilidades/"$ip"_"$port"_realvncBypass.txt 2>/dev/null
@@ -3019,7 +3020,7 @@ then
 
 		
 		if [ $MODE == "extended" ]; then 							
-			echo -e "\t [+] Buscando mas virtual hosts"
+			echo -e "[+] Buscando mas virtual hosts"
 			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`			
 
 			#Extraer dominio del status
@@ -3027,7 +3028,7 @@ then
 				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s http -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
 			fi
 
-			echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
+			echo -e "[+] main domain $DOMINIO_INTERNO"
 
 			if [ ! -z "$DOMINIO_INTERNO" ]; then
 
@@ -3046,7 +3047,7 @@ then
 				vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
 
 				for vhost in $vhosts; do					
-						echo -e "\t\t[+] Adicionando vhost $vhost a los targets"	
+						echo -e "\t[+] Adicionando vhost $vhost a los targets"	
 						echo "$ip $vhost.$DOMINIO_INTERNO" >> /etc/hosts
 						echo "$ip,$vhost.$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE					
 				done
@@ -3059,7 +3060,7 @@ then
 			perl_instancias=$((`ps aux | grep perl | wc -l` - 1)) 			
 			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 										
 				echo -e "[+] Escaneando $ip:$port"	
-				echo -e "\t\t[+] Revisando server-status"
+				echo -e "\t[+] Revisando server-status"
 				curl --max-time 2 http://$ip:$port/server-status 2>/dev/null | grep --color=never nowrap | sed 's/<\/td>//g' | sed 's/<td nowrap>/;/g' | sed 's/<\/td><td>//g'| sed 's/<\/td><\/tr>//g' | sed 's/amp;//g' > .enumeracion/"$ip"_"$port"_serverStatus.txt 
 				echo -e "\t[+] Obteniendo informacion web"
 				webData.pl -t $ip -p $port -s http -e todo -d / -l logs/enumeracion/"$ip"_"$port"_webData.txt -r 4 > .enumeracion/"$ip"_"$port"_webData.txt 2>/dev/null  &	
@@ -3150,13 +3151,13 @@ then
 						
 						
 						# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
-						echo -e "\t\tnoEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
+						echo -e "\t[+]noEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
 						 #noEscaneado 1 hostOK 0 accesoDenegado 1 (0=acceso negado)
 						if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
-							echo "Realizando tests adicionales "
+							echo "\t[+] Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt
 						
-							echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+							echo -e "\t[+] identificar si el host esta protegido por un WAF "
 							wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
 							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
 
@@ -3244,7 +3245,7 @@ then
 
 				
 				#################  Realizar el escaneo por IP  ##############	
-				echo -e "\t[+]Escaneo solo por IP (http) $ip:$port"
+				echo -e "[+]Escaneo solo por IP (http) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  http://$ip -O webClone/http-$ip.html
 				curl.pl --url  http://$ip > webClone/http-$ip.html
 				sed -i "s/\/index.php//g" webClone/http-$ip.html
@@ -3274,7 +3275,7 @@ then
 					echo "Realizando tests adicionales "	
 					echo $checksumline >> webClone/checksumsEscaneados.txt
 					
-					echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+					echo -e "\t[+] identificar si el host esta protegido por un WAF "
 					wafw00f http://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
 					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt										
 
@@ -3391,7 +3392,7 @@ then
 				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s https -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
 			fi
 
-			echo -e "\t\t [+] main domain $DOMINIO_INTERNO"
+			echo -e "\t [+] main domain $DOMINIO_INTERNO"
 			if [ ! -z "$DOMINIO_INTERNO" ]; then
 
 				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
@@ -3518,7 +3519,7 @@ then
 							echo "Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt												
 							
-							echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+							echo -e "\t[+] identificar si el host esta protegido por un WAF "
 							wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
 							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
 						
@@ -3587,7 +3588,7 @@ then
 				
 				
 				############### Escaneo por IP ############
-				echo -e "[+]\tEscaneo solo por IP (https) $ip:$port"
+				echo -e "[+]Escaneo solo por IP (https) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  https://$ip -O webClone/https-$ip.html
 				curl.pl --url  https://$ip > webClone/https-$ip.html
 				sed -i "s/\/index.php//g" webClone/https-$ip.html 2>/dev/null
@@ -3618,11 +3619,10 @@ then
 					echo "Realizando tests adicionales " 
 					echo $checksumline >> webClone/checksumsEscaneados.txt
 					
-					echo -e "\t\t[+] identificar si el host esta protegido por un WAF "
+					echo -e "\t[+] identificar si el host esta protegido por un WAF "
 					wafw00f https://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
 					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt
-
-					echo -e "\t\t[+] datos $ip $port "		
+							
 					testSSL "https" $ip $port				
 					enumeracionCMS "https" $ip $port							
 																							
@@ -5210,6 +5210,7 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 		if [[ $free_ram -gt $min_ram  && $perl_instancias -lt $max_perl_instancias  ]]
 		then
 			if [[ ${line} != *"Listado directorio"* &&  ${line} != *"wp-"*  ]] ; then
+				proto=`echo $line | | cut -d ":" -f 1 | cut -d ' ' -f2` #  http/https
 				ip_port=`echo $line | cut -d "/" -f 3` # 190.129.69.107:80			
 				path=`echo $line | cut -d "/" -f 4 | tr '[:upper:]' '[:lower:]'` #minuscula
 				ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
@@ -5219,14 +5220,14 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 				#http://186.121.249.245:80/Login/				
 					if [[ (${path} == *"usuarios"* || ${path} == *"login"* || ${path} == *"rep"* || ${path} == *"internal"* || ${path} == *"php"* || ${path} == *"almacen"* || ${path} == *"site"*  || ${path} == *"app"*  || ${path} == *"personal"* || ${path} == *"frontend"* || ${path} == *"backend"* ) ]];then 
 					echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
-					web-buster.pl -t $ip -p $port -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
+					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 										
-					web-buster.pl -t $ip -p $port -h $hilos_web -d "/$path/" -m files2 -o 0 | egrep --color=never "^200" >> .vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt &
+					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m files2 -o 0 | egrep --color=never "^200" >> .vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt &
 	
 					egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
 					greprc=$?				
 					if [[ $greprc -eq 0 ]];then # si el banner es Apache
-						web-buster.pl -t $ip -p $port -h $hilos_web -d "/$path/" -m backdoorApache  -o 0 | egrep --color=never "^200"  >> .vulnerabilidades/"$ip"_"$port"_webshell.txt &
+						web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m backdoorApache  -o 0 | egrep --color=never "^200"  >> .vulnerabilidades/"$ip"_"$port"_webshell.txt &
 					fi	
 				else
 					echo -e "\t[-] No vale la pena escanear este directorio "
