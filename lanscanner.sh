@@ -1373,7 +1373,7 @@ then
 			DOMINIO_INTERNO=`cat  | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
 			dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
 			echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
-		else
+		fi
 
 				
 		if [ -z "$DOMINIO_INTERNO" ]; then
