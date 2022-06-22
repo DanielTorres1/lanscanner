@@ -1416,7 +1416,7 @@ then
 	for line in $(cat servicios/kerberos.txt); do
         ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo -e "[+] Escaneando $ip:$port"	
+		echo -e "[+] Escaneando $ip:$port (DOMINIO_INTERNO $DOMINIO_INTERNO)"	
 		if [ -z "$DOMINIO_INTERNO" ]
 		then
 			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
