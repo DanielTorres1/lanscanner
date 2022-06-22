@@ -1365,10 +1365,16 @@ then
 
 		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
 		nmap -Pn -n -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
-		DOMINIO_INTERNO=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
+
 		
-		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
+		egrep -iq "namingContexts" logs/enumeracion/"$ip"_"$port"_LDAP.txt 
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then						
+			DOMINIO_INTERNO=`cat  | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
+			dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
+			echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
+		else
+
 				
 		if [ -z "$DOMINIO_INTERNO" ]; then
 			DOMINIO_INTERNO=`nmap -n -Pn -sT -p $port --script ldap-rootdse $ip | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
