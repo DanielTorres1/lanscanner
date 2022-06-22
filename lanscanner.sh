@@ -1424,6 +1424,7 @@ then
 		fi				
 		
 		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
+		echo "kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
 		kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
 		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
 
