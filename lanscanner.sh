@@ -853,7 +853,7 @@ else
 			for subnet in `cat $prefijo$SUBNET_FILE`;
 			do 
 				echo -e "\t[+] Escaneando: $subnet "
-				masscan --interface $iface -p21,22,23,80,443,445 --rate=150 $subnet | tee -a .escaneos/mass-scan.txt
+				masscan --interface $iface -p21,22,23,80,443,445,3389 --rate=150 $subnet | tee -a .escaneos/mass-scan.txt
 			done		
 		else
 				mass-scan.pl $netA $netB $netC .escaneos/mass-scan.txt
@@ -1481,7 +1481,7 @@ then
 
 			echo -e "\t [+] Bruteforce domains"
 			echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
-			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
+			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
 			grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | grep -v dnsenum > .enumeracion/"$ip"_dns_enum.txt
 			
 			if [ $internet == "s" ]; then 			

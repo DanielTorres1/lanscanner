@@ -42,7 +42,7 @@ done
 echo ""
 
 echo -e "$OKBLUE[+] Revisando procesos de get_ssl_cert/lbd/rpcclient $RESET"		
-for line in $( ps aux | egrep --color=never "get_ssl_cert|lbd|rpcclient" | grep -v color | awk '{print $2,$9}' | tr " " ";" ); do
+for line in $( ps aux | egrep --color=never "get_ssl_cert|lbd|rpcclient|gluster" | grep -v color | awk '{print $2,$9}' | tr " " ";" ); do
 	pid=`echo $line | cut -f1 -d";"`
 	#time=`echo $line | cut -f2 -d";"`
 	time=`ps -p $pid -o etime | grep : | cut -d ":" -f1`
