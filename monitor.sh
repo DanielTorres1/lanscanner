@@ -95,7 +95,7 @@ echo ""
 
 
 echo -e "$OKBLUE[+] Revisando procesos de snmpwalk|dnsenum $RESET"		
-for line in $( ps aux | egrep --color=never 'snmpwalk|snmpbrute|dnsenum' | grep -v color | awk '{print $2,$9}' | tr " " ";" ); do
+for line in $( ps aux | egrep --color=never 'snmpwalk|snmpbrute|dnsenum|enum4linux' | grep -v color | awk '{print $2,$9}' | tr " " ";" ); do
 	pid=`echo $line | cut -f1 -d";"`
 	#time=`echo $line | cut -f2 -d";"`
 	time=`ps -p $pid -o etime | grep : | cut -d ":" -f1`
@@ -147,7 +147,7 @@ echo ""
 
 
 echo -e "$OKBLUE[+] Revisando procesos de perl $RESET"		
-for line in $( ps aux | grep --color=never perl  | grep -v color | egrep -v "dnsenum|finger|passWeb|joomscan|buster|getBanners|color|getDomainInfo|mass-scan|smtp-user-enum" | awk '{print $2,$9}' | tr " " ";" ); do
+for line in $( ps aux | grep --color=never perl  | grep -v color | egrep -v "enum4linux|dnsenum|finger|passWeb|joomscan|buster|getBanners|color|getDomainInfo|mass-scan|smtp-user-enum" | awk '{print $2,$9}' | tr " " ";" ); do
 	pid=`echo $line | cut -f1 -d";"`
 	#time=`echo $line | cut -f2 -d";"`
 	time=`ps -p $pid -o etime | grep : | cut -d ":" -f1`
@@ -201,7 +201,7 @@ for line in $( ps aux | egrep --color=never "hydra|medusa|patator|prtgadmin" | g
     echo "pid: $pid time $time"
 
 	
-	if [[  $time -gt 10  ]];then 
+	if [[  $time -gt 15  ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		

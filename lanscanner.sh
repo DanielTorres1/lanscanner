@@ -144,7 +144,7 @@ function enumeracionIIS () {
     egrep --color=never "^200" logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
     sleep 1	
 
-	msfconsole -x "use auxiliary(scanner/http/iis_shortname_scanner;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_iis_shortname.txt 2>/dev/null							   
+	msfconsole -x "use auxiliary/scanner/http/iis_shortname_scanner;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_iis_shortname.txt 2>/dev/null							   
 	grep '\[+\]' logs/enumeracion/"$ip"_iis_shortname.txt  >> .enumeracion/"$ip"_iis_shortname.txt
 
 }
@@ -229,7 +229,7 @@ function enumeracionApache () {
         echo -e "\t\t[+] Revisando archivos CGI ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m cgi -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_archivosCGI.txt        		
 		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_archivosCGI.txt | awk '{print $2}' >> servicios/cgi.txt; 
-        cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_webarchivos.txt
+        cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_archivosCGI.txt
         sleep 1								
     fi	
 }
@@ -1779,8 +1779,8 @@ if [ -f servicios/GlusterFS.txt ]
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		echo "gluster --remote-host=$ip volume list" > logs/enumeracion/"$ip"_"gluster"_list.txt
-		
-		gluster --remote-host=$ip volume list >> .enumeracion/"$ip"_"gluster"_list.txt
+		gluster --remote-host=$ip volume list  >> logs/enumeracion/"$ip"_"gluster"_list.txt
+		#gluster --remote-host=$ip volume list  >> .enumeracion/"$ip"_"gluster"_list.txt
 
 		#mount -t glusterfs 10.10.11.131:/<vol_name> /mnt/
 	done
@@ -2022,6 +2022,7 @@ fi
 
 if [ -f servicios/smb.txt ]
 then 
+	echo -e "$OKBLUE #################### smb (`wc -l servicios/smb.txt`) ######################$RESET"	    
 	echo -e "[+] Obteniendo OS/dominio"
 	mkdir -p .smbinfo/ 		
 	cp $live_hosts .smbinfo/	
@@ -2138,10 +2139,11 @@ then
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
-		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for" > .vulnerabilidades/"$ip"_445_nullsession.txt 
+		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
 		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
+		#smbclient --list //10.11.1.146/ -U
 		################################										
 	done				
 	
@@ -2939,20 +2941,25 @@ then
 	do     			
 		#ip=`echo $line | cut -f1 -d":"`		
 		echo -e "[+] Escaneando $ip"
-		echo -e "\t[+] Probando vulnerabilidad de sesión nula"
+		echo -e "\t[+] Probando enum4linux"
 		###### Enum4linux ######
-		echo "enum4linux $ip 2>/dev/null | grep -iv \"unknown\"" > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-		enum4linux $ip 2>/dev/null | grep -iv "unknown" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-		grep --color=never -i  "User" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  > .vulnerabilidades/"$ip"_445_enum4linux.txt
+		echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+		enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
+		
 		#######################
 		
 		
 		###### zerologon ######
 		netbiosName=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip | grep -i netbios | awk '{print $5}' | cut -d '\' -f1 `
-		echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
-		zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
-		grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
-		#######################		
+		echo -e "\t[+] netbiosName $netbiosName"		
+			
+		if [ ! -z "$netbiosName" ]; then
+			echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
+			zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 2>/dev/bull
+			grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
+			#######################		
+		fi		
+		
 		
 		###### PrintNightmare ######
 		rpcdump.py $ip  >> logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt 		
@@ -2965,9 +2972,6 @@ then
 	insert_data
 	
 fi
-
-
-
 
 
 
@@ -5217,19 +5221,22 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 		if [[ $free_ram -gt $min_ram  && $perl_instancias -lt $max_perl_instancias  ]]
 		then
 			if [[ ${line} != *"Listado directorio"* &&  ${line} != *"wp-"*  ]] ; then
-				proto=`echo $line | | cut -d ":" -f 1 | cut -d ' ' -f2` #  http/https
+				proto=`echo $line | cut -d ":" -f 1 | cut -d ' ' -f2` #  http/https
 				ip_port=`echo $line | cut -d "/" -f 3` # 190.129.69.107:80			
 				path=`echo $line | cut -d "/" -f 4 | tr '[:upper:]' '[:lower:]'` #minuscula
 				ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
 				port=`echo $ip_port | cut -d ":" -f 2`		
-				#echo "webData.pl -t $ip -d $path -p $port -e todo -l /dev/null -r 4 "	
-				#https://escritorio.abc.gob.bo/usuarios/computer/
-				#http://186.121.249.245:80/Login/				
-					if [[ (${path} == *"usuarios"* || ${path} == *"login"* || ${path} == *"rep"* || ${path} == *"internal"* || ${path} == *"php"* || ${path} == *"almacen"* || ${path} == *"site"*  || ${path} == *"app"*  || ${path} == *"personal"* || ${path} == *"frontend"* || ${path} == *"backend"* ) ]];then 
+			
+					if [[ (${path} == *"usuario"* || ${path} == *"login"* || ${path} == *"rep"* || ${path} == *"internal"* || ${path} == *"php"* || ${path} == *"almacen"* || ${path} == *"site"*  || ${path} == *"app"*  || ${path} == *"personal"* || ${path} == *"frontend"* || ${path} == *"backend"* ) ]];then 
 					echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 										
 					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m files2 -o 0 | egrep --color=never "^200" >> .vulnerabilidades/"$ip"_"$port"_archivosPeligrosos.txt &
+
+					#TODO
+					#curl -F "files=@/usr/share/lanscanner/info.php" http://10.11.1.123/books/apps/jquery-file-upload/server/php/index.php > logs/vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt
+					#grep "info.php" logs/vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt > .vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt
+
 	
 					egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
 					greprc=$?				
@@ -5255,7 +5262,7 @@ done #for
 	
 # revisar si hay scripts ejecutandose
 while true; do
-	webbuster_instancias=`ps aux | egrep 'wampServer|joomscan|wpscan|buster' | wc -l`		
+	webbuster_instancias=`ps aux | egrep 'wampServer|joomscan|wpscan|buster|enum4linux' | wc -l`		
 	if [ "$webbuster_instancias" -gt 1 ]
 	then
 		echo -e "\t[i] Todavia hay scripts activos ($webbuster_instancias)"				
@@ -5265,6 +5272,38 @@ while true; do
 	fi
 done	# done true	
 
+
+
+#Revisar logs despues de que acabe escaneo
+if [ -f servicios/servers.txt ]
+then
+
+	echo -e "$OKBLUE #################### Servers (`wc -l servicios/servers.txt`)######################$RESET"	    
+	while read ip       
+	do     	
+		echo "checking IP $ip "		
+		egrep -iq "Server doesn't allow session" logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+		greprc=$?
+		if [[ $greprc -eq 0  ]];then
+			echo -e "\t[-] No Null session "
+		else
+			echo -e "\t[+] Null session detected"
+			grep --color=never -i  "Group" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  >> .vulnerabilidades/"$ip"_445_enum4linux.txt
+			grep --color=never -i  "User" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  >> .vulnerabilidades/"$ip"_445_enum4linux.txt			
+
+			grep -a '\-1000' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1001' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1002' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1003' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3000' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3001' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3002' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+		fi			
+	done <servicios/servers.txt
+fi
+
+	
+	
 
 ##########  filtrar los directorios de segundo nivel que respondieron 200 OK (llevarlos a .enumeracion) ################
 touch logs/enumeracion/canary_webdirectorios2.txt # se necesita al menos 2 archivos *_webdirectorios2.txt
@@ -5520,7 +5559,6 @@ insert_data
 
     
 
-
 # if [ $internet == "n" ]; then 	
 
 if [[ $VPN == "1" ]]; then
@@ -5658,7 +5696,7 @@ else
 fi
 
 
-
+#archivos php
 if [ -f servicios/web.txt ]
 then      
     echo -e "$OKBLUE #################### WEB PHP(`wc -l servicios/web.txt`) ######################$RESET"	    

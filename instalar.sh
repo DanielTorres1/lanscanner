@@ -96,7 +96,7 @@ cp smbrelay.sh /usr/bin
 
 cp files/image.png /usr/share/lanscanner/image.png
 cp files/vulnerabilidades.xml /usr/share/lanscanner/vulnerabilidades.xml
-
+cp files/info.php /usr/share/lanscanner/info.php
 
 chmod a+x /usr/bin/monitor.sh
 chmod a+x /usr/bin/lanscanner.sh
