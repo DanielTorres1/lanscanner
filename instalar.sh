@@ -115,8 +115,8 @@ cp -r files/smbrelay/ /usr/share/lanscanner
 echo -e "${GREEN} [+] Instalando scripts de SMBRelay ${RESET}"
 cd pentest/ipmiPwner
 cp files/smbrelay/config ~/.config/terminator   
-cp -r files/smbrelay/ /usr/share/lanscanner    
-
+cp -r files/smbrelay/ /usr/share/lanscanner   
+cd ../../
 
     
 echo -e "${GREEN} [+] Instalando librerias de perl ${RESET}"

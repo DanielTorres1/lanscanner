@@ -1064,10 +1064,10 @@ cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort 
 ################### UDP escaneo  ###################  
 
 echo -e "#################### Escaneo de puertos UDP ######################"	  
-nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
 egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
-nmap -T2 -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+nmap -T2 -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
 egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
 #udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
@@ -1826,20 +1826,20 @@ if [ -f servicios/EtherNet.txt ]
 fi
 
 
-if [ -f servicios/BACNet.txt ]
-	then
-	echo -e "$OKBLUE #################### BACNet (`wc -l servicios/BACNet.txt`) ######################$RESET"	    
-	for line in $(cat servicios/BACNet.txt); do
-		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"`
-		echo "nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
-		nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
-		grep "|" logs/enumeracion/"$ip"_BACNet_info.txt | grep -v filtered > .enumeracion/"$ip"_BACNet_info.txt
+# if [ -f servicios/BACNet.txt ]
+# 	then
+# 	echo -e "$OKBLUE #################### BACNet (`wc -l servicios/BACNet.txt`) ######################$RESET"	    
+# 	for line in $(cat servicios/BACNet.txt); do
+# 		ip=`echo $line | cut -f1 -d":"`
+# 		port=`echo $line | cut -f2 -d":"`
+# 		echo "nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
+# 		nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
+# 		grep "|" logs/enumeracion/"$ip"_BACNet_info.txt | grep -v filtered > .enumeracion/"$ip"_BACNet_info.txt
 
-	done
+# 	done
 
-	insert_data
-fi
+# 	insert_data
+# fi
 
 if [ -f servicios/hadoop-jobtracker.txt ]
 	then
@@ -5240,7 +5240,7 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 				ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
 				port=`echo $ip_port | cut -d ":" -f 2`		
 			
-					if [[ (${path} == *"usuario"* || ${path} == *"login"* || ${path} == *"rep"* || ${path} == *"internal"* || ${path} == *"php"* || ${path} == *"almacen"* || ${path} == *"site"*  || ${path} == *"app"*  || ${path} == *"personal"* || ${path} == *"frontend"* || ${path} == *"backend"* ) ]];then 
+					if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
 					echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 										
