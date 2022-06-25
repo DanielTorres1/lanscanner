@@ -82,10 +82,11 @@ cd ..
 echo ""
 
 
-echo -e "${RED}[+]${GREEN} Descomprimiendo odat ${RESET}"
-cd pentest/odat-libc/
-tar -jxvf libociei.so.tar.bz2
-cd ../../
+echo -e "${RED}[+]${GREEN} Instalando odat ${RESET}"
+cd pentest/
+wget https://github.com/quentinhardy/odat/releases/download/5.1.1/odat-linux-libc2.17-x86_64.tar.gz
+tar -zxvf odat-linux-libc2.17-x86_64.tar.gz
+cd ../
 
 echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
 cp -r pentest /usr/bin
@@ -126,17 +127,17 @@ sudo cpan I/IS/ISHIGAKI/JSON-4.02.tar.gz
 sudo cpan G/GR/GRANTM/XML-Simple-2.25.tar.gz
 
 
-echo -e "${RED}[+]${GREEN} Instalando truffleHog ${RESET}"
-cat <<EOF | sudo tee -a /etc/docker/daemon.json
-{
-    "dns": ["8.8.8.8"]
-}
-EOF
-sudo service docker restart
+# echo -e "${RED}[+]${GREEN} Instalando truffleHog ${RESET}"
+# cat <<EOF | sudo tee -a /etc/docker/daemon.json
+# {
+#     "dns": ["8.8.8.8"]
+# }
+# EOF
+# sudo service docker restart
 
-cd truffleHog
-docker build . -t trufflehog
-cd ../
+# cd truffleHog
+# docker build . -t trufflehog
+# cd ../
 
 
 echo -e "${RED}[+]${GREEN} Instalando Interlace ${RESET}"

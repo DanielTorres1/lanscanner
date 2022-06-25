@@ -355,7 +355,7 @@ for line in $( ps aux | egrep --color=never "msfconsole" | grep "auxiliary" | aw
 	# echo "Idle time: $diff minutes"	
 	
 	
-	if [[  $time -gt 4  ]];then 
+	if [[  $time -gt 10  ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		

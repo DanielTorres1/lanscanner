@@ -108,7 +108,7 @@ function enumeracionIIS () {
     IIS6=$?
     if [[ $IIS6 -eq 0 ]];then
         echo -e "\t\t[+] Detectado IIS/6.0|IIS/5.1 - Revisando vulnerabilidad web-dav ($host - IIS)"
-        echo "nmap -n -sT -p $port --script=http-iis-webdav-vuln $host" >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
+        echo "nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host" >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
         nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 					
         grep "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
     
@@ -1067,7 +1067,10 @@ echo -e "#################### Escaneo de puertos UDP ######################"
 nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
 egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
-udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
+nmap -T2 -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
+
+#udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
 #sleep 10
 #udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
 
@@ -1829,8 +1832,8 @@ if [ -f servicios/BACNet.txt ]
 	for line in $(cat servicios/BACNet.txt); do
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo "nmap --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
-		nmap --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
+		echo "nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
+		nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
 		grep "|" logs/enumeracion/"$ip"_BACNet_info.txt | grep -v filtered > .enumeracion/"$ip"_BACNet_info.txt
 
 	done
@@ -2525,7 +2528,7 @@ then
 		rsync -av --list-only rsync://$ip:$port > logs/enumeracion/"$ip"_"$port"_rsyncList.txt 2>/dev/null
 		cat logs/enumeracion/"$ip"_"$port"_rsyncList.txt > .enumeracion/"$ip"_"$port"_rsyncList.txt				
 
-	 	nmap -p $port --script rsync-list-modules $ip > logs/enumeracion/"$ip"_"$port"_rsync.txt 2>/dev/null
+	 	nmap -Pn -p $port --script rsync-list-modules $ip > logs/enumeracion/"$ip"_"$port"_rsync.txt 2>/dev/null
 		grep '|' logs/enumeracion/"$ip"_"$port"_rsync.txt > .enumeracion/"$ip"_"$port"_rsync.txt
 
 		#rsync -av rsync://10.10.10.200/conf_backups files
@@ -2753,8 +2756,8 @@ then
 		echo "nmap -n -sT -sU --script=citrix-enum-apps -p 1604 $ip" > logs/enumeracion/"$ip"_1604_citrixApp.txt 2>/dev/null
 		echo "nmap -n -sT -sU --script=citrix-enum-servers -p 1604  $ip" > logs/enumeracion/"$ip"_1604_citrixServers.txt 2>/dev/null
 		
-		nmap -n -sT -sU --script=citrix-enum-apps -p 1604 $ip >> logs/enumeracion/"$ip"_1604_citrixApp.txt 2>/dev/null
-		nmap -n -sT -sU --script=citrix-enum-servers -p 1604  $ip >> logs/enumeracion/"$ip"_1604_citrixServers.txt 2>/dev/null
+		nmap -Pn -n -sT -sU --script=citrix-enum-apps -p 1604 $ip >> logs/enumeracion/"$ip"_1604_citrixApp.txt 2>/dev/null
+		nmap -Pn -n -sT -sU --script=citrix-enum-servers -p 1604  $ip >> logs/enumeracion/"$ip"_1604_citrixServers.txt 2>/dev/null
 		
 		grep "|" logs/enumeracion/"$ip"_1604_citrixApp.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .enumeracion/"$ip"_1604_citrixApp.txt 
 		grep "|" logs/enumeracion/"$ip"_1604_citrixServers.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .enumeracion/"$ip"_1604_citrixServers.txt 
@@ -2868,15 +2871,15 @@ then
 
 		echo -e "\t[+] Probando vulnerabilidad con nmap"				
 		echo "nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
-		nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
+		nmap -Pn --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
 
 		echo "nmap -p $port --script=oracle-sid-brute $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
-		nmap -p $port --script=oracle-sid-brute $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
+		nmap -Pn -p $port --script=oracle-sid-brute $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
 
 		echo "nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
-		nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
+		nmap -Pn -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
 	
 	
@@ -2919,7 +2922,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"																	
 		echo -e "\t[+] Probando vulnerabilidad"				
 		echo "nmap -n -sT -p $port --script http-vuln-cve2017-5689 $ip" > logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
-		nmap -n -sT -p $port --script http-vuln-cve2017-5689 $ip >> logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
+		nmap -Pn -n -sT -p $port --script http-vuln-cve2017-5689 $ip >> logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_intelVuln.txt
 													 
 		 echo ""
@@ -3168,10 +3171,13 @@ then
 							echo "\t[+] Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt
 						
-							echo -e "\t[+] identificar si el host esta protegido por un WAF "
-							wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+							if [ $internet == "s" ]; then 
+								echo -e "\t[+] identificar si el host esta protegido por un WAF "
+								wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+							fi	
 
+							
 							echo -e "\t\t[+] Detectando si hay balanceador de carga"							
 							lbd $subdominio > logs/enumeracion/"$subdominio"_web_balanceador.txt
 							grep "does Load-balancing" logs/enumeracion/"$subdominio"_web_balanceador.txt > .enumeracion/"$subdominio"_web_balanceador.txt															
@@ -3286,9 +3292,11 @@ then
 					echo "Realizando tests adicionales "	
 					echo $checksumline >> webClone/checksumsEscaneados.txt
 					
-					echo -e "\t[+] identificar si el host esta protegido por un WAF "
-					wafw00f http://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
-					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt										
+					if [ $internet == "s" ]; then 
+						echo -e "\t[+] identificar si el host esta protegido por un WAF "
+						wafw00f http://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
+						grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt	
+					fi													
 
 					echo -e "\t\t[+] Revisando vulnerabilidades CMS"
 					enumeracionCMS "http" $ip $port
@@ -3530,9 +3538,13 @@ then
 							echo "Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt												
 							
-							echo -e "\t[+] identificar si el host esta protegido por un WAF "
-							wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-							grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+
+							if [ $internet == "s" ]; then 
+								echo -e "\t[+] identificar si el host esta protegido por un WAF "
+								wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+							fi	
+							
 						
 														
 							###  if the server is apache ######
@@ -3630,9 +3642,13 @@ then
 					echo "Realizando tests adicionales " 
 					echo $checksumline >> webClone/checksumsEscaneados.txt
 					
-					echo -e "\t[+] identificar si el host esta protegido por un WAF "
-					wafw00f https://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
-					grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt
+
+					if [ $internet == "s" ]; then 
+						echo -e "\t[+] identificar si el host esta protegido por un WAF "
+						wafw00f https://$ip:$port > logs/enumeracion/"$ip"_"$port"_wafw00f.txt
+						grep "is behind" logs/enumeracion/"$ip"_"$port"_wafw00f.txt > .enumeracion/"$ip"_"$port"_wafw00f.txt
+					fi	
+					
 							
 					testSSL "https" $ip $port				
 					enumeracionCMS "https" $ip $port							
@@ -3841,10 +3857,7 @@ if [ -f servicios/smtp.txt ]
 			echo -e "\t[+] Probando si es un open relay"
 			
 			#### probar con root@$DOMINIO
-			echo -e "\t\t[+] Probando con el correo root@$DOMINIO"
-			#if [ $internet == "s" ]; then 
-				#hackWeb.pl -t $ip -p $port -m openrelay -c "root@$DOMINIO" -s 0 > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
-			#else	
+			echo -e "\t\t[+] Probando con el correo root@$DOMINIO"	
 			open-relay.py $ip $port "root@$DOMINIO" > logs/vulnerabilidades/"$ip"_"$port"_openrelay"$VECTOR".txt 2>/dev/null 
 			#fi	
 									
