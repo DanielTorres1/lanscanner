@@ -223,15 +223,30 @@ function enumeracionApache () {
 		grep "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
 	fi
 
-	egrep -i "is behind" .enumeracion/"$host"_"$port"_wafw00f.txt
-    greprc=$?
-    if [[ $greprc -eq 1 ]];then # si hay no hay firewall protegiendo la app								
-        echo -e "\t\t[+] Revisando archivos CGI ($host - Apache/nginx)"
+	if [ $internet == "n" ]; then 
+
+		echo -e "\t\t[+] Revisando archivos CGI ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m cgi -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_archivosCGI.txt        		
 		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_archivosCGI.txt | awk '{print $2}' >> servicios/cgi.txt; 
-        cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_archivosCGI.txt
-        sleep 1								
-    fi	
+		cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_archivosCGI.txt
+		sleep 1	
+
+	else
+		egrep -i "is behind" .enumeracion/"$host"_"$port"_wafw00f.txt
+		greprc=$?
+		if [[ $greprc -eq 1 ]];then # si hay no hay firewall protegiendo la app								
+			echo -e "\t\t[+] Revisando archivos CGI ($host - Apache/nginx)"
+			web-buster.pl -t $host -p $port -h $hilos_web -d / -m cgi -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_archivosCGI.txt        		
+			egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_archivosCGI.txt | awk '{print $2}' >> servicios/cgi.txt; 
+			cat servicios/cgi.txt >> .enumeracion/"$host"_"$port"_archivosCGI.txt
+			sleep 1								
+		fi	
+	fi
+	
+
+	echo -e "\t\t[+] Revisando docker socks ($host - Apache/nginx)"
+	curl -XGET --unix-socket /var/run/docker.sock $proto://$host:$port/images/json > logs/vulnerabilidades/"$host"_docker_images.txt
+	grep "Containers" logs/vulnerabilidades/"$host"_docker_images.txt > .vulnerabilidades/"$host"_docker_images.txt
 }
 
 
@@ -292,7 +307,7 @@ function enumeracionCMS () {
         wpscan  --update
         echo -e "\t\t\t[+] Revisando vulnerabilidades de wordpress ($host)"
         wpscan --disable-tls-checks  --enumerate u  --random-user-agent --url "$proto"://$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
-        wpscan --disable-tls-checks  --random-user-agent --url "$proto"://$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+        wpscan --disable-tls-checks  --random-user-agent --url "$proto"://$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
         
 
         #msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $host;run;exit" > logs/vulnerabilidades/"$host"_3389_BlueKeep.txt
@@ -304,7 +319,7 @@ function enumeracionCMS () {
             url=`cat logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
             
             wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt									
-            wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+            wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
             
         fi
 
@@ -2076,9 +2091,10 @@ then
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms10-061 _target_' > logs/vulnerabilidades/_target__445_ms10061.txt 2>/dev/null" --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-ms10-061 _target_ >> logs/vulnerabilidades/_target__445_ms10061.txt 2>/dev/null" --silent
 
-	#smb-vuln-cve-2017-7494
-	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-cve-2017-7494 _target_' > logs/vulnerabilidades/_target__445_cve20177494.txt 2>/dev/null" --silent
-	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-cve-2017-7494 _target_ >> logs/vulnerabilidades/_target__445_cve20177494.txt 2>/dev/null" --silent
+	#smb-vuln-cve-2017-7494 sambacry
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-cve-2017-7494 --script-args smb-vuln-cve-2017-7494.check-version _target_' > logs/vulnerabilidades/_target__445_sambacry.txt 2>/dev/null" --silent
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -p445 -Pn --script smb-vuln-cve-2017-7494 --script-args smb-vuln-cve-2017-7494.check-version _target_ >> logs/vulnerabilidades/_target__445_sambacry.txt 2>/dev/null" --silent
+	
 
 	#smb-vuln-ms06-025
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms06-025 _target_' > logs/vulnerabilidades/_target__445_ms06025.txt 2>/dev/null" --silent
@@ -2140,7 +2156,7 @@ then
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms10061.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms10061.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms07029.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_cve20177494.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_cve201774941.txt 
+		grep "|" logs/vulnerabilidades/"$ip"_445_sambacry.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_sambacry.txt 
 		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
 		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
@@ -4455,6 +4471,12 @@ then
 		echo "nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip" > logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
 		nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip >> logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_445_sambaVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_445_sambaVuln.txt
+
+		echo -e "\t[+] Obteniendo version de samba"
+		msfconsole -x "use auxiliary/scanner/smb/smb_version;set RHOSTS $ip; exploit;exit" >> logs/enumeracion/"$ip"_samba_version.txt 2>/dev/null
+		grep "Samba" logs/enumeracion/"$ip"_samba_version.txt | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .enumeracion/"$ip"_samba_version.txt 
+
+		
 		#scanner/smb/smb_uninit_cred											 
 		 echo ""
  	done <servicios/samba.txt
