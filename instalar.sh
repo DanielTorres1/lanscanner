@@ -27,7 +27,7 @@ RESET="\033[00m"       # Normal
 
 echo -e "${GREEN} [+] Instalando herramientas disponibles en repositorio ${RESET}" 
 sudo apt-get update
-sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes rusers kinit krb5-user tnscmd10g nfs-common open-iscsi erlang xdotool php-memcached glusterfs-cli kpcli
+sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes rusers kinit krb5-user tnscmd10g nfs-common open-iscsi erlang xdotool php-memcached glusterfs-cli kpcli libssl-dev
 
 echo -e "${GREEN} [+] Instalando ofuscador de bash ${RESET}" 
 npm install -g bash-obfuscate
@@ -70,6 +70,7 @@ cd files
 cp fingerprints-domain.json /usr/share/lanscanner
 cp amass-config.ini /usr/share/lanscanner
 cp community.txt /usr/share/lanscanner
+cp tomcat-passwds.txt /usr/share/lanscanner
 cp .resultados.db /usr/share/lanscanner
 #cp -r postExploiter /usr/share/lanscanner
 cp vulnerabilidades.xml /usr/share/lanscanner 2>/dev/null
