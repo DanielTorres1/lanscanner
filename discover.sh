@@ -49,6 +49,14 @@ exit
 fi
 
 
+function insert_data () {
+	find .vulnerabilidades -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+	find .enumeracion -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+	insert-data.py 2>/dev/null
+	mv .enumeracion/* .enumeracion2 2>/dev/null
+	mv .vulnerabilidades/* .vulnerabilidades2 2>/dev/null
+	mv .banners/* .banners2 2>/dev/null
+	}
 
 ######################
 if [ $TYPE == "internet" ]; then 	
@@ -85,7 +93,34 @@ if [ $TYPE == "oscp" ]; then
 	echo "entrando al directorio $directory" # creado por lanscanner
 	cd $directory
 	cracker.sh -d /usr/share/wordlists/top200.txt
-	#cracker.sh -d /usr/share/seclists/Passwords/Common-Credentials/10k-most-common.txt -t completo	
+	
+
+	if [ -f servicios/web.txt ]
+	then      
+		echo -e "$OKBLUE #################### WEB extended (`wc -l servicios/web.txt`) ######################$RESET"	    
+		for line in $(cat servicios/web.txt); do  
+			host=`echo $line | cut -f1 -d":"`
+			port=`echo $line | cut -f2 -d":"`		
+			echo -e "[+] Wfuzz ($host:$port)" 
+			wfuzz -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt  --hc 404 -u http://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt 
+		
+		done # for
+	insert_data	
+	fi
+
+	if [ -f servicios/web-ssl.txt ]
+	then      
+		echo -e "$OKBLUE #################### WEBS extended (`wc -l servicios/web-ssl.txt`) ######################$RESET"	    
+		for line in $(cat servicios/web-ssl.txt); do  
+			host=`echo $line | cut -f1 -d":"`
+			port=`echo $line | cut -f2 -d":"`					
+			echo -e "[+] Wfuzz ($host:$port)" 
+			wfuzz -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt  --hc 404 -u https://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt
+		
+		done # for	
+	insert_data
+	fi
+		
 fi
 
 if [ $TYPE == "lan" ]; then 	

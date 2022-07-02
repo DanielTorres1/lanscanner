@@ -207,7 +207,7 @@ class HTTP_Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 	rbufsize = 0
 
 	def handle(self):
-		(ip, port) =  self.client_address
+		(ip, port) =  self.client_address[0], self.client_address[1]
 		if settings.Config.Verbose:
 			print(text("[PROXY] Received connection from %s" % self.client_address[0]))
 		self.__base_handle()
@@ -246,14 +246,15 @@ class HTTP_Proxy(BaseHTTPServer.BaseHTTPRequestHandler):
 
 		try:
 			if self._connect_to(self.path, soc):
-				self.wfile.write(self.protocol_version +" 200 Connection established\r\n")
-				self.wfile.write("Proxy-agent: %s\r\n" % self.version_string())
-				self.wfile.write("\r\n")
+				self.wfile.write(NetworkSendBufferPython2or3(self.protocol_version +" 200 Connection established\r\n"))
+				self.wfile.write(NetworkSendBufferPython2or3("Proxy-agent: %s\r\n"% self.version_string()))
+				self.wfile.write(NetworkSendBufferPython2or3("\r\n"))
 				try:
 					self._read_write(soc, 300)
 				except:
 					pass
 		except:
+			raise
 			pass
 
 		finally:

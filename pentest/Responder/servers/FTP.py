@@ -37,10 +37,8 @@ class FTP(BaseRequestHandler):
 
 			if data[0:4] == b'PASS':
 				Pass = data[5:].strip().decode("latin-1")
-
 				Packet = FTPPacket(Code="530",Message="User not logged in.")
 				self.request.send(NetworkSendBufferPython2or3(Packet))
-				data = self.request.recv(1024)
 
 				SaveToDb({
 					'module': 'FTP', 
@@ -57,4 +55,5 @@ class FTP(BaseRequestHandler):
 				data = self.request.recv(1024)
 
 		except Exception:
+			raise
 			pass

