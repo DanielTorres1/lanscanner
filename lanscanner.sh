@@ -59,6 +59,61 @@ cat << "EOF"
 EOF
 }
 
+
+	
+print_ascii_art
+
+
+while getopts ":i:s:d:m:o:" OPTIONS
+do
+            case $OPTIONS in
+            s)     SUBNET_FILE=$OPTARG;;
+            i)     IP_LIST_FILE=$OPTARG;;
+            d)     DOMINIO_EXTERNO=$OPTARG;;
+            m)     MODE=$OPTARG;;
+            ?)     printf "invalid option: -$OPTARG\n" $0
+                          exit 2;;
+           esac
+done
+
+SUBNET_FILE=${SUBNET_FILE:=NULL}
+IP_LIST_FILE=${IP_LIST_FILE:=NULL}
+MODE=${MODE:=NULL} # normal/extended
+DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
+
+echo "[+] MODE $MODE SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE"
+
+
+if [ "$MODE" = NULL  ]; then
+
+cat << "EOF"
+
+Options: 
+
+-m : Mode [normal/extended]
+-d : domain
+
+Definicion del alcance:
+	-s : Lista con las subredes a escanear (Formato CIDR 0.0.0.0/24)
+	-i : Lista con las IP a escanear
+
+Ejemplo 2: Escanear el listado de IPs (completo)
+	lanscanner.sh -m normal -i lista.txt -d ejemplo.com
+
+Ejemplo 3: Escanear el listado de subredes (completo)
+	lanscanner.sh -m normal -s subredes.txt -d ejemplo.com
+
+EOF
+
+exit
+fi
+######################
+
+
+#aceptar versiones antiguas de SSL
+export OPENSSL_CONF=/usr/share/lanscanner/sslv1.conf
+
+
 function insert_data () {
 	find .vulnerabilidades -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
 	find .enumeracion -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
@@ -649,57 +704,6 @@ function cloneSite ()
 }
 
 
-	
-print_ascii_art
-
-
-while getopts ":i:s:d:m:o:" OPTIONS
-do
-            case $OPTIONS in
-            s)     SUBNET_FILE=$OPTARG;;
-            i)     IP_LIST_FILE=$OPTARG;;
-            d)     DOMINIO_EXTERNO=$OPTARG;;
-            m)     MODE=$OPTARG;;
-            ?)     printf "invalid option: -$OPTARG\n" $0
-                          exit 2;;
-           esac
-done
-
-SUBNET_FILE=${SUBNET_FILE:=NULL}
-IP_LIST_FILE=${IP_LIST_FILE:=NULL}
-MODE=${MODE:=NULL} # normal/extended
-DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
-
-echo "[+] MODE $MODE SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE"
-
-
-if [ "$MODE" = NULL  ]; then
-
-cat << "EOF"
-
-Options: 
-
--m : Mode [normal/extended]
--d : domain
-
-Definicion del alcance:
-	-s : Lista con las subredes a escanear (Formato CIDR 0.0.0.0/24)
-	-i : Lista con las IP a escanear
-
-Ejemplo 2: Escanear el listado de IPs (completo)
-	lanscanner.sh -m normal -i lista.txt -d ejemplo.com
-
-Ejemplo 3: Escanear el listado de subredes (completo)
-	lanscanner.sh -m normal -s subredes.txt -d ejemplo.com
-
-EOF
-
-exit
-fi
-######################
-
-#aceptar versiones antiguas de SSL
-export OPENSSL_CONF=/usr/share/lanscanner/sslv1.conf
 
 echo -e "\n\n$OKYELLOW ########### Configurando los parametros ############## $RESET"
 
@@ -2093,16 +2097,13 @@ if [ -f servicios/mysql.txt ]
 		egrep -iq "No valid accounts found" logs/vulnerabilidades/"$ip"_mysql_enum.txt 2>/dev/null
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
-			echo -e "\t No valid accounts found \n"					
-		else
+			echo -e "\t No valid accounts found \n"	
+		else			
 			grep --color=never "|" logs/vulnerabilidades/"$ip"_mysql_enum.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|not allowed" > .vulnerabilidades/"$ip"_mysql_enum.txt
 		fi	
 
-
-		
-
 		echo "nmap -Pn  --script=mysql-vuln-cve2012-2122 -p $port $ip" > logs/vulnerabilidades/"$ip"_mysql_vuln.txt 2>/dev/null
-		nmap -n -Pn --script=mysql-empty-password,mysql-enum,mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_mysql_vuln.txt 2>/dev/null
+		nmap -n -Pn --script=mysql-vuln-cve2012-2122 -p $port $ip >> logs/vulnerabilidades/"$ip"_mysql_vuln.txt 2>/dev/null
 		grep --color=never "|" logs/vulnerabilidades/"$ip"_mysql_vuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|not allowed" > .vulnerabilidades/"$ip"_mysql_vuln.txt
 
 		echo "medusa -e n -u root -p root -h $ip -M mysql" >  logs/cracking/"$ip"_mysql_defaultPassword.txt

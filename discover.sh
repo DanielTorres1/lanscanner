@@ -102,7 +102,8 @@ if [ $TYPE == "oscp" ]; then
 			host=`echo $line | cut -f1 -d":"`
 			port=`echo $line | cut -f2 -d":"`		
 			echo -e "[+] Wfuzz ($host:$port)" 
-			wfuzz -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt  --hc 404 -u http://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt 
+			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u http://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt 
+			egrep --color=never "C=200|C=301" logs/enumeracion/"$host"_"$port"_extended.txt > .enumeracion/"$host"_"$port"_extended.txt
 		
 		done # for
 	insert_data	
@@ -115,8 +116,8 @@ if [ $TYPE == "oscp" ]; then
 			host=`echo $line | cut -f1 -d":"`
 			port=`echo $line | cut -f2 -d":"`					
 			echo -e "[+] Wfuzz ($host:$port)" 
-			wfuzz -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt  --hc 404 -u https://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt
-		
+			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u https://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt
+			egrep --color=never  "C=200|C=301" logs/enumeracion/"$host"_"$port"_extended.txt > .enumeracion/"$host"_"$port"_extended.txt
 		done # for	
 	insert_data
 	fi
