@@ -25,6 +25,15 @@ BLUE="\033[01;34m"     # Heading
 BOLD="\033[01;01m"     # Highlight
 RESET="\033[00m"       # Normal
 
+echo -e "${RED}[+]${BLUE} Instalar docker ${RESET}"
+sudo apt-get install ca-certificates curl gnupg lsb-release
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian buster stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get -y  install  docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  
+
 echo -e "${GREEN} [+] Instalando herramientas disponibles en repositorio ${RESET}" 
 sudo apt-get update
 sudo apt-get -y install bc npm nbtscan nfs-common snmp finger sqlite3 sqlitebrowser nmap masscan onesixtyone whatweb libssl-dev ike-scan postgresql-client elinks smbclient bc libcurl4-openssl-dev xterm ipmitool lbd exiftool libpq-dev libpcap-dev tshark p7zip-full default-mysql-client python3-pip libssl-dev swig python3-dev gcc libcrypt-ssleay-perl metasploit-framework patator hydra enum4linux wpscan dnsutils python3-setuptools gedit tor gedit xterm dsniff terminator sipvicious remmina filezilla libmemcached-tools seclists oscanner encfs squidclient snmp-mibs-downloader redis-tools fdupes rusers kinit krb5-user tnscmd10g nfs-common open-iscsi erlang xdotool php-memcached glusterfs-cli kpcli libssl-dev
@@ -75,7 +84,8 @@ cp .resultados.db /usr/share/lanscanner
 #cp -r postExploiter /usr/share/lanscanner
 cp vulnerabilidades.xml /usr/share/lanscanner 2>/dev/null
 
-cp smb-vuln-ms17-010.nse /usr/share/nmap/scripts/
+cp *.nse /usr/share/nmap/scripts/
+
 cp rtsp-url-brute.nse /usr/share/nmap/scripts/rtsp-url-brute.nse
 cp rtsp.lua /usr/share/nmap/nselib/rtsp.lua
 cp cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
@@ -93,8 +103,9 @@ echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
 cp -r pentest /usr/bin
 cp lanscanner.sh /usr/bin
 cp monitor.sh /usr/bin
-cp autohack.sh /usr/bin
+cp discover.sh /usr/bin
 cp smbrelay.sh /usr/bin
+ln -s /usr/bin/discover.sh /usr/bin/autohack.sh
 
 cp files/image.png /usr/share/lanscanner/image.png
 cp files/vulnerabilidades.xml /usr/share/lanscanner/vulnerabilidades.xml
@@ -112,12 +123,6 @@ mkdir ~/.config/terminator 2>/dev/null
 cp files/smbrelay/config ~/.config/terminator   
 cp -r files/smbrelay/ /usr/share/lanscanner    
 
-
-echo -e "${GREEN} [+] Instalando scripts de SMBRelay ${RESET}"
-cd pentest/ipmiPwner
-cp files/smbrelay/config ~/.config/terminator   
-cp -r files/smbrelay/ /usr/share/lanscanner   
-cd ../../
 
     
 echo -e "${GREEN} [+] Instalando librerias de perl ${RESET}"
