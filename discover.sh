@@ -41,7 +41,8 @@ Ejemplo 1: Escanear el listado de subredes (completo)
 	discover.sh -t lan -d htb.local -k agetic -i ips.txt 
 	discover.sh -t lan -d htb.local -k agetic  -s subnet.txt
 	discover.sh -t internet -d agetic.gob.bo -k agetic 
-	discover.sh -t oscp -d htb.local -i ips.txt 
+	discover.sh -t oscp -i ips.txt 
+	discover.sh -t proxy -i ips.txt 
 	
 EOF
 
@@ -123,6 +124,19 @@ if [ $TYPE == "oscp" ]; then
 	fi
 		
 fi
+
+
+
+if [ $TYPE == "proxy" ]; then 	
+
+	lanscanner.sh -m proxy -i $IP_LIST_FILE -s $SUBNET_FILE
+	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
+	echo "entrando al directorio $directory" # creado por lanscanner
+#	cd $directory
+#	cracker.sh -d /usr/share/wordlists/top200.txt
+		
+fi
+
 
 if [ $TYPE == "lan" ]; then 	
 	# escaneo LAN
