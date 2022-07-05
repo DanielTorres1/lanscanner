@@ -409,16 +409,16 @@ function enumeracionCMS () {
     if [[ $greprc -eq 0 ]];then 		
         wpscan  --update
         echo -e "\t\t[+] Revisando vulnerabilidades de wordpress ($host)"
-        $proxychains wpscan --disable-tls-checks  --enumerate u  --random-user-agent --output json --url "$proto"://$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
+        $proxychains wpscan --disable-tls-checks  --enumerate u  --random-user-agent --output json --url "$proto"://$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
         $proxychains wpscan --disable-tls-checks  --random-user-agent --url "$proto"://$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
         
 
         #$proxychains msfconsole -x "use auxiliary/scanner/http/wordpress_content_injection;set RHOSTS $host;run;exit" > logs/vulnerabilidades/"$host"_3389_BlueKeep.txt
         
-        grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
+        grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
         greprc=$?
         if [[ $greprc -eq 0 ]];then 		            
-            url=`cat logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
+            url=`cat logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
 			echo -e "\t\t[+] Redireccion en wordpress ($url)"
             
             $proxychains wpscan --disable-tls-checks --enumerate u  --random-user-agent --format json --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
@@ -436,7 +436,7 @@ function enumeracionCMS () {
 
         strings logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | grep --color=never "XML-RPC seems" -m1 -b1 -A9 > logs/vulnerabilidades/"$host"_"$port"_configuracionInseguraWordpress.txt
         cat logs/vulnerabilidades/"$host"_"$port"_wpUsers.json | wpscan-parser.py > .vulnerabilidades/"$host"_"$port"_wpUsers.txt
-        grep -i users logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt -m1 -b1 -A20 > logs/vulnerabilidades/"$host"_"$port"_wpUsers.txt
+        grep -i users logs/vulnerabilidades/"$host"_"$port"_wpUsers.json -m1 -b1 -A20 > logs/vulnerabilidades/"$host"_"$port"_wpUsers.txt
     fi
                                 
     ###################################	 
