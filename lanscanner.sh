@@ -199,8 +199,8 @@ function enumeracionIIS () {
     grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
 
     echo -e "\t\t[+] Revisando paneles administrativos ($host - IIS)"						
-    $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_iis_admin.txt
-    egrep --color=never "^200|^401" logs/enumeracion/"$host"_iis_admin.txt >> .enumeracion/"$host"_iis_admin.txt  
+    $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_iis_webadmin.txt
+    egrep --color=never "^200|^401" logs/enumeracion/"$host"_iis_webadmin.txt >> .enumeracion/"$host"_iis_webadmin.txt  
     sleep 1
 
 	if [ "$MODE" != "proxy" ]; then 
@@ -417,9 +417,9 @@ function enumeracionCMS () {
         
         grep -qi "The URL supplied redirects to" logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt
         greprc=$?
-        if [[ $greprc -eq 0 ]];then 		
-            echo -e "\t\t[+] Redireccion en wordpress"
+        if [[ $greprc -eq 0 ]];then 		            
             url=`cat logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
+			echo -e "\t\t[+] Redireccion en wordpress ($url)"
             
             $proxychains wpscan --disable-tls-checks --enumerate u  --random-user-agent --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers2.txt									
             $proxychains wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
@@ -4411,9 +4411,8 @@ cd .enumeracion2/
 	#responde con 401
 	grep --color=never -i admin * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google|webData|Usando archivo" | grep 401 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/web401.txt
 	
-	#.enumeracion/"$ip"_"$port"_admin.txt 
 	#responde con 200 OK
-	cat *_admin.txt 2>/dev/null | grep 200 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
+	cat *_webadmin.txt 2>/dev/null | grep 200 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
 	
 	#tomcat
 	grep --color=never -i "/manager/html" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google" | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt

@@ -320,15 +320,9 @@ for line in $( ps aux | egrep --color=never "wpscan|joomscan" | grep -v color | 
 	time=`ps -p $pid -o etime | grep : | cut -d ":" -f1`
     #echo process time: $time
     echo "pid: $pid time $time"
-               
-	# diff=$(  echo "$current_time - $time"  |  )	
-	# diff=$(echo "($diff - $delta)*60" | bc  ) # fix with delta
-	# diff=`printf "%.0f\n" "$diff"` # round
-	# diff=`echo $diff | tr -d -`
-	# echo "Idle time: $diff minutes"	
 	
 	
-	if [[  $time -gt 40  ]];then 
+	if [[  $time -gt 45  ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
 		kill -9 $pid		
