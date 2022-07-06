@@ -4357,7 +4357,7 @@ fi
 ##################################### banners ##########################
 echo ""
 echo -e "$OKBLUE ############# Obteniendo banners de los servicios ############## $RESET"
-$proxychains getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt
+getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$proxychains"
 
 
 ######## wait to finish########
