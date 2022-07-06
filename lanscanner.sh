@@ -1115,7 +1115,7 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 				if [[ $nmap_instances -lt $max_nmap_instances  ]];then 										
 					echo -e "[+] Escaneando $ip"	
 					
-					proxychains nmap -sT -Pn -T4 --top-ports 1000 -n --open --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.grep ; cat -oG .escaneo_puertos/$ip.grep >> .escaneo_puertos/tcp-1000-nmap.grep &
+					proxychains nmap -sT -Pn -T4 --top-ports 100 -n --open --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.grep ; cat -oG .escaneo_puertos/$ip.grep >> .escaneo_puertos/tcp-100-nmap.grep &
 					sleep 0.1;
 					break												
 				else				
@@ -1138,7 +1138,7 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 			fi				
 		done
 		###########################################################
-		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-100-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
 
 	else
 		echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
