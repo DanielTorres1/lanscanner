@@ -24,6 +24,7 @@ hilos_web=30;
 DOMINIO_EXTERNO=''
 DOMINIO_INTERNO=''
 max_perl_instancias=50;
+max_nmap_instances=5;
 port_scanner='nmap_masscan' #nmap/naabu/masscan/nmap_masscan/nmap_naabu
 common_user_list="/usr/share/wordlists/usuarios-en.txt"
 oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
@@ -1105,9 +1106,40 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 	echo "USANDO NMAP COMO PORT SCANNER" 
 
 	if [ "$MODE" == "proxy" ]; then 
-		echo -e "[+] Realizando escaneo tcp (solo 100 puertos)" 			
-		proxychains nmap -sT -Pn -T4 --top-ports 1000 -n --open --min-parallelism 100 --min-rate 1   -iL  $live_hosts -oG .escaneo_puertos/tcp-100-nmap.grep
-		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-100-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+		echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
+		
+		
+		for ip in $(cat $live_hosts); do  			
+			while true; do				
+				nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 			
+				if [[ $nmap_instances -lt $max_nmap_instances  ]];then 										
+					echo -e "[+] Escaneando $ip"	
+					
+					proxychains nmap -sT -Pn -T4 --top-ports 1000 -n --open --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.grep ; cat -oG .escaneo_puertos/$ip.grep >> .escaneo_puertos/tcp-1000-nmap.grep &
+					sleep 0.1;
+					break												
+				else				
+					nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 
+					echo -e "\t[-] Maximo número de instancias de nmap ($nmap_instances)"
+					sleep 3									
+				fi		
+			done # while true		
+		done # for
+			
+		######## wait to finish web info ########
+		while true; do
+			nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 			
+			if [ "$nmap_instances" -gt 0 ]
+			then
+				echo -e "\t[i] Todavia hay escaneos de nmap activos ($nmap_instances)"  
+				sleep 30
+			else
+				break		  		 
+			fi				
+		done
+		###########################################################
+		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+
 	else
 		echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
 		nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -oG .escaneo_puertos/tcp-especificos-nmap.grep	 
