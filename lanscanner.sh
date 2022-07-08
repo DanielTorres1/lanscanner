@@ -4676,7 +4676,7 @@ then
 
 		echo -e "\t[+] Obteniendo version de samba"
 		$proxychains msfconsole -x "use auxiliary/scanner/smb/smb_version;set RHOSTS $ip; exploit;exit" >> logs/enumeracion/"$ip"_samba_version.txt 2>/dev/null
-		grep "Samba" logs/enumeracion/"$ip"_samba_version.txt | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .banner/"$ip"_samba_version.txt 
+		grep "Samba" logs/enumeracion/"$ip"_samba_version.txt | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .banners/"$ip"_samba_version.txt 
 
 		
 		#scanner/smb/smb_uninit_cred											 
