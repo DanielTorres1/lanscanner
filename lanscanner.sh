@@ -133,11 +133,11 @@ function enumeracionDefecto () {
 	if [ "$MODE" != "proxy" ]; then 
 		echo -e "\t\t[+] Revisando folders ($host - default)"						
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt 
-		egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webdirectorios.txt  	> .enumeracion/"$host"_"$port"_webdirectorios.txt 
+		egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webdirectorios.txt	> .enumeracion/"$host"_"$port"_webdirectorios.txt 
 
 		echo -e "\t\t[+] Revisando backups de archivos genericos ($host - default)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m files -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
-		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
 		sleep 1 
 	fi  
 	
@@ -166,7 +166,7 @@ function enumeracionSharePoint () {
     echo -e "\t\t[+] Revisando archivos comunes de sharepoint ($host - SharePoint)"
     echo "web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -q 1 -e \'something went wrong\'" > logs/enumeracion/"$host"_SharePoint_webarchivos.txt  
 	$proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m sharepoint -s $proto -e 'something went wrong' -q 1 >> logs/enumeracion/"$host"_SharePoint_webarchivos.txt  
-    egrep --color=never "^200|^401" logs/enumeracion/"$host"_SharePoint_webarchivos.txt >> .enumeracion/"$host"_SharePoint_webarchivos.txt  
+    egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_SharePoint_webarchivos.txt >> .enumeracion/"$host"_SharePoint_webarchivos.txt  
     sleep 1
 	
 
@@ -207,22 +207,22 @@ function enumeracionIIS () {
 	if [ "$MODE" != "proxy" ]; then 
 		echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - IIS)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt
-		egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
 		sleep 1
 
 		echo -e "\t\t[+] Revisando archivos comunes de webservices ($host - IIS)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m webservices -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt  
-		egrep --color=never "^200" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
 		sleep 1
 
 		echo -e "\t\t[+] Revisando la existencia de backdoors ($host - IIS)"								
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_webshell.txt
-		egrep --color=never "^200" logs/vulnerabilidades/"$host"_iis_webshell.txt >> .vulnerabilidades/"$host"_iis_webshell.txt
+		egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_iis_webshell.txt >> .vulnerabilidades/"$host"_iis_webshell.txt
 		sleep 1
 
 		echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - IIS)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backupIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_backupWeb.txt
-		egrep --color=never "^200" logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
+		egrep --color=never "^200|^301|^302|^401"logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
 		sleep 1	
 
 		$proxychains msfconsole -x "use auxiliary/scanner/http/iis_shortname_scanner;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_iis_shortname.txt 2>/dev/null							   
@@ -260,7 +260,7 @@ function enumeracionApache () {
 
 	echo -e "\t\t[+] Revisando archivos peligrosos ($host - Apache/nginx)"
     $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m archivosPeligrosos -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
-    egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
+    egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
     sleep 1
 
 	if [ "$MODE" != "proxy" ]; then 
@@ -271,29 +271,29 @@ function enumeracionApache () {
 
 		echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backupApache -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
-		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
 		sleep 1
 		
 
 		echo -e "\t\t[+] Revisando backups de archivos genericos ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m files -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
-		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
 		sleep 1
 
 		echo -e "\t\t[+] Revisando archivos por defecto ($host - Apache/nginx)"
-		web-buster.pl -t $host -p $port -h $hilos_web -d / -m default -s $proto -q 1 | egrep --color=never "^200" | awk '{print $2}' > .vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  &
+		web-buster.pl -t $host -p $port -h $hilos_web -d / -m default -s $proto -q 1 | egrep --color=never "^200" > .vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  &
 		#web-buster.pl -t $host -p $port -h $hilos_web -d / -m default -s http -q 1 > logs/vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  
 	#								egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_archivosDefecto.txt  
 		sleep 1
 		
 		echo -e "\t\t[+] Revisando la existencia de backdoors ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorApache -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_webshell.txt 
-		egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_webshell.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_webshell.txt 								
+		egrep --color=never "^200|^301|^302|^401"  logs/vulnerabilidades/"$host"_"$port"_webshell.txt  >> .vulnerabilidades/"$host"_"$port"_webshell.txt 								
 		sleep 1
 		
 		echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m registroHabilitado -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt 
-		egrep --color=never "^200" logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_registroHabilitado.txt
+		egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_registroHabilitado.txt
 		sleep 1
 		
 		echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($host - Apache/nginx)"
@@ -370,12 +370,12 @@ function enumeracionTomcat () {
     
     echo -e "\t\t[+] Revisando archivos comunes de tomcat ($host - Tomcat)"
     $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m tomcat -s $proto -q 1  > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
-    egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+    egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
     
     if [ "$MODE" != "proxy" ]; then 
 		echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - Tomcat)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
-		egrep --color=never "^200" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
 		sleep 1	  
 	fi  
     
@@ -1207,6 +1207,7 @@ cd .escaneo_puertos
 	grep ":86$" tcp.txt  | uniq >> ../servicios/web.txt	
 	grep ":87$" tcp.txt  | uniq >> ../servicios/web.txt	
 	grep ":89$" tcp.txt  | uniq >> ../servicios/web.txt	
+	grep ":8000$" tcp.txt  | uniq >> ../servicios/web.txt	
 	grep ":8080$" tcp.txt  | uniq >> ../servicios/web.txt	
 	grep ":8081$" tcp.txt  | uniq >> ../servicios/web.txt	
 	grep ":8082$" tcp.txt  | uniq >> ../servicios/web.txt		
@@ -1232,6 +1233,7 @@ cd .escaneo_puertos
 	grep ":873$" tcp.txt  | uniq >> ../servicios/rsync.txt
 
 	grep ":3128$" tcp.txt  | uniq >> ../servicios/squid.txt
+	grep ":8888$" tcp.txt  | uniq >> ../servicios/squid.txt
 	grep ":1080$" tcp.txt  | uniq >> ../servicios/proxy.txt
 
 	grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
@@ -1540,15 +1542,16 @@ then
 		fi				
 		
 		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
-		echo "kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
-		$proxychains  kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt
-		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_"$port"_kerbrute.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_"$port"_kerbrute.txt
+		echo "kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_kerbrute_users.txt
+		$proxychains  kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_kerbrute_users.txt		
+		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_kerbrute_users.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_kerbrute_users.txt
+		#kerbrute bruteforce --domain svcorp.com  userpass.txt --dc 10.11.1.20
 
 
 		if [ ! -z "$dominioAD" ]
 		then
 			echo "dominioAD $dominioAD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-			$proxychains  GetNPUsers.py "$dominioAD"/ -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		fi				
@@ -2869,6 +2872,8 @@ then
 		if [[ ${vnc_response} == *"RFB 003.008"* ]];then
 			echo -e "\tVNC bypass ($vnc_response)" > .vulnerabilidades/"$ip"_"$port"_VNCbypass.txt 
 		fi	
+		#36932.py
+
 		echo -e "\t[+] Verificando autenticación"
 		$proxychains msfconsole -x "use auxiliary/scanner/vnc/vnc_none_auth;set RHOSTS $ip; set rport $port;run;exit" > logs/vulnerabilidades/"$ip"_"$port"_noauth.txt 2>/dev/null		
 		egrep --color=never -i "None" logs/vulnerabilidades/"$ip"_"$port"_noauth.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > .vulnerabilidades/"$ip"_"$port"_noauth.txt
