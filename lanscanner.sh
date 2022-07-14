@@ -717,7 +717,7 @@ function cloneSite ()
 
 echo -e "\n\n$OKYELLOW ########### Configurando los parametros ############## $RESET"
 
-if [ ! -d "servicios" ]; then # si ya ejecutamos recon.sh antes
+if [ ! -d "servicios" ]; then #si no existe la carpeta servicios
 
   echo -e "$OKBLUE ¿Desde que VLAN estas ejecutando? $RESET"
   read project
@@ -806,7 +806,7 @@ echo -e "\t Date: $date  \n" | tee -a reportes/info.txt
 if [ $IP_LIST_FILE != NULL ] ; then  
 	#Lista de IPs como parametro (generalmente IPs publicas/subdominios) separadas por ,
      echo -e  "[+] Usando  archivo : $prefijo$IP_LIST_FILE " 
-	 #pwd
+	 pwd
      if [ ! -f $prefijo$IP_LIST_FILE ]; then
 		echo -e  "$OKRED El archivo no existe ! $RESET"
 		exit
@@ -1783,7 +1783,7 @@ if [ -f servicios/OMI.txt ]
 		port=`echo $line | cut -f2 -d":"`
 
 		#CVE-2021-38647
-		echo "omigod.py -t $ip -c id  (CVE-2021-38647)" > logs/enumeracion/"$ip"_"OMI"_info.txt 2>/dev/null
+		echo "omigod.py -t $ip -c id  (CVE-2021-38647)" > logs/vulnerabilidades/"$ip"_"OMI"_info.txt 2>/dev/null
 		$proxychains omigod.py -t $ip -c id >> logs/vulnerabilidades/"$ip"_"OMI"_info.txt 2>/dev/null
 		grep "uid" logs/vulnerabilidades/"$ip"_"OMI"_info.txt > .vulnerabilidades/"$ip"_"OMI"_info.txt
 

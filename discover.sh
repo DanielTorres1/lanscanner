@@ -68,7 +68,8 @@ if [ $TYPE == "internet" ]; then
 	xterm -hold -e monitor.sh 2>/dev/null&
 	recon.sh -d $DOMAIN -k $KEYWORD
 	cd $DOMAIN
-	lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN
+	grep --color=never -i bolivia importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
+	lanscanner.sh -m normal -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN
 	cracker.sh -e $KEYWORD
 fi
 
