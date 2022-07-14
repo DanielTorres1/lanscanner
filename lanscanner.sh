@@ -3601,36 +3601,48 @@ then
     
     echo -e "$OKBLUE #################### WEB - SSL (`wc -l servicios/web-ssl.txt`) ######################$RESET"	    		
 	echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"
+
+	if [ $internet == "s" ]; then 
+		DOMINIO_INTERNO=$DOMINIO_EXTERNO
+	fi
+
+
 	# Extraer informacion web y SSL
 	for line in $(cat servicios/web-ssl.txt); do    
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`	
+		
 		$proxychains get_ssl_cert.py $ip $port  2>/dev/null > .enumeracion/"$ip"_"$port"_cert.txt 
 		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'`
-		for SUBDOMINIO_INTERNO in $SUBDOMINIOS_INTERNOS; do	
-			echo "$ip $SUBDOMINIO_INTERNO" >> /etc/hosts
-			echo "$ip,$SUBDOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+		for SUBDOMINIOS_INTERNO in $SUBDOMINIOS_INTERNOS; do	
+			if [[ ${SUBDOMINIOS_INTERNO} == *"enterpriseregistration.windows.net"*  ]];then 
+				echo "$SUBDOMINIOS_INTERNO" >> .enumeracion/"$ip"_"$port"_azureAD.txt 
+			else
+				DOMINIO_INTERNO=$SUBDOMINIOS_INTERNO
+				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
+				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+			fi		
 		done
 
 		if [ "$MODE" == "extended" ]; then 							
 			echo -e "\t [+] Seeking virtual hosts"
-			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
-			if [  -z "$DOMINIO_INTERNO" ]; then
-				echo -e "\t\t [+] Extract domain from SSL Cert"			
-				DOMINIO_INTERNO=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq '.["commonName"]'|tr -d '"'`				
-			fi
-			
-			#Extraer dominio del status
-			if [ -z "$DOMINIO_INTERNO" ]; then 
-				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s https -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
-			fi
 
-			echo -e "\t [+] main domain $DOMINIO_INTERNO"
-			if [ ! -z "$DOMINIO_INTERNO" ]; then
+			if [ $internet == "n" ]; then 
+				DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
+				
+				#Extraer dominio del status
+				if [ -z "$DOMINIO_INTERNO" ]; then 
+					DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s https -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
+				fi
 
 				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
 				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE							
 
+			fi
+			
+
+			echo -e "\t [+] DOMINIO_INTERNO $DOMINIO_INTERNO"
+			if [ ! -z "$DOMINIO_INTERNO" ]; then
 
 				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
 				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
@@ -4503,7 +4515,7 @@ cd .enumeracion2/
 	grep --color=never -i PRTG * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/PRTG.txt
 	
 	#ZKsoftware
-	grep --color=never -i ZK * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZKSoftware.txt		
+	grep --color=never -i 'ZK ' * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZKSoftware.txt		
 
 	#vCenter
 	grep --color=never -i "ID_VC_Welcome" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/vCenter.txt
