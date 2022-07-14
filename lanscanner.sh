@@ -41,8 +41,9 @@ dns_list=".escaneos/lista-dns.txt"
 mass_scan_list=".escaneos/lista-mass-scan.txt"
 ping_list=".escaneos/lista-ping.txt"
 smbclient_list=".escaneos/lista-smbclient.txt"
-prefijo="" # "../"  --> escaneo LAN (../ips.txt)
-		   # (vacio) -->  escaneo internet (reporte/maltego.csv)
+prefijo="" 
+# "../"  --> escaneo LAN (../ips.txt)
+# (vacio) -->  escaneo internet (reporte/maltego.csv)
 
 
 
