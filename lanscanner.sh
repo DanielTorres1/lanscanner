@@ -41,7 +41,8 @@ dns_list=".escaneos/lista-dns.txt"
 mass_scan_list=".escaneos/lista-mass-scan.txt"
 ping_list=".escaneos/lista-ping.txt"
 smbclient_list=".escaneos/lista-smbclient.txt"
-prefijo=""
+prefijo=""# "../"  --> escaneo LAN (../ips.txt)
+		  # (vacio) -->  escaneo internet (reporte/maltego.csv)
 
 
 
@@ -1059,8 +1060,6 @@ echo -e "$OKYELLOW [+] FASE 2: ESCANEO DE PUERTOS,VoIP, etc $RESET"
 
 ########### searching VoIP devices ##########
 echo -e "############# Escaneando #################\n"
- 
-if [ $internet == "n" ]; then 
 	if [ "$MODE" != "proxy" ]; then 
 		echo -e "#################### Buscando dispositivos VoIP: ######################"	  
 		for subnet in $(cat .datos/subnets.txt); do
@@ -1073,8 +1072,7 @@ if [ $internet == "n" ]; then
 			grep --color=never ":" logs/enumeracion/$subnet-voip.txt | cut -d " " -f2 > servicios/voip.txt
 
 		done;	
-	fi
-fi    
+	fi  
  
 	
 #####################
@@ -1082,7 +1080,7 @@ fi
   
    
 echo -e "#################### Escaneo de puertos TCP ######################"	  
-#nmap_masscan = nmap top 1000 + masscan (Todos puertos) 
+#nmap_masscan = nmap top 1000 + masscan (10.000 puertos) 
 #nmap_naabu = nmap top 1000 + naabu (Todos puertos)
 
 ## NAABU
@@ -3213,25 +3211,33 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 
-		
-		if [ "$MODE" == "extended" ]; then 							
-			echo -e "\t[+] Buscando mas virtual hosts"
-			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`			
+		if [ $internet == "s" ]; then 
+			DOMINIO_INTERNO=$DOMINIO_EXTERNO
+		fi
 
-			#Extraer dominio del status
-			if [ -z "$DOMINIO_INTERNO" ]; then
-				DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s http -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
+		
+		if [ "$MODE" == "extended" ]; then 	
+
+			if [ $internet == "n" ]; then 
+				echo -e "\t[+] Buscando domain"
+				DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`			
+
+				#Extraer dominio del status
+				if [ -z "$DOMINIO_INTERNO" ]; then
+					DOMINIO_INTERNO=`webData.pl -t $ip -p $port -s http -e todo -d / -l /dev/null -r 4 | grep 'Name or service not known' | cut -d "~" -f2`
+				fi	
 			fi
 
-			echo -e "\t[+] main domain $DOMINIO_INTERNO"
+					
+			if [[ ! -z "$DOMINIO_INTERNO" ]] ; then 
 
-			if [ ! -z "$DOMINIO_INTERNO" ]; then
-
-
-				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
-				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
+				if [ $internet == "n" ]; then 
+					echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
+					echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE		
+				fi
 
 				#base line request
+				echo -e "\t[+] Buscando mas virtual hosts"
 				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
 				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
 				echo "\tchars $chars" # no incluir las respuestas con x chars (sitios iguales)
@@ -3264,7 +3270,8 @@ then
 
 			
 				######## revisar por subdominio #######
-				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
+				echo "DOMINIO_INTERNO $DOMINIO_INTERNO"
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then # si es el archivo subdomains.csv			
 					lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
