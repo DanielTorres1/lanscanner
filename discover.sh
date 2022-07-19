@@ -160,8 +160,8 @@ if [ $TYPE == "lan" ]; then
 	
 	mv /usr/bin/pentest/Responder/logs/* `pwd`/responder 2>/dev/null
 
-	########  SMBRelay 32 bits #########
-	echo -e "\t[+] Testeando SMBRelay (shell - 32 bits)"
+	########  SMBRelay #########
+	echo -e "\t[+] Testeando SMBRelay (shell)"
 	killall xterm
 	pwd
 	smbrelay.sh -t shell &

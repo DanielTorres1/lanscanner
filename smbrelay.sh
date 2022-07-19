@@ -120,7 +120,7 @@ function ctrl_c(){
 if [ "$(id -u)" == "0" ]; then
     tput civis 
     
-    echo -e "\n${LBlue}[${BYellow}!${LBlue}] ${BGreen}Iniciando SMBrelay...${Color_Off}"
+    echo -e "\n${LBlue}[${BYellow}!${LBlue}] ${BGreen}Iniciando SMBrelay...(TYPE = $TYPE) ${Color_Off}"
     sleep 2
     if [ $TYPE == "shell" ] ; then
         terminator -l smbrelay32bits
