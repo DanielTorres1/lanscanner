@@ -16,7 +16,8 @@
       type = Terminal
       parent = window0
       command = ""
-  [[smbrelay64bits]]
+
+  [[smbrelayshell]]
     [[[child0]]]
       type = Window
       parent = ""

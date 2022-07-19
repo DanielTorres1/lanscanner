@@ -122,14 +122,9 @@ if [ "$(id -u)" == "0" ]; then
     
     echo -e "\n${LBlue}[${BYellow}!${LBlue}] ${BGreen}Iniciando SMBrelay...${Color_Off}"
     sleep 2
-    if [ $TYPE == "shell64bits" ] ; then
-        terminator -l smbrelay64bits
-    fi
-
-    if [ $TYPE == "shell32bits" ] ; then
+    if [ $TYPE == "shell" ] ; then
         terminator -l smbrelay32bits
     fi
-
     if [ $TYPE == "share" ] ; then
         terminator -l share
     fi

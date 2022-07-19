@@ -5,7 +5,8 @@ OKBLUE='\033[94m'
 OKRED='\033[91m'
 OKGREEN='\033[92m'
 RESET='\e[0m'
-targets=$1
+targets=`wc -l $1 | cut -d " " -f1`
+targets=$((targets + 2))  
 while true; do 
 current_time=`date +"%H:%M"`
 echo "Current time: $current_time"

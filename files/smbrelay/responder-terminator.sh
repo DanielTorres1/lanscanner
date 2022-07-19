@@ -12,6 +12,6 @@ echo -e "${LBlue}[${BBlue}+${LBlue}] ${BWhite}Configurando Responder...${Color_O
 cp /usr/bin/pentest/Responder/Responder.conf.smbrelay /usr/bin/pentest/Responder/Responder.conf
 
 # Iniciando Responder
-responder.sh -I eth0 -rdw
+/usr/bin/pentest/responder.sh -I eth0 -dw
 
 sleep 5

