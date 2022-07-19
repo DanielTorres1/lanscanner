@@ -1208,6 +1208,8 @@ cd .escaneo_puertos
 	grep ":8443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
 	grep ":4443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
 	grep ":4433$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
+	grep ":10443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
+	
 		
 	grep ":21$" tcp.txt  | uniq >> ../servicios/ftp2.txt
 	grep ":513$" tcp.txt  | uniq >> ../servicios/rlogin.txt
