@@ -1166,17 +1166,9 @@ sed -i "s/ //g" .escaneo_puertos/tcp.txt
 ################### UDP escaneo  ###################  
 
 
-echo -e "#################### Escaneo de puertos UDP ######################"	  
+echo -e "#################### Escaneo de puertos UDP ######################"
 $proxychains nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
-nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt
-#egrep -v "^#|Status: Up" .escaneo_puertos/nmap-udp.grep | cut -d' ' -f2,4- |  awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g' >> .escaneo_puertos/udp.txt
-
-if [ "$MODE" != "proxy" ]; then 
-
-	nmap -T2 -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
-	nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt	
-	#udp-hunter.sh --file=`pwd`/"$live_hosts" --output=`pwd`"/.escaneo_puertos/udp.txt" --timeout=10 --noise=true
-fi	
+nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt	
 sort .escaneo_puertos/udp2.txt | uniq > .escaneo_puertos/udp.txt
 
 
@@ -2191,27 +2183,15 @@ fi
 if [ -f servicios/smb.txt ]
 then 
 	echo -e "$OKBLUE #################### smb (`wc -l servicios/smb.txt`) ######################$RESET"	    
-	echo -e "[+] Obteniendo OS/dominio"
-	mkdir -p .smbinfo/ 		
-	cp $live_hosts .smbinfo/	
 	cat servicios/smb.txt | cut -d ":" -f1 | sort | uniq > servicios/smb_uniq.txt 
 
 	
-	#OS discovery
-	interlace -tL servicios/smb_uniq.txt -threads 5 -c "$proxychains nmap -n -sT -Pn --script smb-os-discovery.nse -p445 _target_ | grep '|'> .smbinfo/_target_.txt" --silent	
-
 	#null session
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "$proxychains rpcclient -U ''%'' -N -c srvinfo _target_ >  logs/vulnerabilidades/_target__445_nullsession.txt" --silent	
 
 	# rpcclient>srvinfo
 	# rpcclient>enumdomusers
-	# rpcclient>getdompwinfo
-	
-	
-	echo -e "[+] Creando reporte (OS/dominio/users)"
-	cd .smbinfo/
-		report-OS-domain.pl total-host-vivos.txt 2>/dev/null
-	cd ..
+	# rpcclient>getdompwinfo	
 		 
 	#smb-vuln-ms08-067
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "echo 'nmap -n -sT -p445 -Pn --script smb-vuln-ms08-067 _target_' >> logs/vulnerabilidades/_target__445_ms08067.txt " --silent
@@ -2292,7 +2272,6 @@ fi
 if [ -f servicios/smb.txt ]
 then  
 	echo -e "$OKBLUE #################### SMB (`wc -l servicios/smb.txt`) ######################$RESET"	
-	mkdir -p .smbinfo/
 	for ip in $(cat servicios/smb_uniq.txt); do		
 	
 		$proxychains getArch.py -target $ip > logs/enumeracion/"$ip"_445_arch.txt
@@ -4431,7 +4410,6 @@ echo ""
 echo -e "$OKBLUE ############# Obteniendo banners de los servicios ############## $RESET"
 getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$proxychains"
 
-
 ######## wait to finish########
   while true; do
 	nmap_instancias=$((`ps aux | grep nmap | wc -l` - 1)) 
@@ -4444,6 +4422,11 @@ getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$pr
 	fi				
   done
 ##############################
+
+for ip in $(cat .datos/total-host-vivos.txt); do
+	egrep --color=never 'OS details:|Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt | cut -d "," -f1 > .enumeracion/"$ip"_os_version.txt
+done
+insert_data
 
 cat .escaneo_puertos_banners/*.grep > .escaneo_puertos/nmap-tcp-banners.grep 2>/dev/null
 cat .escaneo_puertos_banners/*.txt > reportes/nmap-tcp-banners.txt 2>/dev/null
