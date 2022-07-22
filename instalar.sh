@@ -75,18 +75,11 @@ go install github.com/hakluke/hakrevdns@latest
 
 echo -e "${GREEN} [+] Copiando archivos ${RESET}"
 mkdir /usr/share/lanscanner 2>/dev/null
-cd files
-cp fingerprints-domain.json /usr/share/lanscanner
-cp amass-config.ini /usr/share/lanscanner
-cp community.txt /usr/share/lanscanner
-cp tomcat-passwds.txt /usr/share/lanscanner
-cp .resultados.db /usr/share/lanscanner
-#cp -r postExploiter /usr/share/lanscanner
-cp vulnerabilidades.xml /usr/share/lanscanner 2>/dev/null
+cp  files/share/* /usr/share/lanscanner
+cp  files/share/.resultados.db /usr/share/lanscanner/.resultados.db
+
 
 cp *.nse /usr/share/nmap/scripts/
-
-cp rtsp-url-brute.nse /usr/share/nmap/scripts/rtsp-url-brute.nse
 cp rtsp.lua /usr/share/nmap/nselib/rtsp.lua
 cp cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
 cd ..

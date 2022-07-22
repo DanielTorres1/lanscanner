@@ -25,7 +25,8 @@ DOMINIO_INTERNO=''
 max_perl_instancias=50;
 max_nmap_instances=5;
 port_scanner='nmap_masscan' #nmap/naabu/masscan/nmap_masscan/nmap_naabu
-common_user_list="/usr/share/wordlists/usuarios-en.txt"
+common_user_list_en="/usr/share/lanscanner/usuarios-en.txt"
+common_user_list_es="/usr/share/lanscanner/usuarios-es.txt"
 oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
 common_domains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
 #"/usr/share/seclists/Usernames/Names/names.txt"
@@ -1351,13 +1352,14 @@ cd .escaneo_puertos
 
 	grep ":5672$" tcp.txt  | uniq >> ../servicios/RabbitMQ.txt
 
-	grep ":5985$" tcp.txt  | uniq >> ../servicios/OMI.txt
-	grep ":5986$" tcp.txt  | uniq >> ../servicios/OMI.txt
+#TODO
+	#grep ":5985$" tcp.txt  | uniq >> ../servicios/OMI.txt
+	#grep ":5986$" tcp.txt  | uniq >> ../servicios/OMI.txt
 	
 	grep ":8086$" tcp.txt  | uniq >> ../servicios/InfluxDB.txt
 
-	grep ":24007$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
-	grep ":49152$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+	#grep ":24007$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+	#grep ":49152$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
 
 	grep ":44134$" tcp.txt  | uniq >> ../servicios/helm.txt
 	grep ":44818$" tcp.txt  | uniq >> ../servicios/EtherNet.txt
@@ -1557,7 +1559,7 @@ then
 			echo "dominioAD $dominioAD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-			# hashcat -m 18200 -a 0 hash.txt /media/sistemas/Passwords/Passwords/rockyou2021.txt -o cracked.txt #hash.txt tiene todos los datos no solo hash
+			# ./hashcat.bin -m 18200 -a 0 hash-kerberos.txt /media/sistemas/Passwords/Passwords -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		fi				
 		
 		echo -e "[+] \t rpcEnumUsers"	
@@ -2306,16 +2308,6 @@ then
 		#smbclient --list //10.11.1.146/
 		################################										
 	done				
-	
-	# windows 
-	grep -i windows reportes/reporte-OS.csv 2> /dev/null | cut -d ";" -f 1 >> servicios/Windows.txt
-
-	# servers
-	egrep -i "server|unix|Samba" reportes/reporte-OS.csv 2>/dev/null | cut -d ";" -f1 >> servicios/servers2.txt
-	cat servicios/ldap.txt 2>/dev/null | cut -d ":" -f1 >> servicios/servers2.txt 2>/dev/null 
-	sort servicios/servers2.txt | uniq > servicios/servers.txt
-	rm servicios/servers2.txt
-	find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
 	
 	#insert clean data	
 	insert_data
@@ -3109,45 +3101,7 @@ fi
 
 
 
-#	servers
-if [ -f servicios/servers.txt ]
-then
-	echo -e "$OKBLUE #################### Servers (`wc -l servicios/servers.txt`)######################$RESET"	    
-	while read ip       
-	do     			
-		#ip=`echo $line | cut -f1 -d":"`		
-		echo -e "[+] Escaneando $ip"
-		echo -e "\t[+] Probando enum4linux"
-		###### Enum4linux ######
-		echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-		$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
-		
-		#######################
-		
-		
-		###### zerologon ######
-		netbiosName=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip | grep -i netbios | awk '{print $5}' | cut -d '\' -f1 `
-		echo -e "\t[+] netbiosName $netbiosName"		
-			
-		if [ ! -z "$netbiosName" ]; then
-			echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
-			$proxychains zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 2>/dev/bull
-			grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
-			#######################		
-		fi		
-		
-		
-		###### PrintNightmare ######
-		$proxychains rpcdump.py $ip  >> logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt 		
-		egrep "MS-RPRN|MS-PAR" logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt  > .vulnerabilidades/"$ip"_"445"_PrintNightmare.txt
-		#######################		
-															
-		 echo ""
- 	done <servicios/servers.txt		
-	#insert clean data	
-	insert_data
-	
-fi
+
 
 
 
@@ -4425,13 +4379,67 @@ getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$pr
 
 for ip in $(cat .datos/total-host-vivos.txt); do
 	egrep --color=never 'OS details:|Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt | cut -d "," -f1 > .enumeracion/"$ip"_os_version.txt
+	echo $ip:`cat .enumeracion/"$ip"_os_version.txt | cut -d ":" -f2` >> reportes/reporte-OS.csv
 done
+
 insert_data
+
+######################  
+# windows 
+grep -i windows reportes/reporte-OS.csv 2> /dev/null | cut -d ":" -f 1 >> servicios/Windows.txt
+
+# servers
+egrep -i "server|unix|Samba" reportes/reporte-OS.csv 2>/dev/null | cut -d ":" -f1 >> servicios/servers2.txt
+cat servicios/ldap.txt 2>/dev/null | cut -d ":" -f1 >> servicios/servers2.txt 2>/dev/null 
+sort servicios/servers2.txt | uniq > servicios/servers.txt
+rm servicios/servers2.txt
+find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+###########################
 
 cat .escaneo_puertos_banners/*.grep > .escaneo_puertos/nmap-tcp-banners.grep 2>/dev/null
 cat .escaneo_puertos_banners/*.txt > reportes/nmap-tcp-banners.txt 2>/dev/null
 #############################################################################
 
+
+#servers
+if [ -f servicios/servers.txt ]
+then
+	echo -e "$OKBLUE #################### Servers (`wc -l servicios/servers.txt`)######################$RESET"	    
+	while read ip       
+	do     			
+		#ip=`echo $line | cut -f1 -d":"`		
+		echo -e "[+] Escaneando $ip"
+		echo -e "\t[+] Probando enum4linux"
+		###### Enum4linux ######
+		echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+		$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
+		
+		#######################
+		
+		
+		###### zerologon ######
+		netbiosName=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip | grep -i netbios | awk '{print $5}' | cut -d '\' -f1 `
+		echo -e "\t[+] netbiosName $netbiosName"		
+			
+		if [ ! -z "$netbiosName" ]; then
+			echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
+			$proxychains zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 2>/dev/bull
+			grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
+			#######################		
+		fi		
+		
+		
+		###### PrintNightmare ######
+		$proxychains rpcdump.py $ip  >> logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt 		
+		egrep "MS-RPRN|MS-PAR" logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt  > .vulnerabilidades/"$ip"_"445"_PrintNightmare.txt
+		#######################		
+															
+		 echo ""
+ 	done <servicios/servers.txt		
+	#insert clean data	
+	insert_data
+	
+fi
 
 
 cd .escaneo_puertos		
@@ -5477,7 +5485,7 @@ insert_data
 if [ "$MODE" != "proxy" ]; then 
 	IFS=$'\n'  # make newlines the only separator
 	echo -e "$OKBLUE #################### Realizar escaneo de directorios (2do nivel) a los directorios descubiertos ######################$RESET"	    
-	for line in $(cat .enumeracion2/*webdirectorios.txt | uniq 2>/dev/null); do	
+	for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null | uniq ); do	
 		echo -e "\n\t########### $line #######"										
 		#line= 200	https://inscripcion.notariadoplurinacional.gob.bo:443/manual/ (Listado directorio activo)	 ,
 		while true; do
