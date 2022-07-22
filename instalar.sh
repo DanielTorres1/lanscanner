@@ -79,10 +79,9 @@ cp  files/share/* /usr/share/lanscanner
 cp  files/share/.resultados.db /usr/share/lanscanner/.resultados.db
 
 
-cp *.nse /usr/share/nmap/scripts/
-cp rtsp.lua /usr/share/nmap/nselib/rtsp.lua
-cp cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
-cd ..
+cp files/*.nse /usr/share/nmap/scripts/
+cp files/rtsp.lua /usr/share/nmap/nselib/rtsp.lua
+cp files/cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
 echo ""
 
 
