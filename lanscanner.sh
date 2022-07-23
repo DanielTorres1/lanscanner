@@ -93,7 +93,7 @@ cat << "EOF"
 
 Options: 
 
--m : Mode [normal/extended]
+-m : Mode [normal/extended/proxy]
 -d : domain
 
 Definicion del alcance:
@@ -570,13 +570,14 @@ function testSSL ()
     ##########################
     
     
-    #######  Configuracion TLS/SSL (dominio) ######						
-    echo -e "\t\t[+] Revisando configuracion TLS/SSL"
-    
-    #testssl.sh --color 0  "https://$host:$port" > logs/vulnerabilidades/"$host"_"$port"_confTLS.txt 2>/dev/null 
-    #grep --color=never "incorrecta" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$host"_"$port"_confTLS.txt
-    #grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > .vulnerabilidades/"$host"_"$port"_vulTLS.txt
-    #grep --color=never "VULNERABLE (actualizar)" -m1 -b0 -A9 logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > logs/vulnerabilidades/"$host"_"$port"_vulTLS.txt							 
+    #######  Configuracion TLS/SSL (dominio) ######	
+	if [ "$MODE" == "normal" ] || [ $internet == "s" ]; then 
+		echo -e "\t\t[+] Revisando configuracion TLS/SSL"		
+		testssl.sh --color 0  "https://$host:$port" > logs/vulnerabilidades/"$host"_"$port"_confTLS.txt 2>/dev/null 
+		grep --color=never "incorrecta" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$host"_"$port"_confTLS.txt
+		grep --color=never "VULNERABLE (actualizar)" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > .vulnerabilidades/"$host"_"$port"_vulTLS.txt
+		grep --color=never "VULNERABLE (actualizar)" -m1 -b0 -A9 logs/vulnerabilidades/"$host"_"$port"_confTLS.txt > logs/vulnerabilidades/"$host"_"$port"_vulTLS.txt							     
+	fi					
     
     ##########################    
 
@@ -1020,9 +1021,9 @@ echo -e "[+] Lanzando monitor $RESET"
 xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 
 ###### #check host number########
-total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g' `
-echo -e  "TOTAL HOST VIVOS ENCONTRADOS: $total_hosts hosts" 
-cat $live_hosts
+total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g'| tr -d ' ' `
+echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
+#cat $live_hosts
 
 if test -f "subdominios.txt"; 
 then
@@ -1103,8 +1104,7 @@ if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $por
 	echo "USANDO NMAP COMO PORT SCANNER" 
 
 	if [ "$MODE" == "proxy" ]; then 
-		echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-		
+		echo -e "[+] Realizando escaneo tcp (solo 100 puertos - proxy)" 			
 		
 		for ip in $(cat $live_hosts); do  			
 			while true; do				
@@ -1157,9 +1157,9 @@ fi
 if [[ $port_scanner = "masscan" ]] || [ $port_scanner == "nmap_masscan" ]; then 
 	if [ "$MODE" != "proxy" ]; then 
 		echo "USANDO MASSCAN COMO PORT SCANNER"		    
-		echo -e "[+] Realizando escaneo tcp (puertos 1-10514)" 	
+		echo -e "[+] Realizando escaneo tcp (puertos 1-10514) a $total_hosts hosts" 	
 
-		if [[ $total_hosts -lt 50  ]];then 
+		if [[ $total_hosts -lt 30  ]];then 
 			masscan --interface $iface -p1-10514 --rate=120 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 		else
 			masscan --interface $iface -p22,23,389,88,636,445,1525,1530,1526,1521,1630,27017,28017,27080 --rate=50 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
@@ -1556,8 +1556,8 @@ then
 		fi				
 		
 		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
-		echo "kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_kerbrute_users.txt
-		$proxychains  kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_kerbrute_users.txt		
+		echo "kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_kerbrute_users.txt
+		$proxychains  kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_kerbrute_users.txt		
 		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_kerbrute_users.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_kerbrute_users.txt
 		#kerbrute bruteforce --domain svcorp.com  userpass.txt --dc 10.11.1.20
 
@@ -1565,7 +1565,7 @@ then
 		if [ ! -z "$dominioAD" ]
 		then
 			echo "dominioAD $dominioAD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list_es -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
 			# ./hashcat.bin -m 18200 -a 0 hash-kerberos.txt /media/sistemas/Passwords/Passwords -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		fi				
@@ -1899,8 +1899,8 @@ if [ -f servicios/InfluxDB.txt ]
 	for line in $(cat servicios/InfluxDB.txt); do
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo "influx -host $ip -port $port " > logs/vulnerabilidades/"$ip"_influx_auth.txt
-		$proxychains influx -host $ip -port $port >> logs/vulnerabilidades/"$ip"_influx_auth.txt
+		#echo "influx -host $ip -port $port " > logs/vulnerabilidades/"$ip"_influx_auth.txt
+		#$proxychains influx -host $ip -port $port >> logs/vulnerabilidades/"$ip"_influx_auth.txt
 
 		echo "$proxychains msfconsole -x use auxiliary/scanner/http/influxdb_enum;set RHOSTS $ip;exploit;exit" > logs/vulnerabilidades/"$ip"_influx_enum.txt
 		$proxychains msfconsole -x "use auxiliary/scanner/http/influxdb_enum;set RHOSTS $ip;exploit;exit" >> logs/vulnerabilidades/"$ip"_influx_enum.txt 2>/dev/null
@@ -2326,36 +2326,6 @@ fi
 #####################################
 
 
-if [ -f servicios/camaras-ip.txt ]
-then
-	echo -e "$OKBLUE #################### Camaras IP (`wc -l servicios/camaras-ip.txt`) ######################$RESET"	  
-	for line in $(cat servicios/camaras-ip.txt); do
-		ip=`echo $line | cut -f1 -d":"`
-		port=`echo $line | cut -f2 -d":"`
-						
-		echo -e "[+] Escaneando $ip:$port"		
-		egrep -iq $ip servicios/Windows.txt
-		greprc=$?
-		if [[ $greprc -eq 0 ]] ; then			
-			echo -e "\t[i] Es un dispositivo windows"			
-		else
-			echo -e "\t[+] Testeando open stream"
-			echo "$proxychains  nmap -Pn -n -sT -sV -p 554 --script=rtsp-url-brute $ip" > logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null 
-			$proxychains  nmap -n -Pn -sT -p 554 --script=rtsp-url-brute $ip >> logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null 
-			egrep -iq "discovered" logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then			
-				echo -e "\t$OKRED[!] Open stream detectado \n $RESET"
-				cp logs/vulnerabilidades/"$ip"_554_openstreaming.txt  .vulnerabilidades/"$ip"_554_openstreaming.txt 		
-			else
-				echo -e "\t$OKGREEN[i] No es un Open stream $RESET"
-			fi								
-		fi			
-		
-	done
-	insert_data		
-fi
-
 
 
 if [ -f servicios/pptp.txt ]
@@ -2674,8 +2644,6 @@ then
 	interlace -tL servicios/postgres_onlyhost.txt  -threads 5 -c "echo -e '\n medusa -h _target_ -u pgsql -p pgsql -M postgres' >> logs/vulnerabilidades/_target__5432_passwordBD.txt 2>/dev/null" --silent
 	interlace -tL servicios/postgres_onlyhost.txt  -threads 5 -c "$proxychains medusa -h _target_ -u pgsql -p pgsql -M postgres >> logs/vulnerabilidades/_target__5432_passwordBD.txt 2>/dev/null" --silent
 	
-
-
 fi
 
 
@@ -2743,6 +2711,7 @@ then
 	
 	echo -e "\t[+] Probando vulnerabilidad CVE-2018-15473"				
 	#usuario root123445 no existe, si sale "is a valid user" el target no es vulnerable
+	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "echo $proxychains enumeracionUsuariosSSH.py -u root123445 --port 22 _target_ >> logs/vulnerabilidades/'_target_'_22_CVE-2018-15473.txt" --silent
 	interlace -tL servicios/ssh_onlyhost.txt -threads 5 -c "$proxychains enumeracionUsuariosSSH.py -u root123445 --port 22 _target_ >> logs/vulnerabilidades/'_target_'_22_CVE-2018-15473.txt" --silent
 
 	echo -e "\t[+] Probando passwords"	
@@ -2764,7 +2733,7 @@ then
 		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		
-		#enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
+		#enumeracionUsuariosSSH2.py -U $common_user_list_es  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
 
 		#SSHBypass
 		
@@ -2789,7 +2758,7 @@ then
 			if [[ $greprc -eq 0 ]] ; then	
 				echo -e "\t[+] Realizando enumeracion de usuarios mediante la  vulnerabilidad CVE-2018-15473 en $ip"
 				cat logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt > .vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 			
-				$proxychains enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip | grep "is a valid" > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
+				$proxychains enumeracionUsuariosSSH.py -p $port -w $common_user_list_es  $ip | grep "is a valid" > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
 			fi	
 		fi  
 				
@@ -2821,7 +2790,7 @@ then
 					# done true				        	        				
 	    #finger "|/bin/id@10.0.0.3"
 		if [ "$MODE" != "proxy" ]; then 
-			finger-user-enum.pl -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_finger_enumBrute.txt
+			finger-user-enum.pl -U $common_user_list_es -t $ip > logs/vulnerabilidades/"$ip"_finger_enumBrute.txt
 			grep ssh logs/vulnerabilidades/"$ip"_finger_enumBrute.txt > .vulnerabilidades/"$ip"_finger_enumBrute.txt
 		fi  
 		
@@ -4043,7 +4012,7 @@ if [ -f servicios/smtp.txt ]
 					echo -e "\t$OKRED[!] Comando VRFY habilitado \n $RESET"
 					cp logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt  .vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 				
 					echo -e "\t[+] Enumerando usuarios en segundo plano"
-					smtp-user-enum.pl -M VRFY -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
+					smtp-user-enum.pl -M VRFY -U $common_user_list_es -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
 					
 				else
 					echo -e "\t$OKGREEN[ok] No tiene el comando VRFY habilitado $RESET"
@@ -4386,8 +4355,17 @@ getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$pr
 ##############################
 
 for ip in $(cat .datos/total-host-vivos.txt); do
-	egrep --color=never 'OS details:|Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt | cut -d "," -f1 > .enumeracion/"$ip"_os_version.txt
-	echo $ip:`cat .enumeracion/"$ip"_os_version.txt | cut -d ":" -f2` >> reportes/reporte-OS.csv
+	os_details=`egrep --color=never '\|   OS:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2`
+	if [ -z "$os_details" ]; then
+		os_details=`egrep --color=never 'OS details:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2 |cut -d "," -f1-4`
+	fi
+
+	if [ -z "$os_details" ]; then
+		os_details=`egrep --color=never 'Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2 |cut -d "," -f1-4`
+	fi
+
+	echo $os_details  > .enumeracion/"$ip"_os_version.txt
+	echo "$ip:$os_details" >> reportes/reporte-OS.csv
 done
 
 insert_data
@@ -4417,30 +4395,34 @@ then
 	do     			
 		#ip=`echo $line | cut -f1 -d":"`		
 		echo -e "[+] Escaneando $ip"
-		echo -e "\t[+] Probando enum4linux"
-		###### Enum4linux ######
-		echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-		$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
-		
-		#######################
-		
-		
-		###### zerologon ######
-		netbiosName=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip | grep -i netbios | awk '{print $5}' | cut -d '\' -f1 `
-		echo -e "\t[+] netbiosName $netbiosName"		
-			
-		if [ ! -z "$netbiosName" ]; then
-			echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
-			$proxychains zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 2>/dev/bull
-			grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
-			#######################		
-		fi		
-		
-		
-		###### PrintNightmare ######
-		$proxychains rpcdump.py $ip  >> logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt 		
-		egrep "MS-RPRN|MS-PAR" logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt  > .vulnerabilidades/"$ip"_"445"_PrintNightmare.txt
-		#######################		
+
+		egrep -iq "445/open" .escaneo_puertos_banners/"$ip".grep
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then	
+			echo -e "\t[+] Probando enum4linux"
+			###### Enum4linux ######
+			echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+			$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
+			#######################
+
+			###### zerologon ######
+			netbiosName=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip | grep -i netbios | awk '{print $5}' | cut -d '\' -f1 `
+			echo -e "\t[+] netbiosName $netbiosName"		
+				
+			if [ ! -z "$netbiosName" ]; then
+				echo $netbiosName > logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 
+				$proxychains zerologon_tester.py $netbiosName $ip >> logs/vulnerabilidades/"$ip"_"445"_zerologon.txt 2>/dev/bull
+				grep "DC can be fully compromised by a Zerologon attack" logs/vulnerabilidades/"$ip"_"445"_zerologon.txt  > .vulnerabilidades/"$ip"_"445"_zerologon.txt
+				#######################		
+			fi		
+
+
+			###### PrintNightmare ######
+			$proxychains rpcdump.py $ip  >> logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt 		
+			egrep "MS-RPRN|MS-PAR" logs/vulnerabilidades/"$ip"_"445"_PrintNightmare.txt  > .vulnerabilidades/"$ip"_"445"_PrintNightmare.txt
+			#######################	
+
+		fi				
 															
 		 echo ""
  	done <servicios/servers.txt		
@@ -4448,6 +4430,38 @@ then
 	insert_data
 	
 fi
+
+
+if [ -f servicios/camaras-ip.txt ]
+then
+	echo -e "$OKBLUE #################### Camaras IP (`wc -l servicios/camaras-ip.txt`) ######################$RESET"	  
+	for line in $(cat servicios/camaras-ip.txt); do
+		ip=`echo $line | cut -f1 -d":"`
+		port=`echo $line | cut -f2 -d":"`
+						
+		echo -e "[+] Escaneando $ip:$port"		
+		egrep -iq $ip servicios/Windows.txt
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then			
+			echo -e "\t[i] Es un dispositivo windows"			
+		else
+			echo -e "\t[+] Testeando open stream"
+			echo "$proxychains  nmap -Pn -n -sT -sV -p 554 --script=rtsp-url-brute $ip" > logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null 
+			$proxychains  nmap -n -Pn -sT -p 554 --script=rtsp-url-brute $ip >> logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null 
+			egrep -iq "discovered" logs/vulnerabilidades/"$ip"_554_openstreaming.txt 2>/dev/null
+			greprc=$?
+			if [[ $greprc -eq 0 ]] ; then			
+				echo -e "\t$OKRED[!] Open stream detectado \n $RESET"
+				cp logs/vulnerabilidades/"$ip"_554_openstreaming.txt  .vulnerabilidades/"$ip"_554_openstreaming.txt 		
+			else
+				echo -e "\t$OKGREEN[i] No es un Open stream $RESET"
+			fi								
+		fi			
+		
+	done
+	insert_data		
+fi
+
 
 
 cd .escaneo_puertos		
@@ -4535,7 +4549,7 @@ cd .enumeracion2/
 	
 	
 	#Cisco
-	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/cisco.txt		
+	grep --color=never -i cisco * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" |  cut -d "_" -f1 | uniq >> ../servicios/cisco.txt
 	
 	#ZTE
 	grep --color=never -i ZTE * 2>/dev/null | egrep -v "302|301|subdominios.txt|comentario|wgetURLs|HTTPSredirect|metadata|google|3389|deep|users" | egrep --color=never "^1" | sort | cut -d "_" -f1-2 | uniq | tr "_" ":" | uniq >> ../servicios/ZTE2.txt
