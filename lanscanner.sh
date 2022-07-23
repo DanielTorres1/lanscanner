@@ -3166,8 +3166,8 @@ then
 
 				#base line request
 				echo -e "\t[+] Buscando mas virtual hosts"
-				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
-				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_http_vhosts.txt	2>/dev/null
+				chars=`cat logs/enumeracion/baseline_http_vhosts.txt | grep 'C=' | awk '{print $7}'`
 				echo "\tchars $chars" # no incluir las respuestas con x chars (sitios iguales)
 
 				
@@ -3199,8 +3199,8 @@ then
 			
 				######## revisar por subdominio #######
 				echo "DOMINIO_INTERNO $DOMINIO_INTERNO"
-				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then # si es el archivo subdomains.csv			
-					lista_subdominios=`grep $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then # si es el archivo subdomains.csv								
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
 						# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
@@ -3244,8 +3244,8 @@ then
 			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 
 			#echo "FILE $prefijo$IP_LIST_FILE"			
 				#################  Realizar el escaneo por dominio  ##############				
-				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
+				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then					
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do													
 						echo -e "\t[+] subdominio: $subdominio"							
@@ -3528,7 +3528,7 @@ then
     
     echo -e "$OKBLUE #################### WEB - SSL (`wc -l servicios/web-ssl.txt`) ######################$RESET"	    		
 	echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"
-
+	touch webClone/checksumsEscaneados.txt
 	if [ $internet == "s" ]; then 
 		DOMINIO_INTERNO=$DOMINIO_EXTERNO
 	fi
@@ -3538,9 +3538,13 @@ then
 	for line in $(cat servicios/web-ssl.txt); do    
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`	
+
+		echo -e "\t [+] Scanning $ip $port"
 		
-		$proxychains get_ssl_cert.py $ip $port  2>/dev/null > .enumeracion/"$ip"_"$port"_cert.txt 
-		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'`
+		$proxychains get_ssl_cert.py $ip $port  2>/dev/null > logs/enumeracion/"$ip"_"$port"_cert.txt 
+		cp logs/enumeracion/"$ip"_"$port"_cert.txt  .enumeracion/"$ip"_"$port"_cert.txt 
+
+		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'` | sed "s/*.//g"
 		for SUBDOMINIOS_INTERNO in $SUBDOMINIOS_INTERNOS; do	
 			if [[ ${SUBDOMINIOS_INTERNO} == *"enterpriseregistration.windows.net"*  ]];then 
 				echo "$SUBDOMINIOS_INTERNO" >> .enumeracion/"$ip"_"$port"_azureAD.txt 
@@ -3571,8 +3575,8 @@ then
 			echo -e "\t [+] DOMINIO_INTERNO $DOMINIO_INTERNO"
 			if [ ! -z "$DOMINIO_INTERNO" ]; then
 
-				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_vhosts.txt	2>/dev/null
-				chars=`cat logs/enumeracion/baseline_vhosts.txt | grep 'C=' | awk '{print $7}'`
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomain.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 -f logs/enumeracion/baseline_https_vhosts.txt	2>/dev/null
+				chars=`cat logs/enumeracion/baseline_https_vhosts.txt | grep 'C=' | awk '{print $7}'`
 				echo "chars $chars"
 				
 				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 --hh $chars -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
@@ -3606,9 +3610,9 @@ then
 				
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
-					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq					
 					#echo "lista_subdominios $lista_subdominios"
-					for subdominio in $lista_subdominios; do					
+					for subdominio in $lista_subdominios; do
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
 						$proxychains webData.pl -t $subdominio -p $port -s https -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 4 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 
 					done
@@ -3651,7 +3655,7 @@ then
 				#echo "FILE $prefijo$IP_LIST_FILE"				
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
-					lista_subdominios=`grep --color=never $ip -a $prefijo$IP_LIST_FILE | cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO`
+					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq					
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						echo -e "\t[+] subdominio: $subdominio"	
