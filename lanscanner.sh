@@ -24,7 +24,6 @@ DOMINIO_EXTERNO=''
 DOMINIO_INTERNO=''
 max_perl_instancias=50;
 max_nmap_instances=5;
-port_scanner='nmap_masscan' #nmap/naabu/masscan/nmap_masscan/nmap_naabu
 common_user_list_en="/usr/share/lanscanner/usuarios-en.txt"
 common_user_list_es="/usr/share/lanscanner/usuarios-es.txt"
 oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
@@ -67,13 +66,15 @@ EOF
 print_ascii_art
 
 
-while getopts ":i:s:d:m:o:" OPTIONS
+while getopts ":i:s:d:m:f:p:" OPTIONS
 do
             case $OPTIONS in
             s)     SUBNET_FILE=$OPTARG;;
             i)     IP_LIST_FILE=$OPTARG;;
             d)     DOMINIO_EXTERNO=$OPTARG;;
             m)     MODE=$OPTARG;;
+			f)     FORCE=$OPTARG;;
+			p)     PORT_SCANNER=$OPTARG;;
             ?)     printf "invalid option: -$OPTARG\n" $0
                           exit 2;;
            esac
@@ -83,8 +84,9 @@ SUBNET_FILE=${SUBNET_FILE:=NULL}
 IP_LIST_FILE=${IP_LIST_FILE:=NULL}
 MODE=${MODE:=NULL} # normal/extended/proxy
 DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
-
-echo "[+] MODE $MODE SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE"
+FORCE=${FORCE:=NULL} # internet
+PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu
+echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
 
 
 if [ "$MODE" = NULL  ]; then
@@ -95,6 +97,8 @@ Options:
 
 -m : Mode [normal/extended/proxy]
 -d : domain
+-p : port scanner [nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu]
+-f : forzar modo "internet"
 
 Definicion del alcance:
 	-s : Lista con las subredes a escanear (Formato CIDR 0.0.0.0/24)
@@ -1025,7 +1029,7 @@ total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
 
-if test -f "subdominios.txt"; 
+if [[  "$FORCE" == 'internet' || -f "subdominios.txt" ]]
 then
 	internet="s"
     echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
@@ -1084,23 +1088,19 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 #nmap_naabu = nmap top 1000 + naabu (Todos puertos)
 
 ## NAABU
-if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then 
+if [[ $PORT_SCANNER = "naabu" ]] || [ $PORT_SCANNER == "nmap_naabu" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
-	#echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  
-	#naabu -list $live_hosts -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -c 5 -o .escaneo_puertos/tcp-especificos.txt
-
-    
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
 	#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
 	if [ $internet == "s" ]; then 	#escluir CDN 
-		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts p1-10514 -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
 	else		
-		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts p1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -p 1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
 	fi
 fi
 
 #NMAP
-if [[ $port_scanner = "nmap" ]] || [ $port_scanner == "nmap_masscan" ] || [ $port_scanner == "nmap_naabu" ]; then 
+if [[ $PORT_SCANNER = "nmap" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "nmap_naabu" ]; then 
 	echo "USANDO NMAP COMO PORT SCANNER" 
 
 	if [ "$MODE" == "proxy" ]; then 
@@ -1154,15 +1154,17 @@ fi
 
 
 ## MASSCAN
-if [[ $port_scanner = "masscan" ]] || [ $port_scanner == "nmap_masscan" ]; then 
+if [[ $PORT_SCANNER = "masscan" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
 	if [ "$MODE" != "proxy" ]; then 
 		echo "USANDO MASSCAN COMO PORT SCANNER"		    
 		echo -e "[+] Realizando escaneo tcp (puertos 1-10514) a $total_hosts hosts" 	
-
-		if [[ $total_hosts -lt 30  ]];then 
-			masscan --interface $iface -p1-10514 --rate=120 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+		
+		if [[ $total_hosts -lt 30 || $internet == "s"  ]];then 
+			masscan --interface $iface -p1-10514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 		else
-			masscan --interface $iface -p22,23,389,88,636,445,1525,1530,1526,1521,1630,27017,28017,27080 --rate=50 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+	
+
+			masscan --interface $iface -p10000,10443,106,1080,1090,1099,110,111,11211,135,139,143,1433,1494,1521,1525,1526,1530,1630,16992,17001,1723,1883,2000,2049,21,22,23,2375,24007,25,27017,27080,28017,3128,3221,3260,3269,32764,3299,3306,3389,3632,3690,37777,389,4369,44134,443,4433,4443,445,44818,464,465,47001,47808,4899,49152,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5000,50000,50030,50060,50070,50075,50090,502,5060,541,5432,554,5601,5672,5723,5724,5800,5801,587,5900,5901,593,5984,5985,5986,6000,631,636,6379,7474,80,8009,8010,8080,8081,8082,8086,8098,81,82,8291,83,84,8443,85,86,87,8728,873,88,8800,8888,89,9000,9001,9010,902,9042,9100,9160,9200,9389 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 		fi	
 		cat .escaneo_puertos/mass-scan.txt | awk '{print $6 ":" $4}' | cut -d "/" -f1 >> .escaneo_puertos/tcp-ports.txt 
 	fi
@@ -1210,10 +1212,11 @@ cd .escaneo_puertos
 	grep ":8800$" tcp.txt  | uniq >> ../servicios/web2.txt		
 
 	grep ":50000$" tcp.txt  | uniq >> ../servicios/jenkins.txt
-
 	grep ":10000$" tcp.txt  | uniq >> ../servicios/webmin.txt 
 	grep ":111$" tcp.txt  | uniq >> ../servicios/rpc.txt 
 	grep ":135$" tcp.txt  | uniq >> ../servicios/msrpc.txt 
+
+	grep ":541$" tcp.txt  | uniq >> ../servicios/FortiGate.txt 
 
 	# web-ssl
 	grep ":443$" tcp.txt  | uniq > ../servicios/web-ssl2.txt
