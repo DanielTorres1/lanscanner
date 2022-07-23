@@ -57,9 +57,7 @@ pip3 install cpppo
 
 echo -e "${GREEN} [+] Instalando naabu ${RESET}" 
 #GO111MODULE=on go get -v github.com/projectdiscovery/naabu/v2/cmd/naabu
-go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-sudo cp ~/go/bin/naabu /usr/bin/naabu 
-chmod a+x /usr/bin/naabu
+docker pull projectdiscovery/naabu
 
 echo "www2" > /usr/share/seclists/Discovery/DNS/subdomain.txt
 

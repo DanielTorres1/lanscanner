@@ -1093,9 +1093,9 @@ if [[ $port_scanner = "naabu" ]] || [ $port_scanner == "nmap_naabu" ]; then
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
 	#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
 	if [ $internet == "s" ]; then 	#escluir CDN 
-		naabu -list $live_hosts p1-10514 -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts p1-10514 -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
 	else		
-		naabu -list $live_hosts p1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts p1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
 	fi
 fi
 
