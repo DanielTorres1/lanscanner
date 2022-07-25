@@ -91,7 +91,7 @@ PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/m
 echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
 
 
-if [ "$MODE" == NULL  || "$PORT_SCANNER" == NULL  ]; then
+if [ "$MODE" == NULL] || [ "$PORT_SCANNER" == NULL ]; then 
 
 cat << "EOF"
 
