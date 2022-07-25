@@ -3204,6 +3204,7 @@ then
 				echo "DOMINIO_INTERNO $DOMINIO_INTERNO"
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then # si es el archivo subdomains.csv								
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO| uniq` 
+					echo "lista_subdominios1111 $lista_subdominios"
 					for subdominio in $lista_subdominios; do					
 						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
 						# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
