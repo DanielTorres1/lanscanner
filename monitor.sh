@@ -70,19 +70,12 @@ echo ""
 
 
 echo -e "$OKBLUE[+] Revisando procesos de blackwidow|testssl $RESET"		
-for line in $( ps aux | egrep --color=never "blackwidow|testssl" | grep -v color | awk '{print $2,$9}' | tr " " ";" ); do
+for line in $( ps aux | egrep --color=never "blackwidow|testssl" | grep -v grep | awk '{print $2,$9}' | tr " " ";" | head -1 ); do
 	pid=`echo $line | cut -f1 -d";"`
 	#time=`echo $line | cut -f2 -d";"`
 	time=`ps -p $pid -o etime | grep : | cut -d ":" -f1`
     #echo process time: $time
     echo "pid: $pid time $time"
-               
-	# diff=$(  echo "$current_time - $time"  | sed 's%:%+(1/60)*%g' | bc -l )	
-	# diff=$(echo "($diff - $delta)*60" | bc  ) # fix with delta
-	# diff=`printf "%.0f\n" "$diff"` # round
-	# diff=`echo $diff | tr -d -`
-	# echo "Idle time: $diff minutes"	
-	
 	if [[  $time -gt 5  ]];then 
 		
 		echo -e "$OKRED[-] Killing $pid) $RESET"
