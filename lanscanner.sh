@@ -1036,7 +1036,7 @@ total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
 
-if [[  "$FORCE" == 'internet' || -f "subdominios.txt" ]]
+if [[  "$FORCE" == 'internet' || -f "logs/enumeracion/subdominios.txt" ]]
 then
 	internet="s"
     echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
