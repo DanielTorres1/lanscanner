@@ -72,12 +72,12 @@ if [ $TYPE == "internet" ]; then
 	cd $DOMAIN
 	#egrep --color=never -i "bolivia|Azure|amazon" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
 	egrep --color=never -i "bolivia" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
-	lanscanner.sh -m extended -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN -p masscan_naabu
+	lanscanner.sh -m extended -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN -p masscan_naabu -c n
 	cracker.sh -e $KEYWORD
 fi
 
 if [ $TYPE == "oscp" ]; then 		
-	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE -p nmap_masscan
+	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE -p nmap_masscan -c n
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner
 	cd $directory
@@ -117,7 +117,7 @@ fi
 
 if [ $TYPE == "proxy" ]; then 	
 
-	lanscanner.sh -m proxy -i $IP_LIST_FILE -s $SUBNET_FILE -p nmap
+	lanscanner.sh -m normal -i $IP_LIST_FILE -p nmap -c s
 	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 	echo "entrando al directorio $directory" # creado por lanscanner
 #	cd $directory
@@ -140,7 +140,7 @@ if [ $TYPE == "lan" ]; then
 		
 	if [ "$SUBNET_FILE" != NULL ]; then 	
 	
-		lanscanner.sh -m normal -s $SUBNET_FILE -d $DOMAIN -p nmap_masscan
+		lanscanner.sh -m normal -s $SUBNET_FILE -d $DOMAIN -p nmap_masscan -c n
 		
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		pwd
@@ -151,7 +151,7 @@ if [ $TYPE == "lan" ]; then
 	fi
 	if [ "$IP_LIST_FILE" != NULL ]; then 	
 	
-		lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN	-p nmap_masscan		
+		lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN	-p nmap_masscan	-c n
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		echo "entrando al directorio $directory" # creado por lanscanner
 		cd $directory
