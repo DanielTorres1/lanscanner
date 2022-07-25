@@ -1430,8 +1430,10 @@ fi # Port scan
 echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VULNERABILIDADES \n $RESET"
 ###################################  ENUMERACION ########################################
 
-# IP publica
+#Borrar descargas
+rm webClone/*
 
+# IP publica
 curl  --max-time 10 'https://api.ipify.org?format=json' > .enumeracion/"$ip"_ip_publica.txt
 
 if [ "$MODE" == "proxy" ]; then 
@@ -3137,7 +3139,7 @@ then
     echo -e "$OKBLUE #################### WEB (`wc -l servicios/web.txt`) ######################$RESET"	    
 	touch webClone/checksumsEscaneados.txt
     ################ Obtener Informacion tipo de servidor, CMS, framework, etc ###########3
-    echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"
+    echo -e "$OKGREEN[i] Identificacion de técnologia usada en los servidores web$RESET"	
 	for line in $(cat servicios/web.txt); do  
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
