@@ -1431,7 +1431,7 @@ echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VU
 ###################################  ENUMERACION ########################################
 
 #Borrar descargas
-rm webClone/*
+rm -rf webClone/*
 
 # IP publica
 curl  --max-time 10 'https://api.ipify.org?format=json' > .enumeracion/"$ip"_ip_publica.txt
