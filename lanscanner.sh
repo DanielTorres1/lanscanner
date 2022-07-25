@@ -66,11 +66,12 @@ EOF
 print_ascii_art
 
 
-while getopts ":i:s:d:m:f:p:" OPTIONS
+while getopts ":i:s:c:d:m:f:p:" OPTIONS
 do
             case $OPTIONS in
             s)     SUBNET_FILE=$OPTARG;;
             i)     IP_LIST_FILE=$OPTARG;;
+			c)	   PROXYCHAINS=$OPTARG;;
             d)     DOMINIO_EXTERNO=$OPTARG;;
             m)     MODE=$OPTARG;;
 			f)     FORCE=$OPTARG;;
@@ -82,8 +83,9 @@ done
 
 SUBNET_FILE=${SUBNET_FILE:=NULL}
 IP_LIST_FILE=${IP_LIST_FILE:=NULL}
-MODE=${MODE:=NULL} # normal/extended/proxy
+MODE=${MODE:=NULL} # normal/extended/proxy/enumeration
 DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
+PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
 FORCE=${FORCE:=NULL} # internet
 PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu
 echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
@@ -95,7 +97,10 @@ cat << "EOF"
 
 Options: 
 
--m : Mode [normal/extended/proxy]
+-m : Mode [normal/extended/enumeration]	
+	extended: more web test 	
+	enumeration: start from enumeration (no host discovery, no port scan)
+-c : Use proxychains [s/n]
 -d : domain
 -p : port scanner [nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu]
 -f : forzar modo "internet"
@@ -140,7 +145,7 @@ function enumeracionDefecto () {
 	greprc=$?
 	if [[ $greprc -eq 0  ]];then
 		
-		if [ "$MODE" != "proxy" ]; then 
+		if [ "$PROXYCHAINS" == "n" ]; then 
 			echo -e "\t\t[+] Revisando folders ($host - default)"						
 			web-buster.pl -t $host -p $port -h $hilos_web -d / -m folders -s $proto -q 1  >> logs/enumeracion/"$host"_"$port"_webdirectorios.txt 
 			egrep --color=never "^200|^401" logs/enumeracion/"$host"_"$port"_webdirectorios.txt	> .enumeracion/"$host"_"$port"_webdirectorios.txt 
@@ -215,7 +220,7 @@ function enumeracionIIS () {
     egrep --color=never "^200|^401" logs/enumeracion/"$host"_iis_webadmin.txt >> .enumeracion/"$host"_iis_webadmin.txt  
     sleep 1
 
-	if [ "$MODE" != "proxy" ]; then 
+	if [ "$PROXYCHAINS" == "n" ]; then 
 		echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - IIS)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_iis_webarchivos.txt
 		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_iis_webarchivos.txt  >> .enumeracion/"$host"_iis_webarchivos.txt  
@@ -274,7 +279,7 @@ function enumeracionApache () {
     egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
     sleep 1
 
-	if [ "$MODE" != "proxy" ]; then 
+	if [ "$PROXYCHAINS" == "n" ]; then 
 
 		echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - Apache/nginx)"
 		web-buster.pl -t $host  -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 | egrep --color=never "^200" >> .enumeracion/"$host"_"$port"_webarchivos.txt  &
@@ -383,7 +388,7 @@ function enumeracionTomcat () {
     $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m tomcat -s $proto -q 1  > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
     egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt  >> .enumeracion/"$host"_"$port"_webarchivos.txt  
     
-    if [ "$MODE" != "proxy" ]; then 
+    if [ "$PROXYCHAINS" == "n" ]; then 
 		echo -e "\t\t[+] Revisando archivos comunes de servidor ($host - Tomcat)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m webserver -s $proto -q 1 > logs/enumeracion/"$host"_"$port"_webarchivos.txt 
 		egrep --color=never "^200|^301|^302|^401" logs/enumeracion/"$host"_"$port"_webarchivos.txt   >> .enumeracion/"$host"_"$port"_webarchivos.txt  
@@ -729,7 +734,7 @@ function cloneSite ()
 
 echo -e "\n\n$OKYELLOW ########### Configurando los parametros ############## $RESET"
 
-if [ ! -d "servicios" ]; then #si no existe la carpeta servicios
+if [ ! -d "servicios" ]; then #si no existe la carpeta servicios es un nuevo escaneo
 
   echo -e "$OKBLUE ¿Desde que VLAN estas ejecutando? $RESET"
   read project
@@ -825,13 +830,14 @@ if [ $IP_LIST_FILE != NULL ] ; then
 	 fi
      
      cat $prefijo$IP_LIST_FILE | cut -d "," -f 3 | sort | uniq > $live_hosts        
-else
+fi
+
+if [[ ("$MODE" == "normal" ||  $MODE == "extended") && ($IP_LIST_FILE == NULL)]];then 
   
   echo -e "[+] Buscar host vivos en otras redes usando ICMP,SMB,TCP21,22,80,443 \n" 
   echo -e "$OKYELLOW [+] FASE 1: DESCUBRIR HOST VIVOS $RESET"
 
   ######## ARP ########  
-  
   echo -e "$OKBLUE ¿Realizaremos escaneo ARP para tu red local? s/n  $RESET"
   read scanARP
 
@@ -1016,11 +1022,12 @@ else
 	  echo -e  " #######################################################" 
       echo -e  "[i] TOTAL HOST VIVOS ENCONTRADOS:" 
       echo -e "\t"                  
-fi # if FILE
+fi # if NO IP FILE
  
+
+
  # generate subnets 
 cat $live_hosts | cut -d . -f 1-3 | sort | uniq > .datos/subnets.txt
-echo -e  "[i] TOTAL HOST VIVOS ENCONTRADOS:" 
 echo -e "[+] Lanzando monitor $RESET" 
 xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 
@@ -1048,380 +1055,375 @@ else
 	 fi
 fi    
 
-
-#################################  
-
 ################## end discover live hosts ##################
 
-#######################
+if [[ "$MODE" == "normal" ||  $MODE == "extended" ]];then 
 
-# FASE: 2
-echo -e "$OKYELLOW [+] FASE 2: ESCANEO DE PUERTOS,VoIP, etc $RESET"
-################## Escanear (voip,smb,ports,etc) ##################
+	echo -e "$OKYELLOW [+] FASE 2: ESCANEO DE PUERTOS,VoIP, etc $RESET"
+	################## Escanear (voip,smb,ports,etc) ##################
 
-########### searching VoIP devices ##########
-echo -e "############# Escaneando #################\n"
-	if [ "$MODE" != "proxy" ]; then 
-		echo -e "#################### Buscando dispositivos VoIP: ######################"	  
-		for subnet in $(cat .datos/subnets.txt); do
-			echo -e "[+] Escaneando $subnet.0/24 (VoIP)"	  
-			svmap $subnet".0/24" | tee -a logs/enumeracion/"$subnet".0_voip_scan.txt		
-			
+	########### searching VoIP devices ##########
+	echo -e "############# Escaneando #################\n"
+		if [ "$PROXYCHAINS" == "n" ]; then 
+			echo -e "#################### Buscando dispositivos VoIP: ######################"	  
+			for subnet in $(cat .datos/subnets.txt); do
+				echo -e "[+] Escaneando $subnet.0/24 (VoIP)"	  
+				svmap $subnet".0/24" | tee -a logs/enumeracion/"$subnet".0_voip_scan.txt		
+				
 
-			egrep -iq ":" logs/enumeracion/"$subnet".0_voip_scan.txt	
-			greprc=$?
-			if [[ $greprc -eq 0 ]] ; then
-				cat logs/enumeracion/"$subnet".0_voip_scan.txt	 > .enumeracion/"$subnet".0_voip_scan.txt
-				grep --color=never ":" logs/enumeracion/"$subnet".0_voip_scan.txt	 | cut -d " " -f2 > servicios/voip.txt	
-			fi				
-		done;	
-		#find  .enumeracion -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
-	fi  
- 
+				egrep -iq ":" logs/enumeracion/"$subnet".0_voip_scan.txt	
+				greprc=$?
+				if [[ $greprc -eq 0 ]] ; then
+					cat logs/enumeracion/"$subnet".0_voip_scan.txt	 > .enumeracion/"$subnet".0_voip_scan.txt
+					grep --color=never ":" logs/enumeracion/"$subnet".0_voip_scan.txt	 | cut -d " " -f2 > servicios/voip.txt	
+				fi				
+			done;	
+			#find  .enumeracion -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+		fi  
 	
-#####################
-  
-  
-   
-echo -e "#################### Escaneo de puertos TCP ######################"	  
-#nmap_masscan = nmap top 1000 + masscan (10.000 puertos) 
-#nmap_naabu = nmap top 1000 + naabu (Todos puertos)
-
-## NAABU
-if [[ $PORT_SCANNER = "naabu" ]] || [ $PORT_SCANNER == "nmap_naabu" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
-	echo "USANDO NAABU COMO PORT SCANNER"
-	pwd
-	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
-	#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
-	if [ $internet == "s" ]; then 	#escluir CDN 
-		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
-	else		
-		docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -p 1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
-	fi
-fi
-
-#NMAP
-if [[ $PORT_SCANNER = "nmap" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "nmap_naabu" ]; then 
-	echo "USANDO NMAP COMO PORT SCANNER" 
-
-	if [ "$MODE" == "proxy" ]; then 
-		echo -e "[+] Realizando escaneo tcp (solo 100 puertos - proxy)" 			
 		
-		for ip in $(cat $live_hosts); do  			
-			while true; do				
+	#####################
+	
+	
+	
+	echo -e "#################### Escaneo de puertos TCP ######################"	  
+	#nmap_masscan = nmap top 1000 + masscan (10.000 puertos) 
+	#nmap_naabu = nmap top 1000 + naabu (Todos puertos)
+
+	## NAABU
+	if [[ $PORT_SCANNER = "naabu" ]] || [ $PORT_SCANNER == "nmap_naabu" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
+		echo "USANDO NAABU COMO PORT SCANNER"
+		pwd
+		echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
+		#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
+		if [ $internet == "s" ]; then 	#escluir CDN 
+			docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -exclude-cdn -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		else		
+			docker run -v `pwd`:/tmp -it projectdiscovery/naabu -list /tmp/$live_hosts -p 1-10514  -c 5 -rate 100 -o .escaneo_puertos/tcp-ports.txt
+		fi
+	fi
+
+	#NMAP
+	if [[ $PORT_SCANNER = "nmap" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "nmap_naabu" ]; then 
+		echo "USANDO NMAP COMO PORT SCANNER" 
+
+		if [ "$MODE" == "proxy" ]; then 
+			echo -e "[+] Realizando escaneo tcp (solo 100 puertos - proxy)" 			
+			
+			for ip in $(cat $live_hosts); do  			
+				while true; do				
+					nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 			
+					if [[ $nmap_instances -lt $max_nmap_instances  ]];then 										
+						echo -e "[+] Escaneando $ip"	
+						
+						proxychains nmap -sT -Pn -T4 --top-ports 100 -n --open  --host-timeout 600  --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.proxy-nmap &
+						sleep 0.1;
+						break												
+					else				
+						nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 
+						echo -e "\t[-] Maximo número de instancias de nmap ($nmap_instances)"
+						sleep 3									
+					fi		
+				done # while true		
+			done # for
+				
+			######## wait to finish web info ########
+			while true; do
 				nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 			
-				if [[ $nmap_instances -lt $max_nmap_instances  ]];then 										
-					echo -e "[+] Escaneando $ip"	
-					
-					proxychains nmap -sT -Pn -T4 --top-ports 100 -n --open  --host-timeout 600  --min-parallelism 100 --min-rate 1 $ip -oG .escaneo_puertos/$ip.proxy-nmap &
-					sleep 0.1;
-					break												
-				else				
-					nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 
-					echo -e "\t[-] Maximo número de instancias de nmap ($nmap_instances)"
-					sleep 3									
-				fi		
-			done # while true		
-		done # for
-			
-		######## wait to finish web info ########
-		while true; do
-			nmap_instances=$((`ps aux | grep nmap | wc -l` - 1)) 			
-			if [ "$nmap_instances" -gt 0 ]
-			then
-				echo -e "\t[i] Todavia hay escaneos de nmap activos ($nmap_instances)"  
-				sleep 30
-			else
-				break		  		 
-			fi				
-		done
-		###########################################################
-		cat .escaneo_puertos/$ip.proxy-nmap >> .escaneo_puertos/tcp-100-nmap.grep
-		egrep -v "^#|Status: Up" .escaneo_puertos/tcp-100-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+				if [ "$nmap_instances" -gt 0 ]
+				then
+					echo -e "\t[i] Todavia hay escaneos de nmap activos ($nmap_instances)"  
+					sleep 30
+				else
+					break		  		 
+				fi				
+			done
+			###########################################################
+			cat .escaneo_puertos/$ip.proxy-nmap >> .escaneo_puertos/tcp-100-nmap.grep
+			egrep -v "^#|Status: Up" .escaneo_puertos/tcp-100-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
 
-	else
-		echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
-		nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -oG .escaneo_puertos/tcp-especificos-nmap.grep	 
-		# parsear salida nmap  --> 200.87.68.149:443 
-		nmap-grep.sh .escaneo_puertos/tcp-especificos-nmap.grep  >> .escaneo_puertos/tcp-especificos.txt
-			
-		echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
-		nmap -Pn -n -iL  $live_hosts --min-parallelism 100  -oG .escaneo_puertos/tcp-1000-nmap.grep
-		#egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
-		nmap-grep.sh .escaneo_puertos/tcp-1000-nmap.grep >> .escaneo_puertos/tcp-ports.txt
-	fi
-		
-fi
-
-
-## MASSCAN
-if [[ $PORT_SCANNER = "masscan" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
-	if [ "$MODE" != "proxy" ]; then 
-		echo "USANDO MASSCAN COMO PORT SCANNER"		    
-		echo -e "[+] Realizando escaneo tcp (puertos 1-10514) a $total_hosts hosts" 	
-		
-		if [[ $total_hosts -lt 30 || $internet == "s"  ]];then 
-			masscan --interface $iface -p1-10514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 		else
-	
-
-			masscan --interface $iface -p10000,10443,106,1080,1090,1099,110,111,11211,135,139,143,1433,1494,1521,1525,1526,1530,1630,16992,17001,1723,1883,2000,2049,21,22,23,2375,24007,25,27017,27080,28017,3128,3221,3260,3269,32764,3299,3306,3389,3632,3690,37777,389,4369,44134,443,4433,4443,445,44818,464,465,47001,47808,4899,49152,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5000,50000,50030,50060,50070,50075,50090,502,5060,541,5432,554,5601,5672,5723,5724,5800,5801,587,5900,5901,593,5984,5985,5986,6000,631,636,6379,7474,80,8009,8010,8080,8081,8082,8086,8098,81,82,8291,83,84,8443,85,86,87,8728,873,88,8800,8888,89,9000,9001,9010,902,9042,9100,9160,9200,9389 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
-		fi	
-		cat .escaneo_puertos/mass-scan.txt | awk '{print $6 ":" $4}' | cut -d "/" -f1 >> .escaneo_puertos/tcp-ports.txt 
-	fi
-fi
-		
-cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort | uniq >  .escaneo_puertos/tcp.txt 
-sed -i "s/ //g" .escaneo_puertos/tcp.txt
-   
-
-################### UDP escaneo  ###################  
-
-
-echo -e "#################### Escaneo de puertos UDP ######################"
-$proxychains nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
-nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt	
-sort .escaneo_puertos/udp2.txt | uniq > .escaneo_puertos/udp.txt
-
-
-	    
-########## making reportes #######
-	echo -e "[+] Creando reporte de escaneo de puertos"  	
-	cd .escaneo_puertos
-	report-open-ports.pl -l ../$live_hosts -t tcp.txt -u udp.txt
-	cd ../
-###################  
-  
-################### Ordernar IPs por servicio ###################
-cd .escaneo_puertos	
-	echo -e "[+] Ordernar IPs por servicio"  
-	grep ":79$" tcp.txt  | uniq >> ../servicios/finger.txt	
-	grep ":80$" tcp.txt  | uniq > ../servicios/web2.txt	
-	grep ":81$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":82$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":83$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":84$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":85$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":86$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":87$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":89$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":8000$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":8080$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":8081$" tcp.txt  | uniq >> ../servicios/web2.txt	
-	grep ":8082$" tcp.txt  | uniq >> ../servicios/web2.txt		
-	grep ":8010$" tcp.txt  | uniq >> ../servicios/web2.txt		
-	grep ":8800$" tcp.txt  | uniq >> ../servicios/web2.txt		
-
-	grep ":50000$" tcp.txt  | uniq >> ../servicios/jenkins.txt
-	grep ":10000$" tcp.txt  | uniq >> ../servicios/webmin.txt 
-	grep ":111$" tcp.txt  | uniq >> ../servicios/rpc.txt 
-	grep ":135$" tcp.txt  | uniq >> ../servicios/msrpc.txt 
-
-	grep ":541$" tcp.txt  | uniq >> ../servicios/FortiGate.txt 
-
-	# web-ssl
-	grep ":443$" tcp.txt  | uniq > ../servicios/web-ssl2.txt
-	grep ":8443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
-	grep ":4443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
-	grep ":4433$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
-	grep ":10443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
-	
-		
-	grep ":21$" tcp.txt  | uniq > ../servicios/ftp2.txt
-	grep ":513$" tcp.txt  | uniq >> ../servicios/rlogin.txt
-
-	
-	grep ":873$" tcp.txt  | uniq >> ../servicios/rsync.txt
-
-	grep ":3128$" tcp.txt  | uniq >> ../servicios/squid.txt
-	grep ":8888$" tcp.txt  | uniq >> ../servicios/squid.txt
-	grep ":1080$" tcp.txt  | uniq >> ../servicios/proxy.txt
-
-	grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
-
-	
-	
-	## ssh																	 
-	grep ":22$" tcp.txt | uniq >> ../servicios/ssh.txt
-	grep ":2375$" tcp.txt | uniq >> ../servicios/docker.txt
-	grep ":5000$" tcp.txt | uniq >> ../servicios/dockerRegistry.txt
-	
-		
-	## telnet
-	grep ":23$" tcp.txt | uniq >> ../servicios/telnet.txt
-
-	## MAIL																	 
-	grep ":25$" tcp.txt  | uniq >> ../servicios/smtp.txt
-	grep ":587$" tcp.txt  | uniq >> ../servicios/smtp.txt
-	grep ":465$" tcp.txt  | uniq >> ../servicios/smtp.txt
-	grep ":110$" tcp.txt  | uniq >> ../servicios/pop.txt 
-	grep ":143$" tcp.txt  | uniq >> ../servicios/imap.txt 
-	grep ":106$" tcp.txt  | uniq >> ../servicios/pop3pw.txt 
-
-	## ldap																	 
-	grep ":389$" tcp.txt  | uniq >> ../servicios/ldap.txt
-	grep ":636$" tcp.txt  | uniq >> ../servicios/ldaps.txt
-	grep ":11211$" tcp.txt  | uniq >> ../servicios/memcached.txt
-	grep ":88$" tcp.txt  | uniq >> ../servicios/kerberos.txt	
-
-
-
-	grep ":445$" tcp.txt| uniq >> ../servicios/smb2.txt
-	grep ":139$" tcp.txt | uniq >> ../servicios/dcom.txt
-
-	sort ../servicios/smb2.txt ../servicios/dcom.txt > ../servicios/smb.txt; rm ../servicios/smb2.txt	
-
-
-	# Java related
-	
-	grep ":8009$" tcp.txt  | uniq >> ../servicios/ajp13.txt
-	grep ":9001$" tcp.txt  | uniq >> ../servicios/HSQLDB.txt
+			echo -e "[+] Realizando escaneo de puertos especificos (informix, Web services)"  			
+			nmap -iL  $live_hosts -Pn -p 11211,1433,1521,1525,1526,1530,17001,27017,3269,32764,37777,464,47001,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5432,593,5985,5986,6379,81,82,8291,83,84,85,8728,24007,49152,44134,50030,50060,50070,50075,50090 -oG .escaneo_puertos/tcp-especificos-nmap.grep	 
+			# parsear salida nmap  --> 200.87.68.149:443 
+			nmap-grep.sh .escaneo_puertos/tcp-especificos-nmap.grep  >> .escaneo_puertos/tcp-especificos.txt
+				
+			echo -e "[+] Realizando escaneo tcp (solo 1000 puertos)" 			
+			nmap -Pn -n -iL  $live_hosts --min-parallelism 100  -oG .escaneo_puertos/tcp-1000-nmap.grep
+			#egrep -v "^#|Status: Up" .escaneo_puertos/tcp-1000-nmap.grep | cut -d' ' -f2,4- | sed -n -e 's/Ignored.*//p'  | awk '{for(i=2; i<=NF; i++) { a=a" "$i; }; split(a,s,","); for(e in s) { split(s[e],v,"/"); printf "%s:%s\n" , $1, v[1]}; a="" }' | sed 's/ //g'  >>  .escaneo_puertos/tcp-ports.txt
+			nmap-grep.sh .escaneo_puertos/tcp-1000-nmap.grep >> .escaneo_puertos/tcp-ports.txt
+		fi
 			
-	grep ":1525$" tcp.txt   | uniq >> ../servicios/informix.txt
-	grep ":1530$" tcp.txt   | uniq >> ../servicios/informix.txt
-	grep ":1526$" tcp.txt   | uniq >> ../servicios/informix.txt	
+	fi
 
 
-	grep ":1521$" tcp.txt   | uniq >> ../servicios/oracle.txt
-	grep ":1630$" tcp.txt   | uniq >> ../servicios/oracle.txt
-	grep ":5432$" tcp.txt | uniq >> ../servicios/postgres.txt     
-	grep ":3306$" tcp.txt   | uniq >> ../servicios/mysql.txt 
-	grep ":27017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
-	grep ":28017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
-	grep ":27080$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
-	grep ":5984$" tcp.txt  | uniq >> ../servicios/couchDB.txt 
-	grep ":6379$" tcp.txt  | uniq >> ../servicios/redis.txt 
-	grep ":9000$" tcp.txt  | uniq >> ../servicios/Hbase.txt 
-	grep ":9042$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
-	grep ":9160$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
-	grep ":7474$" tcp.txt  | uniq >> ../servicios/neo4j.txt 
-	grep ":8098$" tcp.txt  | uniq >> ../servicios/riak.txt 
+	## MASSCAN
+	if [[ $PORT_SCANNER = "masscan" ]] || [ $PORT_SCANNER == "nmap_masscan" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
+		if [ "$PROXYCHAINS" == "n" ]; then 
+			echo "USANDO MASSCAN COMO PORT SCANNER"		    
+			echo -e "[+] Realizando escaneo tcp (puertos 1-10514) a $total_hosts hosts" 	
+			
+			if [[ $total_hosts -lt 30 || $internet == "s"  ]];then 
+				masscan --interface $iface -p1-10514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+			else
 		
 
-	# remote desk
-	grep ":3389$" tcp.txt | uniq >> ../servicios/rdp.txt
-	grep ":4899$" tcp.txt  | uniq >> ../servicios/radmin.txt  
-	grep ":5800$" tcp.txt  | uniq >> ../servicios/vnc.txt
-	grep ":5801$" tcp.txt  | uniq >> ../servicios/vnc.txt
-	grep ":5900$" tcp.txt  | uniq >> ../servicios/vnc.txt
-	grep ":5901$" tcp.txt  | uniq >> ../servicios/vnc.txt
+				masscan --interface $iface -p10000,10443,106,1080,1090,1099,110,111,11211,135,139,143,1433,1494,1521,1525,1526,1530,1630,16992,17001,1723,1883,2000,2049,21,22,23,2375,24007,25,27017,27080,28017,3128,3221,3260,3269,32764,3299,3306,3389,3632,3690,37777,389,4369,44134,443,4433,4443,445,44818,464,465,47001,47808,4899,49152,49664,49665,49666,49667,49669,49676,49677,49684,49706,49915,5000,50000,50030,50060,50070,50075,50090,502,5060,541,5432,554,5601,5672,5723,5724,5800,5801,587,5900,5901,593,5984,5985,5986,6000,631,636,6379,7474,80,8009,8010,8080,8081,8082,8086,8098,81,82,8291,83,84,8443,85,86,87,8728,873,88,8800,8888,89,9000,9001,9010,902,9042,9100,9160,9200,9389 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+			fi	
+			cat .escaneo_puertos/mass-scan.txt | awk '{print $6 ":" $4}' | cut -d "/" -f1 >> .escaneo_puertos/tcp-ports.txt 
+		fi
+	fi
+			
+	cat .escaneo_puertos/tcp-especificos.txt  .escaneo_puertos/tcp-ports.txt | sort | uniq >  .escaneo_puertos/tcp.txt 
+	sed -i "s/ //g" .escaneo_puertos/tcp.txt
+	
 
-	#Virtual
-	grep ":902$" tcp.txt  | uniq >> ../servicios/vmware.txt	
-	grep ":1494$" tcp.txt  | uniq >> ../servicios/citrix.txt    
+	################### UDP escaneo  ###################  
+
+
+	echo -e "#################### Escaneo de puertos UDP ######################"
+	$proxychains nmap -Pn -n -sU -p 53,69,123,161,500,5353,1900,11211,1604,623,47808 --open -iL $live_hosts -oG .escaneo_puertos/nmap-udp.grep 
+	nmap-grep.sh .escaneo_puertos/nmap-udp.grep  >> .escaneo_puertos/udp2.txt	
+	sort .escaneo_puertos/udp2.txt | uniq > .escaneo_puertos/udp.txt
+
+			
+	########## making reportes #######
+		echo -e "[+] Creando reporte de escaneo de puertos"  	
+		cd .escaneo_puertos
+		report-open-ports.pl -l ../$live_hosts -t tcp.txt -u udp.txt
+		cd ../
+	###################  
+	
+	################### Ordernar IPs por servicio ###################
+	cd .escaneo_puertos	
+		echo -e "[+] Ordernar IPs por servicio"  
+		grep ":79$" tcp.txt  | uniq >> ../servicios/finger.txt	
+		grep ":80$" tcp.txt  | uniq > ../servicios/web2.txt	
+		grep ":81$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":82$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":83$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":84$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":85$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":86$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":87$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":89$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":8000$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":8080$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":8081$" tcp.txt  | uniq >> ../servicios/web2.txt	
+		grep ":8082$" tcp.txt  | uniq >> ../servicios/web2.txt		
+		grep ":8010$" tcp.txt  | uniq >> ../servicios/web2.txt		
+		grep ":8800$" tcp.txt  | uniq >> ../servicios/web2.txt		
+
+		grep ":50000$" tcp.txt  | uniq >> ../servicios/jenkins.txt
+		grep ":10000$" tcp.txt  | uniq >> ../servicios/webmin.txt 
+		grep ":111$" tcp.txt  | uniq >> ../servicios/rpc.txt 
+		grep ":135$" tcp.txt  | uniq >> ../servicios/msrpc.txt 
+
+		grep ":541$" tcp.txt  | uniq >> ../servicios/FortiGate.txt 
+
+		# web-ssl
+		grep ":443$" tcp.txt  | uniq > ../servicios/web-ssl2.txt
+		grep ":8443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
+		grep ":4443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt
+		grep ":4433$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
+		grep ":10443$" tcp.txt  | uniq >> ../servicios/web-ssl2.txt	
+		
+			
+		grep ":21$" tcp.txt  | uniq > ../servicios/ftp2.txt
+		grep ":513$" tcp.txt  | uniq >> ../servicios/rlogin.txt
 
 		
-	#Misc      
-	
-	grep ":8291$" tcp.txt  | uniq >> ../servicios/winbox.txt	
-	grep ":6000$" tcp.txt  | uniq >> ../servicios/x11.txt
-	grep ":631$" tcp.txt  | uniq >> ../servicios/cups.txt
-	grep ":9100$" tcp.txt  | uniq >> ../servicios/printers.txt	
-	grep ":2049$" tcp.txt  | uniq >> ../servicios/nfs.txt
-	grep ":5723$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt
-	grep ":5724$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt	
-	grep ":1433$" tcp.txt  | uniq >> ../servicios/mssql.txt 
-	grep ":37777$" tcp.txt  | uniq >> ../servicios/dahua_dvr.txt
-	grep ":9200$" tcp.txt  | uniq >> ../servicios/elasticsearch.txt 	
-	grep ":3221$" tcp.txt  | uniq >> ../servicios/juniper.txt 	
+		grep ":873$" tcp.txt  | uniq >> ../servicios/rsync.txt
 
-	grep ":554$" tcp.txt  | uniq >> ../servicios/camaras-ip.txt
+		grep ":3128$" tcp.txt  | uniq >> ../servicios/squid.txt
+		grep ":8888$" tcp.txt  | uniq >> ../servicios/squid.txt
+		grep ":1080$" tcp.txt  | uniq >> ../servicios/proxy.txt
+
+		grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
+
 		
+		
+		## ssh																	 
+		grep ":22$" tcp.txt | uniq >> ../servicios/ssh.txt
+		grep ":2375$" tcp.txt | uniq >> ../servicios/docker.txt
+		grep ":5000$" tcp.txt | uniq >> ../servicios/dockerRegistry.txt
+		
+			
+		## telnet
+		grep ":23$" tcp.txt | uniq >> ../servicios/telnet.txt
 
-	#Esp
-	grep ":16992$" tcp.txt  | uniq >> ../servicios/intel.txt 	
-	grep ":5601$" tcp.txt  | uniq >> ../servicios/kibana.txt 	
+		## MAIL																	 
+		grep ":25$" tcp.txt  | uniq >> ../servicios/smtp.txt
+		grep ":587$" tcp.txt  | uniq >> ../servicios/smtp.txt
+		grep ":465$" tcp.txt  | uniq >> ../servicios/smtp.txt
+		grep ":110$" tcp.txt  | uniq >> ../servicios/pop.txt 
+		grep ":143$" tcp.txt  | uniq >> ../servicios/imap.txt 
+		grep ":106$" tcp.txt  | uniq >> ../servicios/pop3pw.txt 
 
-	grep ":47808$" tcp.txt  | uniq >> ../servicios/BACnet.txt 
-	grep ":502$" tcp.txt  | uniq >> ../servicios/ModBus.txt 	
-
-	#backdoor
-	grep ":32764$" tcp.txt  | uniq >> ../servicios/backdoor32764.txt
-
-	#pptp
-	grep ":1723$" tcp.txt  | uniq >> ../servicios/pptp.txt
-	grep ":47001$" tcp.txt  | uniq >> ../servicios/WinRM.txt
-	grep ":5985$" tcp.txt  | uniq >> ../servicios/WinRM.txt
-	#evil-winrm -i 10.10.10.161 -u svc-alfresco -p s3rvice
-	#evil-winrm -u <username> -H <Hash> -i <IP>
-	grep ":5986$" tcp.txt  | uniq >> ../servicios/WinRM.txt
-	# openssl req -newkey rsa:2048 -nodes -keyout request.key -out request.csr
-	# evil-winrm -i 10.10.10.103 -c certnew.cer -k request.key --port 5986 --ssl
-	grep ":9389$" tcp.txt  | uniq >> ../servicios/RSAT.txt
+		## ldap																	 
+		grep ":389$" tcp.txt  | uniq >> ../servicios/ldap.txt
+		grep ":636$" tcp.txt  | uniq >> ../servicios/ldaps.txt
+		grep ":11211$" tcp.txt  | uniq >> ../servicios/memcached.txt
+		grep ":88$" tcp.txt  | uniq >> ../servicios/kerberos.txt	
 
 
-	grep ":1099$" tcp.txt  | uniq >> ../servicios/rmi.txt
-	grep ":1090$" tcp.txt  | uniq >> ../servicios/rmi.txt
-	grep ":9010$" tcp.txt  | uniq >> ../servicios/rmi.txt
 
-	grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
-	grep ":3260$" tcp.txt  | uniq >> ../servicios/iscsi.txt
-	grep ":3299$" tcp.txt  | uniq >> ../servicios/SAProuter.txt
+		grep ":445$" tcp.txt| uniq >> ../servicios/smb2.txt
+		grep ":139$" tcp.txt | uniq >> ../servicios/dcom.txt
 
-	grep ":3632$" tcp.txt  | uniq >> ../servicios/distccd.txt
-	grep ":3690$" tcp.txt  | uniq >> ../servicios/svn.txt
-	grep ":4369$" tcp.txt  | uniq >> ../servicios/erlang.txt
+		sort ../servicios/smb2.txt ../servicios/dcom.txt > ../servicios/smb.txt; rm ../servicios/smb2.txt	
 
-	grep ":5672$" tcp.txt  | uniq >> ../servicios/RabbitMQ.txt
 
-#TODO
-	#grep ":5985$" tcp.txt  | uniq >> ../servicios/OMI.txt
-	#grep ":5986$" tcp.txt  | uniq >> ../servicios/OMI.txt
+		# Java related
+		
+		grep ":8009$" tcp.txt  | uniq >> ../servicios/ajp13.txt
+		grep ":9001$" tcp.txt  | uniq >> ../servicios/HSQLDB.txt
+				
+		grep ":1525$" tcp.txt   | uniq >> ../servicios/informix.txt
+		grep ":1530$" tcp.txt   | uniq >> ../servicios/informix.txt
+		grep ":1526$" tcp.txt   | uniq >> ../servicios/informix.txt	
+
+
+		grep ":1521$" tcp.txt   | uniq >> ../servicios/oracle.txt
+		grep ":1630$" tcp.txt   | uniq >> ../servicios/oracle.txt
+		grep ":5432$" tcp.txt | uniq >> ../servicios/postgres.txt     
+		grep ":3306$" tcp.txt   | uniq >> ../servicios/mysql.txt 
+		grep ":27017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+		grep ":28017$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+		grep ":27080$" tcp.txt  | uniq >> ../servicios/mongoDB.txt 
+		grep ":5984$" tcp.txt  | uniq >> ../servicios/couchDB.txt 
+		grep ":6379$" tcp.txt  | uniq >> ../servicios/redis.txt 
+		grep ":9000$" tcp.txt  | uniq >> ../servicios/Hbase.txt 
+		grep ":9042$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
+		grep ":9160$" tcp.txt  | uniq >> ../servicios/cassandra.txt 
+		grep ":7474$" tcp.txt  | uniq >> ../servicios/neo4j.txt 
+		grep ":8098$" tcp.txt  | uniq >> ../servicios/riak.txt 
+			
+
+		# remote desk
+		grep ":3389$" tcp.txt | uniq >> ../servicios/rdp.txt
+		grep ":4899$" tcp.txt  | uniq >> ../servicios/radmin.txt  
+		grep ":5800$" tcp.txt  | uniq >> ../servicios/vnc.txt
+		grep ":5801$" tcp.txt  | uniq >> ../servicios/vnc.txt
+		grep ":5900$" tcp.txt  | uniq >> ../servicios/vnc.txt
+		grep ":5901$" tcp.txt  | uniq >> ../servicios/vnc.txt
+
+		#Virtual
+		grep ":902$" tcp.txt  | uniq >> ../servicios/vmware.txt	
+		grep ":1494$" tcp.txt  | uniq >> ../servicios/citrix.txt    
+
+			
+		#Misc      
+		
+		grep ":8291$" tcp.txt  | uniq >> ../servicios/winbox.txt	
+		grep ":6000$" tcp.txt  | uniq >> ../servicios/x11.txt
+		grep ":631$" tcp.txt  | uniq >> ../servicios/cups.txt
+		grep ":9100$" tcp.txt  | uniq >> ../servicios/printers.txt	
+		grep ":2049$" tcp.txt  | uniq >> ../servicios/nfs.txt
+		grep ":5723$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt
+		grep ":5724$" tcp.txt  | uniq >> ../servicios/SystemCenter.txt	
+		grep ":1433$" tcp.txt  | uniq >> ../servicios/mssql.txt 
+		grep ":37777$" tcp.txt  | uniq >> ../servicios/dahua_dvr.txt
+		grep ":9200$" tcp.txt  | uniq >> ../servicios/elasticsearch.txt 	
+		grep ":3221$" tcp.txt  | uniq >> ../servicios/juniper.txt 	
+
+		grep ":554$" tcp.txt  | uniq >> ../servicios/camaras-ip.txt
+			
+
+		#Esp
+		grep ":16992$" tcp.txt  | uniq >> ../servicios/intel.txt 	
+		grep ":5601$" tcp.txt  | uniq >> ../servicios/kibana.txt 	
+
+		grep ":47808$" tcp.txt  | uniq >> ../servicios/BACnet.txt 
+		grep ":502$" tcp.txt  | uniq >> ../servicios/ModBus.txt 	
+
+		#backdoor
+		grep ":32764$" tcp.txt  | uniq >> ../servicios/backdoor32764.txt
+
+		#pptp
+		grep ":1723$" tcp.txt  | uniq >> ../servicios/pptp.txt
+		grep ":47001$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+		grep ":5985$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+		#evil-winrm -i 10.10.10.161 -u svc-alfresco -p s3rvice
+		#evil-winrm -u <username> -H <Hash> -i <IP>
+		grep ":5986$" tcp.txt  | uniq >> ../servicios/WinRM.txt
+		# openssl req -newkey rsa:2048 -nodes -keyout request.key -out request.csr
+		# evil-winrm -i 10.10.10.103 -c certnew.cer -k request.key --port 5986 --ssl
+		grep ":9389$" tcp.txt  | uniq >> ../servicios/RSAT.txt
+
+
+		grep ":1099$" tcp.txt  | uniq >> ../servicios/rmi.txt
+		grep ":1090$" tcp.txt  | uniq >> ../servicios/rmi.txt
+		grep ":9010$" tcp.txt  | uniq >> ../servicios/rmi.txt
+
+		grep ":1883$" tcp.txt  | uniq >> ../servicios/mosquitto.txt
+		grep ":3260$" tcp.txt  | uniq >> ../servicios/iscsi.txt
+		grep ":3299$" tcp.txt  | uniq >> ../servicios/SAProuter.txt
+
+		grep ":3632$" tcp.txt  | uniq >> ../servicios/distccd.txt
+		grep ":3690$" tcp.txt  | uniq >> ../servicios/svn.txt
+		grep ":4369$" tcp.txt  | uniq >> ../servicios/erlang.txt
+
+		grep ":5672$" tcp.txt  | uniq >> ../servicios/RabbitMQ.txt
+
+	#TODO
+		#grep ":5985$" tcp.txt  | uniq >> ../servicios/OMI.txt
+		#grep ":5986$" tcp.txt  | uniq >> ../servicios/OMI.txt
+		
+		grep ":8086$" tcp.txt  | uniq >> ../servicios/InfluxDB.txt
+
+		#grep ":24007$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+		#grep ":49152$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
+
+		grep ":44134$" tcp.txt  | uniq >> ../servicios/helm.txt
+		grep ":44818$" tcp.txt  | uniq >> ../servicios/EtherNet.txt
+
+		grep ":50030$" tcp.txt  | uniq >> ../servicios/hadoop-jobtracker.txt
+		grep ":50060$" tcp.txt  | uniq >> ../servicios/hadoop-tasktracker.txt
+		grep ":50070$" tcp.txt  | uniq >> ../servicios/hadoop-namenode.txt
+		grep ":50075$" tcp.txt  | uniq >> ../servicios/hadoop-datanode.txt
+		grep ":50090$" tcp.txt  | uniq >> ../servicios/hadoop-secondary.txt
+		
+		########### Delete printers/ipcameras/voip from web servers list ######3
+		cat ../servicios/printers.txt ../servicios/voip.txt ../servicios/camaras-ip.txt 2>/dev/null | cut -d ":" -f1 | sort | uniq > ../servicios/no-web-ip.txt
+		for line in $(cat ../servicios/no-web-ip.txt); do
+			grep $line ../servicios/web2.txt >> ../servicios/no-web.txt
+			grep $line ../servicios/web-ssl2.txt >> ../servicios/no-web.txt
+			grep $line ../servicios/ftp2.txt >> ../servicios/no-web.txt
+		done
+		sort ../servicios/no-web.txt -o ../servicios/no-web.txt 2>/dev/null
+		sort ../servicios/web2.txt -o ../servicios/web2.txt 2>/dev/null
+		sort ../servicios/web-ssl2.txt -o ../servicios/web-ssl2.txt 2>/dev/null
+		sort ../servicios/ftp2.txt -o ../servicios/ftp2.txt 2>/dev/null
+		
+		comm -13 ../servicios/no-web.txt ../servicios/web2.txt > ../servicios/web.txt 2>/dev/null
+		comm -13 ../servicios/no-web.txt ../servicios/web-ssl2.txt > ../servicios/web-ssl.txt 2>/dev/null
+		comm -13 ../servicios/no-web.txt ../servicios/ftp2.txt > ../servicios/ftp.txt 2>/dev/null
+		#######################
+	cd ..
+
 	
-	grep ":8086$" tcp.txt  | uniq >> ../servicios/InfluxDB.txt
-
-	#grep ":24007$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
-	#grep ":49152$" tcp.txt  | uniq >> ../servicios/GlusterFS.txt
-
-	grep ":44134$" tcp.txt  | uniq >> ../servicios/helm.txt
-	grep ":44818$" tcp.txt  | uniq >> ../servicios/EtherNet.txt
-
-	grep ":50030$" tcp.txt  | uniq >> ../servicios/hadoop-jobtracker.txt
-	grep ":50060$" tcp.txt  | uniq >> ../servicios/hadoop-tasktracker.txt
-	grep ":50070$" tcp.txt  | uniq >> ../servicios/hadoop-namenode.txt
-	grep ":50075$" tcp.txt  | uniq >> ../servicios/hadoop-datanode.txt
-	grep ":50090$" tcp.txt  | uniq >> ../servicios/hadoop-secondary.txt
 	
-	########### Delete printers/ipcameras/voip from web servers list ######3
-	cat ../servicios/printers.txt ../servicios/voip.txt ../servicios/camaras-ip.txt 2>/dev/null | cut -d ":" -f1 | sort | uniq > ../servicios/no-web-ip.txt
-	for line in $(cat ../servicios/no-web-ip.txt); do
-		grep $line ../servicios/web2.txt >> ../servicios/no-web.txt
-		grep $line ../servicios/web-ssl2.txt >> ../servicios/no-web.txt
-		grep $line ../servicios/ftp2.txt >> ../servicios/no-web.txt
-	done
-	sort ../servicios/no-web.txt -o ../servicios/no-web.txt 2>/dev/null
-	sort ../servicios/web2.txt -o ../servicios/web2.txt 2>/dev/null
-	sort ../servicios/web-ssl2.txt -o ../servicios/web-ssl2.txt 2>/dev/null
-	sort ../servicios/ftp2.txt -o ../servicios/ftp2.txt 2>/dev/null
-	
-	comm -13 ../servicios/no-web.txt ../servicios/web2.txt > ../servicios/web.txt 2>/dev/null
-	comm -13 ../servicios/no-web.txt ../servicios/web-ssl2.txt > ../servicios/web-ssl.txt 2>/dev/null
-	comm -13 ../servicios/no-web.txt ../servicios/ftp2.txt > ../servicios/ftp.txt 2>/dev/null
-	#######################
-cd ..
-
-  
-  
- ##################UDP#########
-cd .escaneo_puertos
-	#grep "53/open/" nmap-udp.grep | awk '{print $2}' | perl -ne '$_ =~ s/\n//g; print "$_:53\n"' | uniq >> ../servicios/dns.txt
-	grep --color=never ":53$" udp.txt  | uniq >> ../servicios/dns.txt
-	grep --color=never ":161$" udp.txt | uniq >> ../servicios/snmp2.txt
-	grep --color=never ":67$" udp.txt  | uniq >> ../servicios/dhcp.txt
-	grep --color=never ":69$" udp.txt  | uniq >> ../servicios/tftp.txt		
-	grep --color=never ":500$" udp.txt  | uniq >> ../servicios/vpn.txt		
-	grep --color=never ":1604$" udp.txt  | uniq >> ../servicios/citrix.txt		
-	grep --color=never ":1900$" udp.txt  | uniq >> ../servicios/upnp.txt		
-	grep --color=never ":623$" udp.txt  | uniq >> ../servicios/IPMI.txt
-	grep --color=never ":5353$" udp.txt  | uniq >> ../servicios/mDNS.txt
-	grep --color=never ":47808$" udp.txt  | uniq >> ../servicios/BACNet.txt
-	
-cd ../        
-find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
- ################################
-  
+	##################UDP#########
+	cd .escaneo_puertos
+		#grep "53/open/" nmap-udp.grep | awk '{print $2}' | perl -ne '$_ =~ s/\n//g; print "$_:53\n"' | uniq >> ../servicios/dns.txt
+		grep --color=never ":53$" udp.txt  | uniq >> ../servicios/dns.txt
+		grep --color=never ":161$" udp.txt | uniq >> ../servicios/snmp2.txt
+		grep --color=never ":67$" udp.txt  | uniq >> ../servicios/dhcp.txt
+		grep --color=never ":69$" udp.txt  | uniq >> ../servicios/tftp.txt		
+		grep --color=never ":500$" udp.txt  | uniq >> ../servicios/vpn.txt		
+		grep --color=never ":1604$" udp.txt  | uniq >> ../servicios/citrix.txt		
+		grep --color=never ":1900$" udp.txt  | uniq >> ../servicios/upnp.txt		
+		grep --color=never ":623$" udp.txt  | uniq >> ../servicios/IPMI.txt
+		grep --color=never ":5353$" udp.txt  | uniq >> ../servicios/mDNS.txt
+		grep --color=never ":47808$" udp.txt  | uniq >> ../servicios/BACNet.txt
+		
+	cd ../        
+	find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # delete empty files
+	################################
+	echo -e "########################################### "
+fi # Port scan  
    
-echo -e "########################################### "
 
 
 # FASE: 3
@@ -1617,7 +1619,7 @@ then
 			fi	
 
 
-			if [ "$MODE" != "proxy" ]; then 
+			if [ "$PROXYCHAINS" == "n" ]; then 
 				echo -e "\t [+] Bruteforce domains"
 				echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
 				dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
@@ -2755,7 +2757,7 @@ then
 			fi									
 		fi	
 
-		if [ "$MODE" != "proxy" ]; then 
+		if [ "$PROXYCHAINS" == "n" ]; then 
 			echo -e "\t[+] Probando vulnerabilidad CVE-2018-15473"						
 			egrep -iq "is an invalid username" logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 2>/dev/null
 			greprc=$?
@@ -2793,7 +2795,7 @@ then
 		sleep 1
 					# done true				        	        				
 	    #finger "|/bin/id@10.0.0.3"
-		if [ "$MODE" != "proxy" ]; then 
+		if [ "$PROXYCHAINS" == "n" ]; then 
 			finger-user-enum.pl -U $common_user_list_es -t $ip > logs/vulnerabilidades/"$ip"_finger_enumBrute.txt
 			grep ssh logs/vulnerabilidades/"$ip"_finger_enumBrute.txt > .vulnerabilidades/"$ip"_finger_enumBrute.txt
 		fi  
@@ -3364,7 +3366,7 @@ then
 
 
 					####################################
-					if [ "$MODE" != "proxy" ]; then 
+					if [ "$PROXYCHAINS" == "n" ]; then 
 						echo -e "\t\t[+] Clonar sitios"
 						cloneSite "http" $subdominio $port	
 					fi  					
@@ -3473,7 +3475,7 @@ then
 
 					#######  if the server is IoT ######
 					enumeracionIOT	"http" $ip $port
-					if [ "$MODE" != "proxy" ]; then 
+					if [ "$PROXYCHAINS" == "n" ]; then 
 						cloneSite "http" $ip $port	
 					fi  
 					
@@ -4001,7 +4003,7 @@ if [ -f servicios/smtp.txt ]
 			$proxychains nc -w 3 $ip $port <<<"EHLO localhost"& > .banners/"$ip"_"$port".txt						
 			#interlace -tL .servicios/smtp-interlace.txt -threads 5 -c "nc -w 3 _target_ _port_ <<'EHLO localhost' > ./_target___port__nc.txt" -p 25 --silent
 						
-			if [ "$MODE" != "proxy" ]; then 
+			if [ "$PROXYCHAINS" == "n" ]; then 
 				########## VRFY #######
 				echo -e "\t[+] Comprobando comando vrfy"
 				echo "vrfy-test.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
@@ -4036,7 +4038,7 @@ if [ -f servicios/smtp.txt ]
 			grep --color=never "|" logs/vulnerabilidades/"$ip"_"$port"_smtpVuln.txt  | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|NOT VULNERABLE|cve2010-4344" > .vulnerabilidades/"$ip"_"$port"_smtpVuln.txt
 
 			
-			if [ "$MODE" != "proxy" ]; then 
+			if [ "$PROXYCHAINS" == "n" ]; then 
 				########## open relay #######
 				echo ""
 				echo -e "\t[+] Probando si es un open relay"
@@ -5512,7 +5514,7 @@ insert_data
 #####################################################################################################
 
 
-if [ "$MODE" != "proxy" ]; then 
+if [ "$PROXYCHAINS" == "n" ]; then 
 	IFS=$'\n'  # make newlines the only separator
 	echo -e "$OKBLUE #################### Realizar escaneo de directorios (2do nivel) a los directorios descubiertos ######################$RESET"	    
 	for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null | uniq ); do	
