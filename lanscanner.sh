@@ -774,7 +774,7 @@ touch webClone/checksumsEscaneados.txt
 
 #echo -e "$OKBLUE Que interfaz usaremos? $iface,tap0, etc ?$RESET"
 #read 
-ifaces=`ip addr | grep -iv DOWN | awk '/UP/ {print $2}' | egrep -v "lo|dummy|rmnet|vmnet" | sed 's/.$//'`
+ifaces=`ip addr | grep -iv DOWN | awk '/UP/ {print $2}' | egrep -v "lo|dummy|rmnet|vmnet|eth1" | sed 's/.$//'`
 #Si usamos VPN
 if [[ $ifaces == *"tun0"* ]]; then
 	echo "Se detecto el uso de VPN"
