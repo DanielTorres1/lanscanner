@@ -3249,7 +3249,7 @@ then
 				#################  Realizar el escaneo por dominio  ##############				
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then					
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq
-					#echo "lista_subdominios $lista_subdominios"
+					echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do													
 						echo -e "\t[+] subdominio: $subdominio"							
 						#wget --timeout=20 --tries=1 http://$subdominio -O webClone/http-$subdominio.html
