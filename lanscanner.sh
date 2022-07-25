@@ -411,7 +411,7 @@ function enumeracionCMS () {
     grep --color=never "|" logs/vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt |  egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT" > .vulnerabilidades/"$host"_"$port"_nmapHTTPvuln.txt
     sleep 1
 
-    #######  drupal (domain) ######
+    #######  drupal  ######
     grep -qi drupal .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 										
@@ -420,7 +420,7 @@ function enumeracionCMS () {
         cat logs/vulnerabilidades/"$host"_"$port"_droopescan.txt > .enumeracion/"$host"_"$port"_droopescan.txt																																								
     fi
 
-    #######  wordpress (domain) ######
+    #######  wordpress  ######
     grep -qi wordpress .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 		
@@ -458,7 +458,7 @@ function enumeracionCMS () {
                                 
     ###################################	 
 
-    #######  citrix (domain) ######
+    #######  citrix  ######
     grep -qi citrix .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 								
@@ -470,7 +470,7 @@ function enumeracionCMS () {
     fi
     ###################################	
 
-    #######  Pulse secure (domain) ######
+    #######  Pulse secure  ######
     grep -qi pulse .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 								
@@ -483,7 +483,7 @@ function enumeracionCMS () {
     ##################################		
 
 
-    #######  OWA (domain) ######
+    #######  OWA  ######
     egrep -qi "Outlook|owa" .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 		
@@ -496,7 +496,7 @@ function enumeracionCMS () {
     ###################################		
 
 
-    #######  grafana (domain) ######
+    #######  grafana  ######
     egrep -qi "Grafana" .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 		
@@ -510,7 +510,7 @@ function enumeracionCMS () {
 
 
 
-    #######  joomla (domain) ######
+    #######  joomla  ######
     grep -qi joomla .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 										
@@ -521,7 +521,7 @@ function enumeracionCMS () {
     fi
     ###################################	
 
-    #######  WAMPSERVER (domain) ######
+    #######  WAMPSERVER  ######
     grep -qi WAMPSERVER .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 										
@@ -531,7 +531,7 @@ function enumeracionCMS () {
     ###################################	
 
 
-    #######  BIG-IP F5 (domain) ######
+    #######  BIG-IP F5  ######
     grep -qi "BIG-IP" .enumeracion/"$host"_"$port"_webData.txt
     greprc=$?
     if [[ $greprc -eq 0 ]];then 		
@@ -628,7 +628,7 @@ function cloneSite ()
    port=$3  
    echo -e "\t\t[+] Clone site ($proto : $host : $port)"	
 
-    #######  clone site (domain) ####### 									
+    #######  clone site  ####### 									
     cd webClone
         echo -e "\t\t[+] Clonando sitio ($host) tardara un rato"	
         wget -mirror --convert-links --adjust-extension --no-parent -U "Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0" --reject gif,jpg,bmp,png,mp4,jpeg,flv,webm,mkv,ogg,gifv,avi,wmv,3gp,ttf,svg,woff2,css,ico --exclude-directories /calendar,/noticias,/blog,/xnoticias,/article,/component,/index.php --timeout=5 --tries=1 --adjust-extension  --level=3 --no-check-certificate $proto://$host 2>/dev/null
@@ -3328,7 +3328,7 @@ then
 							
 
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|SharePoint"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
 								enumeracionIIS "http" $subdominio $port								
@@ -3444,7 +3444,7 @@ then
 					####################################	
 
 					#######  if the server is IIS ######
-					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs|Cloudflare"  # no redirecciona
+					grep -i IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes						
 						enumeracionIIS "http" $ip $port											
@@ -3730,7 +3730,7 @@ then
 							####################################
 							
 							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
+							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
 							greprc=$?
 							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
 								enumeracionIIS "https" $subdominio $port								   
@@ -3846,7 +3846,7 @@ then
 					####################################
 		
 					#######  if the server is IIS ######
-					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|SharePoint|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" 
+					grep -qi IIS .enumeracion/"$ip"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra" 
 					greprc=$?
 					if [[ $greprc -eq 0 && ! -f .enumeracion/"$ip"_"$port"_webarchivos.txt  ]];then # si el banner es IIS y no se enumero antes											
 						enumeracionIIS "https" $ip $port																
@@ -5536,7 +5536,7 @@ if [ "$PROXYCHAINS" == "n" ]; then
 					port=`echo $ip_port | cut -d ":" -f 2`		
 					path=`echo $line | cut -d "/" -f4 | tr '[:upper:]' '[:lower:]'` #minuscula
 				
-						if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"license"* && ${path} != *"wp"* && ${path} != *"aspnet_client"*  && ${path} != *"manual"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
+						if [[ (${path} != *"xmlrpc"* && ${path} != *"manual"* && ${path} != *"dashboard"* && ${path} != *"docs"* && ${path} != *"license"* && ${path} != *"wp"* && ${path} != *"aspnet_client"*  && ${path} != *"autodiscover"*  && ${path} != *"manual"* && ${path} != *"manual"* && ${path} != *"manual"* ) ]];then 
 						echo -e "\t\t[+] Enumerando directorios de 2do nivel ($path)" 
 						web-buster.pl -t $ip -p $port -s $proto -h $hilos_web -d "/$path/" -m folders >> logs/enumeracion/"$ip"_"$port"_webdirectorios2.txt &
 											
