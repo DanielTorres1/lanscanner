@@ -1090,6 +1090,7 @@ echo -e "#################### Escaneo de puertos TCP ######################"
 ## NAABU
 if [[ $PORT_SCANNER = "naabu" ]] || [ $PORT_SCANNER == "nmap_naabu" ] || [ $PORT_SCANNER == "masscan_naabu" ]; then 
 	echo "USANDO NAABU COMO PORT SCANNER"
+	pwd
 	echo -e "[+] Realizando escaneo tcp (Todos los puertos)" 
 	#naabu -list $live_hosts -top-ports 100 -c 5 -o .escaneo_puertos/tcp-1000.txt
 	if [ $internet == "s" ]; then 	#escluir CDN 
