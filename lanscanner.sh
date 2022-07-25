@@ -3246,7 +3246,8 @@ then
 			#if [[ $free_ram -gt $min_ram && $perl_instancias -lt 10  ]];then 
 			if [[ $free_ram -gt $min_ram && $perl_instancias -lt $max_perl_instancias  ]];then 
 			#echo "FILE $prefijo$IP_LIST_FILE"			
-				#################  Realizar el escaneo por dominio  ##############				
+				#################  Realizar el escaneo por dominio  ##############	
+				echo "FILEEE: $prefijo$IP_LIST_FILE"			
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then					
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO` | uniq
 					echo "lista_subdominios $lista_subdominios"
