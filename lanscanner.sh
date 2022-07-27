@@ -91,7 +91,8 @@ PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/m
 echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
 
 
-if [[ "$MODE" == NULL || "$PORT_SCANNER" == NULL ]]; then 
+#if [[ "$MODE" == NULL || "$PORT_SCANNER" == NULL ]]; then 
+if [[ "$MODE" == NULL  ]]; then 
 
 cat << "EOF"
 
@@ -702,20 +703,21 @@ function cloneSite ()
         find . -name "*.pptx" -exec mv {} "../archivos" \;
         find . -name "*.xlsx" -exec mv {} "../archivos" \;
         
-                            
-        ######### buscar IPs privadas
-        echo -e "\t\t[+] Revisando si hay divulgación de IPs privadas"	
-        grep -ira "192.168." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        grep -ira "172.16." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-                                
-        grep -ira "http://172." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        grep -ira "http://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        grep -ira "http://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+		if [ $internet == "s" ]; then 	#escluir CDN 
+			######### buscar IPs privadas
+			echo -e "\t\t[+] Revisando si hay divulgación de IPs privadas"	
+			grep -ira "192.168." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			grep -ira "172.16." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+									
+			grep -ira "http://172." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			grep -ira "http://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			grep -ira "http://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
 
-        grep -ira "https://172" * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        grep -ira "https://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        grep -ira "https://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
-        ###############################	
+			grep -ira "https://172" * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			grep -ira "https://10." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			grep -ira "https://192." * | grep -v "checksumsEscaneados" | sort | uniq >> ../.vulnerabilidades/"$DOMINIO_EXTERNO"_web_IPinterna.txt
+			###############################	
+		fi
         
         ######### buscar links de amazon EC2
         grep --color=never -ir 'amazonaws.com' * >> ../.enumeracion/"$DOMINIO_EXTERNO"_web_amazon.txt
@@ -1043,25 +1045,27 @@ total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
 
-if [[  "$FORCE" == 'internet' || -f "logs/enumeracion/subdominios.txt" ]]
-then
-	internet="s"
-    echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
-	VECTOR="EXTERNO"
-else
-	internet="n"
-	VECTOR="INTERNO"
-	 if [ $iface == 'tun0' ];
-	 then
-		echo "Conexion VPN detectada (Offsec)"
-	 else
-	 	echo -e "[+] Adiciona/quita IPs y presiona ENTER" 
-		sleep 3
-		gedit .datos/total-host-vivos.txt & 2>/dev/null
-		read resp
-	 fi
-fi    
-
+if [[  "$MODE" != 'enumeration' ]]
+then 
+	if [[  "$FORCE" == 'internet' || -f "logs/enumeracion/subdominios.txt" ]]
+	then
+		internet="s"
+		echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
+		VECTOR="EXTERNO"
+	else
+		internet="n"
+		VECTOR="INTERNO"
+		if [ $iface == 'tun0' ];
+		then
+			echo "Conexion VPN detectada (Offsec)"
+		else
+			echo -e "[+] Adiciona/quita IPs y presiona ENTER" 
+			sleep 3
+			gedit .datos/total-host-vivos.txt & 2>/dev/null
+			read resp
+		fi
+	fi    
+fi
 ################## end discover live hosts ##################
 
 if [[ "$MODE" == "normal" ||  $MODE == "extended" ]];then 
@@ -1169,9 +1173,9 @@ if [[ "$MODE" == "normal" ||  $MODE == "extended" ]];then
 		if [ "$PROXYCHAINS" == "n" ]; then 
 			echo "USANDO MASSCAN COMO PORT SCANNER"		    
 			
-			if [[ $total_hosts -lt 30 || $internet == "s"  ]];then 
+			if [[ $total_hosts -lt 25 || $internet == "s"  ]];then 
 				echo -e "[+] Realizando escaneo tcp(p1-10514)  $total_hosts hosts" 	
-				masscan --interface $iface -p1-10514 --rate=150 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
+				masscan --interface $iface -p1-10514 --rate=50 -iL  $live_hosts | tee -a .escaneo_puertos/mass-scan.txt
 			else
 		
 				echo -e "[+] Realizando escaneo tcp(puertos especificos)  $total_hosts hosts" 	
@@ -1572,9 +1576,9 @@ then
 		fi				
 		
 		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
-		echo "kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO" > logs/vulnerabilidades/"$ip"_kerbrute_users.txt
-		$proxychains  kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO --output logs/vulnerabilidades/"$ip"_kerbrute_users.txt		
-		grep "VALID USERNAME" logs/vulnerabilidades/"$ip"_kerbrute_users.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .vulnerabilidades/"$ip"_kerbrute_users.txt
+		echo "kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO" > logs/enumeracion/"$ip"_kerbrute_users.txt
+		$proxychains  kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO --output logs/enumeracion/"$ip"_kerbrute_users.txt		
+		grep "VALID USERNAME" logs/enumeracion/"$ip"_kerbrute_users.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .enumeracion/"$ip"_kerbrute_users.txt
 		#kerbrute bruteforce --domain svcorp.com  userpass.txt --dc 10.11.1.20
 
 
@@ -2413,7 +2417,17 @@ then
 		echo -e "[+] Escaneando $ip:$port"
 		echo "$proxychains nmap -n -sT -p $port -Pn --script=mongodb-databases,mongodb-info $ip"  > logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
 		$proxychains nmap -n -sT -p $port -Pn --script=mongodb-databases $ip  >> logs/vulnerabilidades/"$ip"_mongo_info.txt 2>/dev/null 
-		grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT|NT_STATUS_INVALID_NETWORK_RESPONSE" > .vulnerabilidades/"$ip"_mongo_info.txt 				
+
+		egrep -iq "requires authentication" logs/vulnerabilidades/"$ip"_mongo_info.txt 
+		greprc=$?
+		if [[ $greprc -eq 0 ]] ; then						
+			echo -e "\t Auth requerida"			
+		else
+			grep --color=never "|" logs/vulnerabilidades/"$ip"_mongo_info.txt | egrep -iv "ACCESS_DENIED|false|Could|ERROR|NOT_FOUND|DISABLED|filtered|Failed|TIMEOUT|NT_STATUS_INVALID_NETWORK_RESPONSE" > .vulnerabilidades/"$ip"_mongo_info.txt 				
+		fi				
+		
+		
+		
 	done	
 	#insert clean data	
 	insert_data	
@@ -4175,7 +4189,7 @@ then
 	
 	# revisar si hay scripts ejecutandose
 	while true; do
-	webbuster_instancias=`ps aux | egrep 'get_ssl_cert|buster|nmap' | wc -l`		
+	webbuster_instancias=`ps aux | egrep 'get_ssl_cert|buster|nmap' | grep -v  lanscanner.sh | wc -l`		
 	if [ "$webbuster_instancias" -gt 1 ]
 	then
 		echo -e "\t[i] Todavia hay scripts activos ($webbuster_instancias)"				
@@ -4378,7 +4392,9 @@ getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$pr
 ##############################
 
 for ip in $(cat .datos/total-host-vivos.txt); do
+	#os_details=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip`
 	os_details=`egrep --color=never '\|   OS:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2`
+	
 	if [ -z "$os_details" ]; then
 		os_details=`egrep --color=never 'OS details:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2 |cut -d "," -f1-4`
 	fi
