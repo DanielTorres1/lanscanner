@@ -5,7 +5,7 @@ OKGREEN='\033[92m'
 RESET='\e[0m'
 #bash-obfuscate discover-original.sh -o discover.sh
 
-while getopts ":d:n:t:c:k:m:i:s:" OPTIONS
+while getopts ":d:n:t:c:k:l:m:i:s:" OPTIONS
 do
             case $OPTIONS in            
             d)     DOMAIN=$OPTARG;;
