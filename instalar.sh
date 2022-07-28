@@ -27,17 +27,21 @@ RESET="\033[00m"       # Normal
 
 
 
-echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
+echo -e "${GREEN} [+] Copiando archivos ${RESET}"
+mkdir /usr/share/lanscanner 2>/dev/null
+cp  files/share/* /usr/share/lanscanner
+cp  files/share/.resultados.db /usr/share/lanscanner/.resultados.db
 cp -r pentest /usr/bin
 cp lanscanner.sh /usr/bin
 cp monitor.sh /usr/bin
 cp discover.sh /usr/bin
 cp smbrelay.sh /usr/bin
-ln -s /usr/bin/discover.sh /usr/bin/autohack.sh
+ln -s /usr/bin/discover.sh /usr/bin/autohack.sh 2>/dev/null
 
-cp files/image.png /usr/share/lanscanner/image.png
-cp files/vulnerabilidades.xml /usr/share/lanscanner/vulnerabilidades.xml
-cp files/info.php /usr/share/lanscanner/info.php
+cp files/*.nse /usr/share/nmap/scripts/
+cp files/rtsp.lua /usr/share/nmap/nselib/rtsp.lua
+cp files/cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
+echo ""
 
 chmod a+x /usr/bin/monitor.sh
 chmod a+x /usr/bin/lanscanner.sh
@@ -92,16 +96,7 @@ cd ..
 echo -e "${GREEN} [+] Instalando hakrevdns ${RESET}"
 go install github.com/hakluke/hakrevdns@latest
 
-echo -e "${GREEN} [+] Copiando archivos ${RESET}"
-mkdir /usr/share/lanscanner 2>/dev/null
-cp  files/share/* /usr/share/lanscanner
-cp  files/share/.resultados.db /usr/share/lanscanner/.resultados.db
 
-
-cp files/*.nse /usr/share/nmap/scripts/
-cp files/rtsp.lua /usr/share/nmap/nselib/rtsp.lua
-cp files/cve_2019_0708_bluekeep.rb /usr/share/metasploit-framework/modules/auxiliary/scanner/rdp
-echo ""
 
 
 echo -e "${RED}[+]${GREEN} Instalando odat ${RESET}"
