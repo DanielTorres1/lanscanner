@@ -13,6 +13,7 @@ do
             k)     KEYWORD=$OPTARG;;
             t)     TYPE=$OPTARG;;
 			m)     MODE=$OPTARG;;
+			l)     LANGUAGE=$OPTARG;;
 			c)	   PROXYCHAINS=$OPTARG;;
             i)     IP_LIST_FILE=$OPTARG;;
             s)     SUBNET_FILE=$OPTARG;;            
@@ -27,6 +28,7 @@ DOMAIN=${DOMAIN:=NULL}
 SUBNET_FILE=${SUBNET_FILE:=NULL} # lista de subredes
 IP_LIST_FILE=${IP_LIST_FILE:=NULL} # lista de IPs
 KEYWORD=${KEYWORD:=NULL} # nombre de la entidad
+LANGUAGE=${LANGUAGE:=NULL} # en/es
 PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
 echo "TYPE $TYPE MODE $MODE"
 #if [ "$KEYWORD" == NULL ] || [ "$DOMAIN" == NULL ] &&  [ "$TYPE" != 'oscp' ]; then
@@ -40,22 +42,24 @@ Opciones:
 -t: TYPE
 	- lan: source ip list or subnet list
 	- internet source domain
--c : palabra KEYWORD para generar passwords
 -m : Mode [assessment/hacking]	
 	assessment: normal test + ssl checks + slowloris (use for reports)
 	hacking: normal test + virtual hosts test + svwar VoIP tests (use for hacking)
 -d : dominio
+-k : palabra KEYWORD para generar passwords
+-l : Language es/en
+-c : s/n  Usar proxychains
 
 Ejemplo 1: Escanear el listado de subredes (completo)
-    discover.sh -t internet -m hacking  -d htb.local -i ips.txt 
-	discover.sh -t lan -m assessment -d htb.local -k agetic -i ips.txt 	
-	discover.sh -t internet -m hacking -d agetic.gob.bo -k agetic 
+    discover.sh -t internet -m hacking  -d htb.local -i ips.txt -l es
+	discover.sh -t lan -m assessment -d htb.local -k agetic -i ips.txt 	-l es
+	discover.sh -t internet -m hacking -d agetic.gob.bo -k agetic -l es
 	
 	Escaneo mediante proxy chains
-	discover.sh -t lan -c s -i ips.txt 
+	discover.sh -t lan -c s -i ips.txt -l es
 
 	Scan LAN networks for reports
-	discover.sh -t lan -m assessment -d diaconia.local -k diaconia -s redes.txt 
+	discover.sh -t lan -m assessment -d diaconia.local -k diaconia -s redes.txt  -l es
 	
 EOF
 

@@ -16,20 +16,7 @@ OKGREEN='\033[92m'
 RESET='\e[0m'
 
 
-################## Config HERE ####################
-port_scan_num=1;
-min_ram=400;
-hilos_web=30;
-DOMINIO_EXTERNO=''
-DOMINIO_INTERNO=''
-max_perl_instancias=50;
-max_nmap_instances=5;
-common_user_list_en="/usr/share/lanscanner/usuarios-en.txt"
-common_user_list_es="/usr/share/lanscanner/usuarios-es.txt"
-oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
-common_domains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
-#"/usr/share/seclists/Usernames/Names/names.txt"
-#
+
 #/usr/share/seclists/Usernames/cirt-default-usernames.txt
 #############################
 
@@ -66,13 +53,14 @@ EOF
 print_ascii_art
 
 
-while getopts ":i:s:c:d:m:f:s:p:" OPTIONS
+while getopts ":i:s:c:d:m:f:l:s:p:" OPTIONS
 do
             case $OPTIONS in
             s)     SUBNET_FILE=$OPTARG;;
             i)     IP_LIST_FILE=$OPTARG;;
 			c)	   PROXYCHAINS=$OPTARG;;
             d)     DOMINIO_EXTERNO=$OPTARG;;
+			l)     LANGUAGE=$OPTARG;;
             m)     MODE=$OPTARG;;
 			f)     FORCE=$OPTARG;;
 			s)     START=$OPTARG;;
@@ -88,10 +76,24 @@ MODE=${MODE:=NULL} # assessment/hacking
 DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
 PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
 FORCE=${FORCE:=NULL} # internet
+LANGUAGE=${LANGUAGE:=NULL} # en/es
 START=${START:=NULL} # enumeration
 PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu
-echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
+echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE LANGUAGE $LANGUAGE"
 
+################## Config HERE ####################
+port_scan_num=1;
+min_ram=400;
+hilos_web=30;
+DOMINIO_EXTERNO=''
+DOMINIO_INTERNO=''
+max_perl_instancias=50;
+max_nmap_instances=5;
+common_user_list="/usr/share/lanscanner/usuarios-$LANGUAGE.txt"
+oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
+common_subdomains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
+#"/usr/share/seclists/Usernames/Names/names.txt"
+#
 
 #if [[ "$MODE" == NULL || "$PORT_SCANNER" == NULL ]]; then 
 if [[ "$MODE" == NULL  ]]; then 
@@ -105,6 +107,7 @@ Options:
 	hacking: normal test + virtual hosts test + svwar VoIP tests (use for hacking)	
 -c : Use proxychains [s/n]
 -d : domain
+-l : en/es
 -p : port scanner [nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu]
 -f : forzar modo "internet"
 -s : enumeration: start from enumeration (no host discovery, no port scan)
@@ -569,7 +572,7 @@ function testSSL ()
    port=$3 
 
     echo -e "\t\t[+] TEST SSL ($proto : $host : $port)"	
-    #######  hearbleed (dominio) ######						
+    #######  hearbleed ######						
     echo -e "\t\t[+] Revisando vulnerabilidad heartbleed"
     echo "$proxychains  nmap -n -sT -Pn -p $port --script=ssl-heartbleed $host" > logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt 2>/dev/null 
     $proxychains nmap -n -sT -Pn -p $port --script=ssl-heartbleed $host >> logs/vulnerabilidades/"$host"_"$port"_heartbleed.txt 2>/dev/null 
@@ -1471,23 +1474,23 @@ then
 		echo -e "[+] Escaneando $ip:$port"	
 		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
 		$proxychains nmap -n -Pn -sT -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
-		dominioAD=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
+		dominioAD_DC=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g'  | grep -v 'CN='| head -1`
+		#$dominioAD_DC 	DC=eurocorp,DC=local	
+		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`	
+		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt					
+
 		
-		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt			
-		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominio.txt		
-
-		#DC=htb,DC=local		
-		dominioAD=`echo "${dominioAD/,DC=/.}"`
-		DOMINIO_INTERNO=`echo "${dominioAD/DC=/}"`
-
+		dominioAD=`echo "${dominioAD_DC/,DC=/.}"` #DC=eurocorp.local
+		dominioAD=`echo "${dominioAD/DC=/}"` #eurocorp.local
+		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominioAD.txt		
+		echo "dominioAD $dominioAD "
 		###### LDAP ######
-		if [ -z "$dominioAD" ]; then			
+		if [ -z "$dominioAD_DC" ]; then			
 			echo -e "\t[i] No se pudo obtener el dominio "
 		else
 			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
-			echo "$proxychains ldapsearch -x -H \"ldap://$ip\"  -b $dominioAD -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-			$proxychains ldapsearch -x -H "ldap://$ip"  -b $dominioAD -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 			
+			echo "$proxychains ldapsearch -x -H \"ldap://$ip\"  -b $dominioAD_DC -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			$proxychains ldapsearch -x -H "ldap://$ip"  -b "$dominioAD_DC" -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 2>> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt
 					
 			egrep -iq "successful bind must be completed|Not bind|Operation unavailable|Can't contact LDAP server" logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
 			greprc=$?
@@ -1519,45 +1522,40 @@ then
 	do     					
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"` 	
-		
+
 		echo -e "[+] Escaneando $ip:$port"	
-
 		echo -e "\t[+] Obteniendo dominio y dnsHostName"				
-		$proxychains  nmap -Pn -n -sT -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt		
-		egrep -iq "namingContexts" logs/enumeracion/"$ip"_"$port"_LDAP.txt 
-		greprc=$?
-		if [[ $greprc -eq 0 ]] ; then						
-			DOMINIO_INTERNO=`cat  | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-			dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`
-			echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt	
-		fi
+		$proxychains nmap -n -Pn -sT -p $port --script ldap-rootdse $ip > logs/enumeracion/"$ip"_"$port"_LDAP.txt
+		dominioAD_DC=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep --color=never namingContexts | sed 's/|       namingContexts: //g'  | grep -v 'CN='| head -1`
+		#$dominioAD_DC 	DC=eurocorp,DC=local	
+		dnsHostName=`cat logs/enumeracion/"$ip"_"$port"_LDAP.txt | grep dnsHostName | awk '{print $3}'`	
+		echo $dnsHostName > .enumeracion/"$ip"_"$port"_dnsHostName.txt					
 
-				
-		if [ -z "$DOMINIO_INTERNO" ]; then
-			DOMINIO_INTERNO=`nmap -n -Pn -sT -p $port --script ldap-rootdse $ip | grep --color=never namingContexts | sed 's/|       namingContexts: //g' | head -1`
-		fi
 		
-		if [ -z "$DOMINIO_INTERNO" ]; then
-			echo -e "\t[i] No se pudo obtener el dominio"
+		dominioAD=`echo "${dominioAD_DC/,DC=/.}"` #DC=eurocorp.local
+		dominioAD=`echo "${dominioAD/DC=/}"` #eurocorp.local
+		echo $dominioAD > .enumeracion/"$ip"_"$port"_dominioAD.txt		
+		echo "dominioAD $dominioAD "
+		###### LDAP ######
+		if [ -z "$dominioAD_DC" ]; then			
+			echo -e "\t[i] No se pudo obtener el dominio "
 		else
-			echo $DOMINIO_INTERNO > .enumeracion/"$ip"_"$port"_dominio.txt			
-			echo -e "\t[+] Comprobando acceso anónimo"
-			echo "$proxychains ldapsearch -x -H ldaps://$ip -b $DOMINIO_INTERNO -s sub \"(objectclass=*)\"" > logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
-			$proxychains ldapsearch -x -H "ldaps://$ip"  -b $DOMINIO_INTERNO -s sub "(objectclass=*)" >> logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
-			
-			#ldapsearch -x -s base -b '' -H  ldap://my.lapdap.server "(objectClass=*)" "*" +  
-			egrep -iq "successful bind must be completed|Not bind|Invalid DN syntax|Can't contact LDAP server" logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt 
+			echo -e "\t[+] Probando vulnerabilidad de conexión anónima con el dominio $dominio"
+			echo "$proxychains ldapsearch -x -H \"ldaps://$ip\"  -b $dominioAD_DC -s sub \"(objectclass=*)\"" > logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
+			$proxychains ldapsearch -x -H "ldaps://$ip"  -b "$dominioAD_DC" -s sub "(objectclass=*)" >> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 2>> logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt
+					
+			egrep -iq "successful bind must be completed|Not bind|Operation unavailable|Can't contact LDAP server" logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
 			greprc=$?
 			if [[ $greprc -eq 0 ]] ; then						
 				echo -e "\t$OKGREEN[i] Requiere autenticación $RESET"
 			else
-				# copiar el archivo menos la primera linea
-				tail -n +2 logs/enumeracion/"$ip"_"$port"_directorioLDAP.txt > .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
-				echo -e "\t$OKRED[!] Acceso anónimo detectado \n $RESET"
+				echo -e "\t$OKRED[!] Conexión anónima detectada \n $RESET"
+				cp logs/vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt .vulnerabilidades/"$ip"_"$port"_directorioLDAP.txt 
 			fi
 		
-		fi #fin sin dominio
-		
+		fi # fin sin dominio
+
+		##########################
 													 
 		 echo ""
  	done <servicios/ldaps.txt
@@ -1574,25 +1572,29 @@ then
 	for line in $(cat servicios/kerberos.txt); do
         ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
-		echo -e "[+] Escaneando $ip:$port (DOMINIO_INTERNO $DOMINIO_INTERNO)"	
-		if [ -z "$DOMINIO_INTERNO" ]
+
+		DOMINIO_AD=`cat .enumeracion/"$ip"_*_dominioAD.txt | head -1 ` #eurocorp.local
+		
+		echo -e "[+] Escaneando $ip:$port (DOMINIO_AD $DOMINIO_AD)"	
+		if [ -z "$DOMINIO_AD" ]
 		then
-			DOMINIO_INTERNO=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
-			echo -e "[+] \t DOMINIO_INTERNO ($DOMINIO_INTERNO)"	
+			DOMINIO_AD=`nmap -Pn -sV -n -p $port $ip | grep 'Host:' | awk '{print $4}'`
+			echo -e "[+] \t DOMINIO_AD ($DOMINIO_AD)"	
 		fi				
 		
-		echo -e "[+] \t kerbrute ($DOMINIO_INTERNO)"	
-		echo "kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO" > logs/enumeracion/"$ip"_kerbrute_users.txt
-		$proxychains  kerbrute userenum $common_user_list_es --dc $ip -d $DOMINIO_INTERNO --output logs/enumeracion/"$ip"_kerbrute_users.txt		
+		echo -e "[+] \t kerbrute ($DOMINIO_AD)"	
+		echo "kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_AD" > logs/enumeracion/"$ip"_kerbrute_users.txt
+		$proxychains  kerbrute userenum $common_user_list --dc $ip -d $DOMINIO_AD --output logs/enumeracion/"$ip"_kerbrute_users.txt		
 		grep "VALID USERNAME" logs/enumeracion/"$ip"_kerbrute_users.txt | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"  > .enumeracion/"$ip"_kerbrute_users.txt
 		#kerbrute bruteforce --domain svcorp.com  userpass.txt --dc 10.11.1.20
 
 
-		if [ ! -z "$dominioAD" ]
+		if [ ! -z "$DOMINIO_AD" ] #test.local
 		then
-			echo "dominioAD $dominioAD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list_es -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
-			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_kerberosHash.txt > .vulnerabilidades/"$ip"_"$port"_kerberosHash.txt
+			echo "ASREPRoast test"
+			echo "DOMINIO_AD $DOMINIO_AD" | tee -a  logs/vulnerabilidades/"$ip"_"$port"_ASREPRoast.txt
+			$proxychains  GetNPUsers.py "$dominioAD" -no-pass -usersfile $common_user_list -format hashcat -dc-ip $ip >> logs/vulnerabilidades/"$ip"_"$port"_ASREPRoast.txt
+			grep "krb5as" logs/vulnerabilidades/"$ip"_"$port"_ASREPRoast.txt > .vulnerabilidades/"$ip"_"$port"_ASREPRoast.txt
 			# ./hashcat.bin -m 18200 -a 0 hash-kerberos.txt /media/sistemas/Passwords/Passwords -o cracked.txt #hash.txt tiene todos los datos no solo hash
 		fi				
 		
@@ -1613,49 +1615,46 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		echo -e "[+] Escaneando $ip:$port"
-		
-		if [ "$DOMINIO_EXTERNO" != NULL  ]; then
-			DOMINIO=$DOMINIO_EXTERNO
-			echo -e "[+] DOMINIO_EXTERNO $DOMINIO_EXTERNO"
-		fi
 
-		if [ ! -z "$DOMINIO_INTERNO" ]; then
-			DOMINIO=$DOMINIO_INTERNO
-			echo -e "[+] DOMINIO_INTERNO $DOMINIO_INTERNO"
-		fi
-			
-		if [ ! -z "$DOMINIO" ] && [ "$DOMINIO" != NULL ]  ; then
-			### zone transfer ###	
-			echo -e "\t [+] Probando transferencia de zona (DOMINIO $DOMINIO)" 		
-			zone_transfer=`$proxychains dig -tAXFR @$ip $DOMINIO`
-			echo "dig -tAXFR @$ip $DOMINIO" > logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-			echo $zone_transfer >> logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-			if [[ ${zone_transfer} != *"failed"*  && ${zone_transfer} != *"timed out"* && ${zone_transfer} != *"error"* ]];then
-				echo $zone_transfer > .vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
-				echo -e "\t$OKRED[!] Transferencia de zona detectada \n $RESET"
-			else
-				
-				echo -e "\t$OKGREEN[i] No se pudo realizar la transferencia de zona$RESET"
-			fi	
+		if [ "$internet" == "n" ]; then 
+			DOMINIO=`cat .enumeracion/"$ip"_*_dominioAD.txt | head -1 ` #eurocorp.local
 
+			if [ -z "$DOMINIO" ]; then
+				DOMINIO=$DOMINIO_INTERNO				
+			fi
 
-			if [ "$PROXYCHAINS" == "n" ]; then 
-				echo -e "\t [+] Bruteforce domains"
-				echo "dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
-				dnsenum --threads 100 --dnsserver $ip -f $common_domains $DOMINIO | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
-				grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | egrep -v 'dnsenum|---' > .enumeracion/"$ip"_dns_enum.txt
-				
-				if [ $internet == "s" ]; then 			
-					#open resolver
-					echo -e "\t [+] Probando si es un servidor DNS openresolver"
-					dig ANY google.com @$ip +short | grep --color=never google | egrep -iv "failed|DiG" > .vulnerabilidades/"$ip"_53_openresolver.txt 2>/dev/null &																			
+			echo -e "[+] DOMINIO $DOMINIO"
+			if [ ! -z "$DOMINIO" ] && [ "$DOMINIO" != NULL ]  ; then
+				### zone transfer ###	
+				echo -e "\t [+] Probando transferencia de zona (DOMINIO $DOMINIO)" 		
+				zone_transfer=`$proxychains dig -tAXFR @$ip $DOMINIO`
+				echo "dig -tAXFR @$ip $DOMINIO" > logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+				echo $zone_transfer >> logs/vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+				if [[ ${zone_transfer} != *"failed"*  && ${zone_transfer} != *"timed out"* && ${zone_transfer} != *"error"* ]];then
+					echo $zone_transfer > .vulnerabilidades/"$ip"_53_transferenciaDNS.txt 
+					echo -e "\t$OKRED[!] Transferencia de zona detectada \n $RESET"
+				else
+					
+					echo -e "\t$OKGREEN[i] No se pudo realizar la transferencia de zona$RESET"
 				fi	
-			fi  
-			
-		else
-			echo -e "\t [+] Dominio no disponible (DOMINIO = $DOMINIO)" 		
-		fi
 
+
+				if [ "$PROXYCHAINS" == "n" ]; then 															
+					echo -e "\t [+] Bruteforce domains"
+					echo "dnsenum --threads 100 --dnsserver $ip -f $common_subdomains $DOMINIO" > logs/enumeracion/"$ip"_dns_enum.txt 
+					dnsenum --threads 100 --dnsserver $ip -f $common_subdomains $DOMINIO | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_dns_enum.txt 2>/dev/null
+					grep -i $DOMINIO logs/enumeracion/"$ip"_dns_enum.txt | egrep -v 'dnsenum|---' > .enumeracion/"$ip"_dns_enum.txt
+				fi  
+				
+			else
+				echo -e "\t [+] Dominio no disponible (DOMINIO = $DOMINIO)" 		
+			fi #null domain
+		else
+			#open resolver
+			echo -e "\t [+] Probando si es un servidor DNS openresolver"
+			dig ANY google.com @$ip +short | grep --color=never google | egrep -iv "failed|DiG" > .vulnerabilidades/"$ip"_53_openresolver.txt 2>/dev/null &																			
+		fi #intenet
+		
 			
 	done
 	
@@ -2769,7 +2768,7 @@ then
 		ip=`echo $line | cut -f1 -d":"`		
 		port=`echo $line | cut -f2 -d":"`
 		
-		#enumeracionUsuariosSSH2.py -U $common_user_list_es  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
+		#enumeracionUsuariosSSH2.py -U $common_user_list  $ip > logs/vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH2.txt &
 
 		#SSHBypass
 		
@@ -2794,7 +2793,7 @@ then
 			if [[ $greprc -eq 0 ]] ; then	
 				echo -e "\t[+] Realizando enumeracion de usuarios mediante la  vulnerabilidad CVE-2018-15473 en $ip"
 				cat logs/vulnerabilidades/"$ip"_22_CVE-2018-15473.txt > .vulnerabilidades/"$ip"_22_CVE-2018-15473.txt 			
-				$proxychains enumeracionUsuariosSSH.py -p $port -w $common_user_list_es  $ip | grep "is a valid" > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
+				$proxychains enumeracionUsuariosSSH.py -p $port -w $common_user_list  $ip | grep "is a valid" > .vulnerabilidades/"$ip"_"$port"_enumeracionUsuariosSSH.txt &			
 			fi	
 		fi  
 				
@@ -2826,7 +2825,7 @@ then
 					# done true				        	        				
 	    #finger "|/bin/id@10.0.0.3"
 		if [ "$PROXYCHAINS" == "n" ]; then 
-			finger-user-enum.pl -U $common_user_list_es -t $ip > logs/vulnerabilidades/"$ip"_finger_enumBrute.txt
+			finger-user-enum.pl -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_finger_enumBrute.txt
 			grep ssh logs/vulnerabilidades/"$ip"_finger_enumBrute.txt > .vulnerabilidades/"$ip"_finger_enumBrute.txt
 		fi  
 		
@@ -3581,11 +3580,11 @@ then
 		cp logs/enumeracion/"$ip"_"$port"_cert.txt  .enumeracion/"$ip"_"$port"_cert.txt 
 
 		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'` | sed "s/*.//g"
-		for SUBDOMINIOS_INTERNO in $SUBDOMINIOS_INTERNOS; do	
-			if [[ ${SUBDOMINIOS_INTERNO} == *"enterpriseregistration.windows.net"*  ]];then 
-				echo "$SUBDOMINIOS_INTERNO" >> .enumeracion/"$ip"_"$port"_azureAD.txt 
+		for SUBDOMINIO_INTERNO in $SUBDOMINIOS_INTERNOS; do	
+			if [[ ${SUBDOMINIO_INTERNO} == *"enterpriseregistration.windows.net"*  ]];then 
+				echo "$SUBDOMINIO_INTERNO" >> .enumeracion/"$ip"_"$port"_azureAD.txt 
 			else
-				DOMINIO_INTERNO=$SUBDOMINIOS_INTERNO
+				DOMINIO_INTERNO=$SUBDOMINIO_INTERNO
 				echo "$ip $DOMINIO_INTERNO" >> /etc/hosts
 				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
 			fi		
@@ -4055,7 +4054,7 @@ if [ -f servicios/smtp.txt ]
 					echo -e "\t$OKRED[!] Comando VRFY habilitado \n $RESET"
 					cp logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt  .vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt 				
 					echo -e "\t[+] Enumerando usuarios en segundo plano"
-					smtp-user-enum.pl -M VRFY -U $common_user_list_es -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
+					smtp-user-enum.pl -M VRFY -U $common_user_list -t $ip > logs/vulnerabilidades/"$ip"_"$port"_vrfyEnum.txt &
 					
 				else
 					echo -e "\t$OKGREEN[ok] No tiene el comando VRFY habilitado $RESET"
