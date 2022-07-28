@@ -5,13 +5,15 @@ OKGREEN='\033[92m'
 RESET='\e[0m'
 #bash-obfuscate discover-original.sh -o discover.sh
 
-while getopts ":d:n:t:k:m:i:s:" OPTIONS
+while getopts ":d:n:t:c:k:m:i:s:" OPTIONS
 do
             case $OPTIONS in            
             d)     DOMAIN=$OPTARG;;
             n)     NOMBRE=$OPTARG;;
             k)     KEYWORD=$OPTARG;;
             t)     TYPE=$OPTARG;;
+			m)     MODE=$OPTARG;;
+			c)	   PROXYCHAINS=$OPTARG;;
             i)     IP_LIST_FILE=$OPTARG;;
             s)     SUBNET_FILE=$OPTARG;;            
             ?)     printf "Opcion invalida: -$OPTARG\n" $0
@@ -19,32 +21,40 @@ do
            esac
 done
 
-TYPE=${TYPE:=NULL} #internet/lan/oscp
+TYPE=${TYPE:=NULL} #internet/lan
+MODE=${MODE:=NULL} #assessment/hacking
 DOMAIN=${DOMAIN:=NULL}
 SUBNET_FILE=${SUBNET_FILE:=NULL} # lista de subredes
 IP_LIST_FILE=${IP_LIST_FILE:=NULL} # lista de IPs
 KEYWORD=${KEYWORD:=NULL} # nombre de la entidad
-echo "TYPE $TYPE"
+PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
+echo "TYPE $TYPE MODE $MODE"
 #if [ "$KEYWORD" == NULL ] || [ "$DOMAIN" == NULL ] &&  [ "$TYPE" != 'oscp' ]; then
-#if [ "$TYPE" == NULL ] || [ "$DOMAIN" == NULL ]; then
-if [ "$TYPE" == NULL ]; then
+if [[ $TYPE == NULL || "$MODE" ==  NULL ]]; then
 
 cat << "EOF"
 
 Opciones: 
 
+-t: TYPE
+	- lan: source ip list or subnet list
+	- internet source domain
 -c : palabra KEYWORD para generar passwords
+-m : Mode [assessment/hacking]	
+	assessment: normal test + ssl checks + slowloris (use for reports)
+	hacking: normal test + virtual hosts test + svwar VoIP tests (use for hacking)
 -d : dominio
 
 Ejemplo 1: Escanear el listado de subredes (completo)
-    discover.sh -t oscp -d htb.local -i ips.txt 
-	discover.sh -t lan -d htb.local -k agetic -i ips.txt 
-	discover.sh -t lan -d htb.local -k agetic  -s subnet.txt
-	discover.sh -t internet -d agetic.gob.bo -k agetic 
-	discover.sh -t oscp -i ips.txt 
-	discover.sh -t proxy -i ips.txt 
-	discover.sh -t lan -d diaconia.local -k diaconia -s redes2.txt 
+    discover.sh -t internet -m hacking  -d htb.local -i ips.txt 
+	discover.sh -t lan -m assessment -d htb.local -k agetic -i ips.txt 	
+	discover.sh -t internet -m hacking -d agetic.gob.bo -k agetic 
 	
+	Escaneo mediante proxy chains
+	discover.sh -t lan -c s -i ips.txt 
+
+	Scan LAN networks for reports
+	discover.sh -t lan -m assessment -d diaconia.local -k diaconia -s redes.txt 
 	
 EOF
 
@@ -72,58 +82,12 @@ if [ $TYPE == "internet" ]; then
 	cd $DOMAIN
 	#egrep --color=never -i "bolivia|Azure|amazon" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
 	egrep --color=never -i "bolivia" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
-	lanscanner.sh -m extended -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN -p masscan_naabu -c n
+	lanscanner.sh -m $MODE -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN -p masscan_naabu -c n
 	cracker.sh -e $KEYWORD
 fi
 
-if [ $TYPE == "oscp" ]; then 		
-	lanscanner.sh -m extended -i $IP_LIST_FILE -s $SUBNET_FILE -p nmap_masscan -c n
-	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
-	echo "entrando al directorio $directory" # creado por lanscanner
-	cd $directory
-	cracker.sh -d /usr/share/wordlists/top200.txt
-	
-
-	if [ -f servicios/web.txt ]
-	then      
-		echo -e "$OKBLUE #################### WEB extended (`wc -l servicios/web.txt`) ######################$RESET"	    
-		for line in $(cat servicios/web.txt); do  
-			host=`echo $line | cut -f1 -d":"`
-			port=`echo $line | cut -f2 -d":"`		
-			echo -e "[+] Wfuzz ($host:$port)" 
-			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u http://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt 
-			egrep --color=never "C=200|C=301" logs/enumeracion/"$host"_"$port"_extended.txt > .enumeracion/"$host"_"$port"_extended.txt
-		
-		done # for
-	insert_data	
-	fi
-
-	if [ -f servicios/web-ssl.txt ]
-	then      
-		echo -e "$OKBLUE #################### WEBS extended (`wc -l servicios/web-ssl.txt`) ######################$RESET"	    
-		for line in $(cat servicios/web-ssl.txt); do  
-			host=`echo $line | cut -f1 -d":"`
-			port=`echo $line | cut -f2 -d":"`					
-			echo -e "[+] Wfuzz ($host:$port)" 
-			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u https://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_extended.txt
-			egrep --color=never  "C=200|C=301" logs/enumeracion/"$host"_"$port"_extended.txt > .enumeracion/"$host"_"$port"_extended.txt
-		done # for	
-	insert_data
-	fi
-		
-fi
 
 
-
-if [ $TYPE == "proxy" ]; then 	
-
-	lanscanner.sh -m normal -i $IP_LIST_FILE -p nmap -c s
-	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
-	echo "entrando al directorio $directory" # creado por lanscanner
-#	cd $directory
-#	cracker.sh -d /usr/share/wordlists/top200.txt
-		
-fi
 
 
 if [ $TYPE == "lan" ]; then 	
@@ -140,7 +104,7 @@ if [ $TYPE == "lan" ]; then
 		
 	if [ "$SUBNET_FILE" != NULL ]; then 	
 	
-		lanscanner.sh -m normal -s $SUBNET_FILE -d $DOMAIN -p nmap_masscan -c n
+		lanscanner.sh -m $MODE -s $SUBNET_FILE -d $DOMAIN -p nmap_masscan -c n
 		
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		pwd
@@ -151,7 +115,7 @@ if [ $TYPE == "lan" ]; then
 	fi
 	if [ "$IP_LIST_FILE" != NULL ]; then 	
 	
-		lanscanner.sh -m normal -i $IP_LIST_FILE -d $DOMAIN	-p nmap_masscan	-c n
+		lanscanner.sh -m $MODE -i $IP_LIST_FILE -d $DOMAIN	-p nmap_masscan	-c n
 		directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
 		echo "entrando al directorio $directory" # creado por lanscanner
 		cd $directory
@@ -180,6 +144,58 @@ if [ $TYPE == "lan" ]; then
 	# Matar responder, puede causar problemas de red
 	kill -9 `ps aux | grep -i responder.sh| head -1 | awk '{print $2}'`
 fi
+
+
+	
+if [[ $TYPE == "lan" && "$MODE" == "hacking" ]]; then	
+	lanscanner.sh -m hacking -i $IP_LIST_FILE -s $SUBNET_FILE -p nmap_masscan -c n
+	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
+	echo "entrando al directorio $directory" # creado por lanscanner
+	cd $directory
+	cracker.sh -d /usr/share/wordlists/top200.txt
+	
+
+	if [ -f servicios/web.txt ]
+	then      
+		echo -e "$OKBLUE #################### WEB oscp (`wc -l servicios/web.txt`) ######################$RESET"	    
+		for line in $(cat servicios/web.txt); do  
+			host=`echo $line | cut -f1 -d":"`
+			port=`echo $line | cut -f2 -d":"`		
+			echo -e "[+] Wfuzz ($host:$port)" 
+			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u http://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_oscp.txt 
+			egrep --color=never "C=200|C=301" logs/enumeracion/"$host"_"$port"_oscp.txt > .enumeracion/"$host"_"$port"_oscp.txt
+		
+		done # for
+	insert_data	
+	fi
+
+	if [ -f servicios/web-ssl.txt ]
+	then      
+		echo -e "$OKBLUE #################### WEBS oscp (`wc -l servicios/web-ssl.txt`) ######################$RESET"	    
+		for line in $(cat servicios/web-ssl.txt); do  
+			host=`echo $line | cut -f1 -d":"`
+			port=`echo $line | cut -f2 -d":"`					
+			echo -e "[+] Wfuzz ($host:$port)" 
+			wfuzz -w /usr/share/webhacks/wordlist/directory-list-2.3-medium.txt  --hc 404 -u https://$host:$port/FUZZ -f logs/enumeracion/"$host"_"$port"_oscp.txt
+			egrep --color=never  "C=200|C=301" logs/enumeracion/"$host"_"$port"_oscp.txt > .enumeracion/"$host"_"$port"_oscp.txt
+		done # for	
+	insert_data
+	fi
+		
+fi
+
+
+
+if [[ $TYPE == "lan" && "$PROXYCHAINS" == "s" ]]; then
+
+	lanscanner.sh -m hacking -i $IP_LIST_FILE -p nmap -c s
+	directory=`ls -hlt | grep '^d' | head -1 | awk '{print $9}'`
+	echo "entrando al directorio $directory" # creado por lanscanner
+	cd $directory
+	cracker.sh -d /usr/share/wordlists/top200.txt
+		
+fi
+
 
 #Encritar resultados
 #7z a .resultados.7z .resultados.db -pcANRHPeREPZsCYGB8L64 >/dev/null

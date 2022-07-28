@@ -66,7 +66,7 @@ EOF
 print_ascii_art
 
 
-while getopts ":i:s:c:d:m:f:p:" OPTIONS
+while getopts ":i:s:c:d:m:f:s:p:" OPTIONS
 do
             case $OPTIONS in
             s)     SUBNET_FILE=$OPTARG;;
@@ -75,6 +75,7 @@ do
             d)     DOMINIO_EXTERNO=$OPTARG;;
             m)     MODE=$OPTARG;;
 			f)     FORCE=$OPTARG;;
+			s)     START=$OPTARG;;
 			p)     PORT_SCANNER=$OPTARG;;
             ?)     printf "invalid option: -$OPTARG\n" $0
                           exit 2;;
@@ -83,10 +84,11 @@ done
 
 SUBNET_FILE=${SUBNET_FILE:=NULL}
 IP_LIST_FILE=${IP_LIST_FILE:=NULL}
-MODE=${MODE:=NULL} # normal/extended/proxy/enumeration
+MODE=${MODE:=NULL} # assessment/hacking
 DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
 PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
 FORCE=${FORCE:=NULL} # internet
+START=${START:=NULL} # enumeration
 PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu
 echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE FORCE $FORCE"
 
@@ -98,23 +100,27 @@ cat << "EOF"
 
 Options: 
 
--m : Mode [normal/extended/enumeration]	
-	extended: more web test 	
-	enumeration: start from enumeration (no host discovery, no port scan)
+-m : Mode [assessment/hacking]	
+	assessment: normal test + ssl checks + slowloris (use for reports)
+	hacking: normal test + virtual hosts test + svwar VoIP tests (use for hacking)	
 -c : Use proxychains [s/n]
 -d : domain
 -p : port scanner [nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu]
 -f : forzar modo "internet"
+-s : enumeration: start from enumeration (no host discovery, no port scan)
 
 Definicion del alcance:
 	-s : Lista con las subredes a escanear (Formato CIDR 0.0.0.0/24)
 	-i : Lista con las IP a escanear
 
-Ejemplo 2: Escanear el listado de IPs (completo)
-	lanscanner.sh -m normal -i lista.txt -d ejemplo.com
+Ejemplo 2: Escanear el listado de IPs (completo) con masscan y naabu
+	lanscanner.sh -m normal -i lista.txt -d ejemplo.com -p masscan_naabu
 
-Ejemplo 3: Escanear el listado de subredes (completo)
-	lanscanner.sh -m normal -s subredes.txt -d ejemplo.com
+Ejemplo 3: Escanear el listado de subredes (completo) 
+	lanscanner.sh -m hacking -s subredes.txt -d ejemplo.com -p nmap_masscan
+
+Ejemplo 4: Only enumeration
+	lanscanner.sh -m hacking -s enumeration
 
 EOF
 
@@ -320,7 +326,7 @@ function enumeracionApache () {
     
     
 
-	if [ $internet == "s" ]; then 									                                
+	if [[ $internet == "s" && "$MODE" == "assessment" ]]; then
 		echo -e "\t\t[+] Revisando vulnerabilidad slowloris ($host)"
 		echo "$proxychains  nmap --script http-slowloris-check -p $port $host" > logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
 		nmap -Pn --script http-slowloris-check -p $port $host >> logs/vulnerabilidades/"$host"_"$port"_slowloris.txt 2>/dev/null
@@ -581,7 +587,7 @@ function testSSL ()
     
     
     #######  Configuracion TLS/SSL (dominio) ######	
-	if [ "$MODE" == "normal" ] || [ $internet == "s" ]; then 
+	if [ "$MODE" == "assessment"  ]; then 
 		echo -e "\t\t[+] Revisando configuracion TLS/SSL"		
 		testssl.sh --color 0  "https://$host:$port" > logs/vulnerabilidades/"$host"_"$port"_confTLS.txt 2>/dev/null 
 		grep --color=never "incorrecta" logs/vulnerabilidades/"$host"_"$port"_confTLS.txt | egrep -iv "Vulnerable a" > .vulnerabilidades/"$host"_"$port"_confTLS.txt
@@ -834,7 +840,7 @@ if [ $IP_LIST_FILE != NULL ] ; then
      cat $prefijo$IP_LIST_FILE | cut -d "," -f 3 | sort | uniq > $live_hosts        
 fi
 
-if [[ ("$MODE" == "normal" ||  $MODE == "extended") && ($IP_LIST_FILE == NULL)]];then 
+if [[ ("$START" != 'enumeration'  ) && ($IP_LIST_FILE == NULL)]];then 
   
   echo -e "[+] Buscar host vivos en otras redes usando ICMP,SMB,TCP21,22,80,443 \n" 
   echo -e "$OKYELLOW [+] FASE 1: DESCUBRIR HOST VIVOS $RESET"
@@ -1045,7 +1051,7 @@ total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
 
-if [[  "$MODE" != 'enumeration' ]]
+if [[  "$START" != 'enumeration' ]]
 then 
 	if [[  "$FORCE" == 'internet' || -f "logs/enumeracion/subdominios.txt" ]]
 	then
@@ -1068,7 +1074,7 @@ then
 fi
 ################## end discover live hosts ##################
 
-if [[ "$MODE" == "normal" ||  $MODE == "extended" ]];then 
+if [[ "$START" != 'enumeration'  ]];then 
 
 	echo -e "$OKYELLOW [+] FASE 2: ESCANEO DE PUERTOS,VoIP, etc $RESET"
 	################## Escanear (voip,smb,ports,etc) ##################
@@ -3075,7 +3081,7 @@ then
 		$proxychains msfconsole -x "use auxiliary/scanner/oracle/tnspoison_checker;set RHOSTS $ip; run;exit" >> logs/vulnerabilidades/"$ip"_"$port"_tnspoison.txt 2>/dev/null
 		grep "is vulnerable" logs/vulnerabilidades/"$ip"_"$port"_tnspoison.txt | sed -r "s/\x1B\[(([0-9]+)(;[0-9]+)*)?[m,K,H,f,J]//g" > .vulnerabilidades/"$ip"_"$port"_tnspoison.txt 
 		
-		#odat.sh utlfile -s 10.10.10.82 -p 1521 -U "scott" -P "tiger" -d XE --putFile /temp shell.exe /opt/oscp/10.10.16.3-443.exe --sysdba
+		#odat.sh utlfile -s 10.10.10.82 -p 1521 -U "scott" -P "tiger" -d XE --putFile /temp shell.exe /opt/hacking/10.10.16.3-443.exe --sysdba
 		#odat.sh externaltable -s 10.10.10.82 -p 1521 -U "scott" -P "tiger" -d XE --exec /temp shell.exe --sysdba
 			
 	done <servicios/oracle.txt	
@@ -3172,7 +3178,7 @@ then
 		fi
 
 		
-		if [ "$MODE" == "extended" ]; then 	
+		if [ "$MODE" == "hacking" ]; then 	
 
 			if [ $internet == "n" ]; then 
 				echo -e "\t[+] Buscando domain"
@@ -3317,7 +3323,7 @@ then
 							echo "\t[+] Realizando tests adicionales "
 							echo $checksumline >> webClone/checksumsEscaneados.txt
 						
-							if [ $internet == "s" ]; then 
+							if [[ $internet == "s" && "$MODE" == "assessment" ]]; then
 								echo -e "\t[+] identificar si el host esta protegido por un WAF "
 								wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
 								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
@@ -3585,7 +3591,7 @@ then
 			fi		
 		done
 
-		if [ "$MODE" == "extended" ]; then 							
+		if [ "$MODE" == "hacking" ]; then 							
 			echo -e "\t [+] Seeking virtual hosts"
 
 			if [ $internet == "n" ]; then 
@@ -4230,7 +4236,7 @@ then
 		ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 		
-		if [ "$MODE" == "extended" ]; then 
+		if [ "$MODE" == "hacking" ]; then 
 			echo -e "[+] Obteniendo extensiones $ip:$port"		
 			$proxychains svwar -m INVITE -e1-500 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 2>/dev/null
 			grep reqauth logs/enumeracion/"$ip"_voip_extensions.txt > .enumeracion/"$ip"_voip_extensions.txt
