@@ -36,7 +36,6 @@ cp lanscanner.sh /usr/bin
 cp monitor.sh /usr/bin
 cp discover.sh /usr/bin
 cp smbrelay.sh /usr/bin
-ln -s /usr/bin/discover.sh /usr/bin/autohack.sh 2>/dev/null
 
 cp files/*.nse /usr/share/nmap/scripts/
 cp files/rtsp.lua /usr/share/nmap/nselib/rtsp.lua
@@ -45,10 +44,11 @@ echo ""
 
 chmod a+x /usr/bin/monitor.sh
 chmod a+x /usr/bin/lanscanner.sh
-chmod a+x /usr/bin/autohack.sh
+chmod a+x /usr/bin/discover.sh
 chmod a+x /usr/bin/smbrelay.sh
 echo ""
 
+ln -s /usr/bin/discover.sh /usr/bin/autohack.sh 2>/dev/null
 
 echo -e "${RED}[+]${BLUE} Instalar docker ${RESET}"
 sudo apt-get install ca-certificates curl gnupg lsb-release
