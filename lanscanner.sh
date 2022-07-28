@@ -5902,6 +5902,10 @@ if [[ $VPN == "1" ]]; then
  echo "Escaneando desde VPN. No snifear"
 
 else
+# Protocolos DoS
+# eigrp
+# ospf
+# hsrp
 
     if [[ $internet == "n"  ]] ; then 
        echo "Snifear"
