@@ -34,6 +34,7 @@ if [[ $TYPE == NULL || "$MODE" ==  NULL ]]; then
 
 cat << "EOF"
 
+DISCOVER v0.1
 Opciones: 
 
 -t: TYPE
