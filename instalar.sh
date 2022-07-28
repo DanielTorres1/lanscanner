@@ -25,6 +25,27 @@ BLUE="\033[01;34m"     # Heading
 BOLD="\033[01;01m"     # Highlight
 RESET="\033[00m"       # Normal
 
+
+
+echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
+cp -r pentest /usr/bin
+cp lanscanner.sh /usr/bin
+cp monitor.sh /usr/bin
+cp discover.sh /usr/bin
+cp smbrelay.sh /usr/bin
+ln -s /usr/bin/discover.sh /usr/bin/autohack.sh
+
+cp files/image.png /usr/share/lanscanner/image.png
+cp files/vulnerabilidades.xml /usr/share/lanscanner/vulnerabilidades.xml
+cp files/info.php /usr/share/lanscanner/info.php
+
+chmod a+x /usr/bin/monitor.sh
+chmod a+x /usr/bin/lanscanner.sh
+chmod a+x /usr/bin/autohack.sh
+chmod a+x /usr/bin/smbrelay.sh
+echo ""
+
+
 echo -e "${RED}[+]${BLUE} Instalar docker ${RESET}"
 sudo apt-get install ca-certificates curl gnupg lsb-release
 sudo mkdir -p /etc/apt/keyrings
@@ -88,24 +109,6 @@ cd pentest/
 wget https://github.com/quentinhardy/odat/releases/download/5.1.1/odat-linux-libc2.17-x86_64.tar.gz
 tar -zxvf odat-linux-libc2.17-x86_64.tar.gz
 cd ../
-
-echo -e "${GREEN} [+] Copiando scripts a /usr/bin ${RESET}"
-cp -r pentest /usr/bin
-cp lanscanner.sh /usr/bin
-cp monitor.sh /usr/bin
-cp discover.sh /usr/bin
-cp smbrelay.sh /usr/bin
-ln -s /usr/bin/discover.sh /usr/bin/autohack.sh
-
-cp files/image.png /usr/share/lanscanner/image.png
-cp files/vulnerabilidades.xml /usr/share/lanscanner/vulnerabilidades.xml
-cp files/info.php /usr/share/lanscanner/info.php
-
-chmod a+x /usr/bin/monitor.sh
-chmod a+x /usr/bin/lanscanner.sh
-chmod a+x /usr/bin/autohack.sh
-chmod a+x /usr/bin/smbrelay.sh
-echo ""
 
 
 echo -e "${GREEN} [+] Instalando scripts de SMBRelay ${RESET}"
