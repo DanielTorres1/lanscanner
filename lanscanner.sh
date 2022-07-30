@@ -1064,7 +1064,7 @@ if [[ $greprc -eq 0 ]] ; then
 else
 	hosting='n'	
 fi
-echo -e "[+] hosting = $hosting (using $prefijo$IP_LIST_FILE )"	  
+echo -e "[+] hosting = $hosting (using... $prefijo$IP_LIST_FILE )"	  
 #cat $live_hosts
 if [[ "$internet" == NULL  ]]; then 	
 	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
