@@ -126,7 +126,7 @@ Ejemplo 3: Escanear el listado de subredes (forzar escaneo como IPs publicas)
 	lanscanner.sh -m hacking -s subredes.txt -d ejemplo.com -p nmap_masscan -n s
 
 Ejemplo 4: Only enumeration
-	lanscanner.sh -m hacking -e enumeration -l en
+	lanscanner.sh -m hacking -e enumeration -l en -d dominio -i lista.txt
 
 
 EOF
@@ -1056,6 +1056,15 @@ xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 ###### #check host number########
 total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g'| tr -d ' ' `
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
+
+grep cpcontacts $prefijo$IP_LIST_FILE  2>/dev/null
+greprc=$?
+if [[ $greprc -eq 0 ]] ; then
+	hosting='s'
+else
+	hosting='n'	
+fi
+echo -e "[+] hosting = $hosting"	  
 #cat $live_hosts
 if [[ "$internet" == NULL  ]]; then 	
 	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
@@ -3210,7 +3219,7 @@ then
 				echo "\tchars $chars" # no incluir las respuestas con x chars (sitios iguales)
 
 				
-				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 --hh $chars -f logs/enumeracion/"$ip"_"$port"_vhosts.txt 2>/dev/null				
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u http://$DOMINIO_INTERNO -t 100 --hh $chars --hc 401 -f logs/enumeracion/"$ip"_"$port"_vhosts.txt 2>/dev/null
 				grep 'Ch' logs/enumeracion/"$ip"_"$port"_vhosts.txt | grep -v 'Word'  | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
 				vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
 
@@ -3620,7 +3629,7 @@ then
 				chars=`cat logs/enumeracion/baseline_https_vhosts.txt | grep 'C=' | awk '{print $7}'`
 				echo "chars $chars"
 				
-				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 --hh $chars -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
+				wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -H "Host: FUZZ.$DOMINIO_INTERNO" -u https://$DOMINIO_INTERNO -t 100 --hh $chars --hc 401 -f logs/enumeracion/"$ip"_"$port"_vhosts.txt	2>/dev/null
 				grep 'Ch' logs/enumeracion/"$ip"_"$port"_vhosts.txt | grep -v 'Word' | awk '{print $9}' | tr -d '"' > .enumeracion/"$ip"_"$port"_vhosts.txt
 				vhosts=`cat .enumeracion/"$ip"_"$port"_vhosts.txt`
 
