@@ -1057,14 +1057,14 @@ xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g'| tr -d ' ' `
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 
-grep cpcontacts $prefijo$IP_LIST_FILE  2>/dev/null
+grep -iq cpcontacts $prefijo$IP_LIST_FILE  2>/dev/null
 greprc=$?
-if [[ $greprc -eq 1 ]] ; then
+if [[ $greprc -eq 0 ]] ; then
 	hosting='s'
 else
 	hosting='n'	
 fi
-echo -e "[+] hosting = $hosting ($prefijo$IP_LIST_FILE )"	  
+echo -e "[+] hosting = $hosting (using $prefijo$IP_LIST_FILE )"	  
 #cat $live_hosts
 if [[ "$internet" == NULL  ]]; then 	
 	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
