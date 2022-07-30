@@ -87,7 +87,7 @@ if [ $TYPE == "internet" ]; then
 	cd $DOMAIN
 	egrep --color=never -iv "Azure|amazon|google" importarMaltego/subdominios.csv > importarMaltego/subdominios-scan.csv
 	#egrep --color=never -i "bolivia" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
-	lanscanner.sh -m $MODE -i importarMaltego/subdominios-scan.csv -d $DOMAIN -p masscan_naabu -c n -l $LANGUAGE
+	lanscanner.sh -m $MODE -i importarMaltego/subdominios-scan.csv -d $DOMAIN -p nmap_masscan -c n -l $LANGUAGE
 	cracker.sh -e $KEYWORD
 fi
 
