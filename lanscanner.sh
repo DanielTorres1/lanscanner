@@ -1059,12 +1059,12 @@ echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts"
 
 grep cpcontacts $prefijo$IP_LIST_FILE  2>/dev/null
 greprc=$?
-if [[ $greprc -eq 0 ]] ; then
+if [[ $greprc -eq 1 ]] ; then
 	hosting='s'
 else
 	hosting='n'	
 fi
-echo -e "[+] hosting = $hosting"	  
+echo -e "[+] hosting = $hosting ($prefijo$IP_LIST_FILE )"	  
 #cat $live_hosts
 if [[ "$internet" == NULL  ]]; then 	
 	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
