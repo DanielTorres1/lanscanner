@@ -31,7 +31,17 @@ prefijo=""
 # "../"  --> escaneo LAN (../ips.txt)
 # (vacio) -->  escaneo internet (reporte/maltego.csv)
 
-
+################## Config HERE ####################
+port_scan_num=1;
+min_ram=400;
+hilos_web=30;
+DOMINIO_EXTERNO=''
+DOMINIO_INTERNO=''
+max_perl_instancias=50;
+max_nmap_instances=5;
+oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
+common_subdomains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
+######################################
 
 function print_ascii_art {
 cat << "EOF"
@@ -53,7 +63,7 @@ EOF
 print_ascii_art
 
 
-while getopts ":i:s:c:d:m:f:l:s:p:" OPTIONS
+while getopts ":i:s:c:d:m:n:l:e:p:" OPTIONS
 do
             case $OPTIONS in
             s)     SUBNET_FILE=$OPTARG;;
@@ -62,8 +72,8 @@ do
             d)     DOMINIO_EXTERNO=$OPTARG;;
 			l)     LANGUAGE=$OPTARG;;
             m)     MODE=$OPTARG;;
-			f)     FORCE=$OPTARG;;
-			s)     START=$OPTARG;;
+			n)     internet=$OPTARG;;
+			e)     START=$OPTARG;;
 			p)     PORT_SCANNER=$OPTARG;;
             ?)     printf "invalid option: -$OPTARG\n" $0
                           exit 2;;
@@ -75,25 +85,15 @@ IP_LIST_FILE=${IP_LIST_FILE:=NULL}
 MODE=${MODE:=NULL} # assessment/hacking
 DOMINIO_EXTERNO=${DOMINIO_EXTERNO:=NULL}
 PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
-FORCE=${FORCE:=NULL} # internet
+internet=${internet:=NULL} # s/n
 LANGUAGE=${LANGUAGE:=NULL} # en/es
 START=${START:=NULL} # enumeration
 PORT_SCANNER=${PORT_SCANNER:=NULL} #nmap/naabu/masscan/nmap_masscan/nmap_naabu/masscan_naabu
-echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE LANGUAGE $LANGUAGE"
+echo "[+] MODE $MODE PORT_SCANNER $PORT_SCANNER SUBNET_FILE $SUBNET_FILE IP_LIST_FILE $IP_LIST_FILE DOMINIO_EXTERNO $DOMINIO_EXTERNO LANGUAGE $LANGUAGE"
 
-################## Config HERE ####################
-port_scan_num=1;
-min_ram=400;
-hilos_web=30;
-DOMINIO_EXTERNO=''
-DOMINIO_INTERNO=''
-max_perl_instancias=50;
-max_nmap_instances=5;
+
 common_user_list="/usr/share/lanscanner/usuarios-$LANGUAGE.txt"
-oracle_passwords="/usr/share/wordlists/oracle_default_userpass.txt"
-common_subdomains="/usr/share/seclists/Discovery/DNS/subdomains-top1million-20000.txt"
-#"/usr/share/seclists/Usernames/Names/names.txt"
-#
+
 
 #if [[ "$MODE" == NULL || "$PORT_SCANNER" == NULL ]]; then 
 if [[ "$MODE" == NULL  ]]; then 
@@ -122,8 +122,12 @@ Ejemplo 2: Escanear el listado de IPs (completo) con masscan y naabu
 Ejemplo 3: Escanear el listado de subredes (completo) 
 	lanscanner.sh -m hacking -s subredes.txt -d ejemplo.com -p nmap_masscan
 
+Ejemplo 3: Escanear el listado de subredes (forzar escaneo como IPs publicas) 
+	lanscanner.sh -m hacking -s subredes.txt -d ejemplo.com -p nmap_masscan -n s
+
 Ejemplo 4: Only enumeration
-	lanscanner.sh -m hacking -s enumeration
+	lanscanner.sh -m hacking -e enumeration -l en
+
 
 EOF
 
@@ -1053,28 +1057,28 @@ xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g'| tr -d ' ' `
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
-
-if [[  "$START" != 'enumeration' ]]
-then 
-	if [[  "$FORCE" == 'internet' || -f "logs/enumeracion/subdominios.txt" ]]
-	then
+if [ -z "$internet" ]; then			
+	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
 		internet="s"
 		echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
 		VECTOR="EXTERNO"
 	else
 		internet="n"
 		VECTOR="INTERNO"
-		if [ $iface == 'tun0' ];
-		then
-			echo "Conexion VPN detectada (Offsec)"
-		else
-			echo -e "[+] Adiciona/quita IPs y presiona ENTER" 
-			sleep 3
-			gedit .datos/total-host-vivos.txt & 2>/dev/null
-			read resp
-		fi
-	fi    
-fi
+		
+		if [[  "$START" != 'enumeration' ]]; then					
+			if [ $iface == 'tun0' ]; then			
+				echo "Conexion VPN detectada (Offsec)"
+			else
+				echo -e "[+] Adiciona/quita IPs y presiona ENTER" 
+				sleep 3
+				gedit .datos/total-host-vivos.txt & 2>/dev/null
+				read resp
+			fi 	
+		fi	#enumeration	
+	fi  #set internet
+fi #
+
 ################## end discover live hosts ##################
 
 if [[ "$START" != 'enumeration'  ]];then 
@@ -1573,7 +1577,7 @@ then
         ip=`echo $line | cut -f1 -d":"`
 		port=`echo $line | cut -f2 -d":"`
 
-		DOMINIO_AD=`cat .enumeracion/"$ip"_*_dominioAD.txt | head -1 ` #eurocorp.local
+		DOMINIO_AD=`cat .enumeracion2/"$ip"_*_dominioAD.txt | head -1 ` #eurocorp.local
 		
 		echo -e "[+] Escaneando $ip:$port (DOMINIO_AD $DOMINIO_AD)"	
 		if [ -z "$DOMINIO_AD" ]
@@ -3174,6 +3178,7 @@ then
 
 		if [ $internet == "s" ]; then 
 			DOMINIO_INTERNO=$DOMINIO_EXTERNO
+
 		fi
 
 		
@@ -3966,7 +3971,7 @@ then
 	rm checksumsEscaneados.txt # tiene hashes md5 
 	# Creando repositorio temporal para que pueda ser escaneado por las herramientas
 
-	# cat manifest.js | js-beautify  | tee manifest.js
+	# cat scripts.js | js-beautify  | tee scripts.js
 
 	rm -rf .git 2>/dev/null
 	git init
@@ -3991,12 +3996,12 @@ then
 
 	# passwords 
 	echo -e "\n passwords " >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
-	docker run -v `pwd`:/files -it dumpster-diver -p files --min-pass 9 --max-pass 15 --pass-complex 8  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v "$(pwd):/files" -it dumpster-diver -p files --min-pass 9 --max-pass 15 --pass-complex 8  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >>  ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
 
 	# generic token - dumpster-diver
 	echo -e "\n generic token (dumpster-diver)" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
-	docker run -v `pwd`:/files -it dumpster-diver -p files --min-key 25 --max-key 40 --entropy 4.6  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
+	docker run -v "$(pwd):/files" -it dumpster-diver -p files --min-key 25 --max-key 40 --entropy 4.6  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_dumpster_secrets.txt 
 
 	# generic token - truffle
 	docker run --rm -v "$(pwd):/project" trufflehog  --rules /etc/truffle-rules.json  --exclude_paths  /etc/truffle-exclude.txt --regex --json file:///project  | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" > ../logs/vulnerabilidades/"$DOMINIO_EXTERNO"_trufflehog_secrets.txt
@@ -4037,7 +4042,7 @@ if [ -f servicios/smtp.txt ]
 						
 			if [ "$PROXYCHAINS" == "n" ]; then 
 				########## VRFY #######
-				echo -e "\t[+] Comprobando comando vrfy"
+				echo -e "\t[+] Comprobando comando vrfy (DOMINIO $DOMINIO)"
 				echo "vrfy-test.py $ip $port $DOMINIO " >> logs/vulnerabilidades/"$ip"_"$port"_vrfyHabilitado.txt
 				
 				#prueba usuario@dominio.com
@@ -4398,14 +4403,14 @@ getBanners.pl -l .datos/total-host-vivos.txt -t .escaneo_puertos/tcp.txt -p "$pr
 
 for ip in $(cat .datos/total-host-vivos.txt); do
 	#os_details=`nmap -n -sT -Pn --script smb-os-discovery.nse -p445 $ip`
-	os_details=`egrep --color=never '\|   OS:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2`
+	os_details=`egrep --color=never '\|   OS:' .escaneo_puertos_banners/"$ip".txt 2>/dev/null  | cut -d ":" -f2`
 	
 	if [ -z "$os_details" ]; then
-		os_details=`egrep --color=never 'OS details:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2 |cut -d "," -f1-4`
+		os_details=`egrep --color=never 'OS details:' .escaneo_puertos_banners/"$ip".txt 2>/dev/null | cut -d ":" -f2 |cut -d "," -f1-4`
 	fi
 
 	if [ -z "$os_details" ]; then
-		os_details=`egrep --color=never 'Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt | cut -d ":" -f2 |cut -d "," -f1-4`
+		os_details=`egrep --color=never 'Aggressive OS guesses:' .escaneo_puertos_banners/"$ip".txt 2>/dev/null  | cut -d ":" -f2 |cut -d "," -f1-4`
 	fi
 
 	echo $os_details  > .enumeracion/"$ip"_os_version.txt
@@ -5618,7 +5623,7 @@ done	# done true
 if [ -f servicios/servers.txt ]
 then
 
-	echo -e "$OKBLUE #################### Servers (`wc -l servicios/servers.txt`)######################$RESET"	    
+	echo -e "$OKBLUE #################### Revisar logs  Servers (`wc -l servicios/servers.txt`)######################$RESET"	    
 	while read ip       
 	do     	
 		echo "checking IP $ip "		

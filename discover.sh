@@ -30,7 +30,7 @@ IP_LIST_FILE=${IP_LIST_FILE:=NULL} # lista de IPs
 KEYWORD=${KEYWORD:=NULL} # nombre de la entidad
 LANGUAGE=${LANGUAGE:=NULL} # en/es
 PROXYCHAINS=${PROXYCHAINS:=NULL} # s//n
-echo "TYPE $TYPE MODE $MODE"
+echo "TYPE $TYPE MODE $MODE LANGUAGE $LANGUAGE"
 #if [ "$KEYWORD" == NULL ] || [ "$DOMAIN" == NULL ] &&  [ "$TYPE" != 'oscp' ]; then
 if [[ $TYPE == NULL || "$MODE" ==  NULL ]]; then
 
@@ -85,9 +85,9 @@ if [ $TYPE == "internet" ]; then
 	xterm -hold -e monitor.sh 2>/dev/null&
 	recon.sh -d $DOMAIN -k $KEYWORD
 	cd $DOMAIN
-	#egrep --color=never -i "bolivia|Azure|amazon" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
-	egrep --color=never -i "bolivia" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
-	lanscanner.sh -m $MODE -i importarMaltego/subdominios-bolivia.csv -d $DOMAIN -p masscan_naabu -c n -l $LANGUAGE
+	egrep --color=never -iv "Azure|amazon|google" importarMaltego/subdominios.csv > importarMaltego/subdominios-scan.csv
+	#egrep --color=never -i "bolivia" importarMaltego/subdominios.csv > importarMaltego/subdominios-bolivia.csv
+	lanscanner.sh -m $MODE -i importarMaltego/subdominios-scan.csv -d $DOMAIN -p masscan_naabu -c n -l $LANGUAGE
 	cracker.sh -e $KEYWORD
 fi
 
