@@ -1457,11 +1457,11 @@ echo -e "\n\n$OKYELLOW [+] FASE 3: ENUMERACION DE PUERTOS E IDENTIFICACION DE VU
 
 #Borrar descargas
 rm -rf webClone/*
-
+echo "########### internet $internet #############"
 # IP publica
 curl  --max-time 10 'https://api.ipify.org?format=json' > .enumeracion/"$ip"_ip_publica.txt
 
-if [ "$MODE" == "proxy" ]; then 
+if [ "$PROXYCHAINS" == "s" ]; then 
 	proxychains="proxychains"
 else
 	proxychains=""
