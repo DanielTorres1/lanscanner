@@ -3192,7 +3192,7 @@ then
 		fi
 
 		
-		if [ "$MODE" == "hacking" ]; then 	
+		if [ "$MODE" == "hacking" && "$hosting" == 'n' ]; then 	
 
 			if [ $internet == "n" ]; then 
 				echo -e "\t[+] Buscando domain"
