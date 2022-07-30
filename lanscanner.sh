@@ -3250,10 +3250,13 @@ then
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then # si es el archivo subdomains.csv								
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO| uniq` 
 					echo "lista_subdominios1111 $lista_subdominios"
-					for subdominio in $lista_subdominios; do					
-						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
-						# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
-						$proxychains webData.pl -t $subdominio -p $port -s http -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 1 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 						
+					for subdominio in $lista_subdominios; do										
+						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
+							echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
+							# Una sola rediccion (-r 1) para evitar que escaneemos 2 veces el mismo sitio
+							$proxychains webData.pl -t $subdominio -p $port -s http -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 1 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 						
+						fi
+						
 					done
 				fi
 				###############################
@@ -3296,121 +3299,123 @@ then
 				echo "FILEEE: $prefijo$IP_LIST_FILE DOMINIO_INTERNO $DOMINIO_INTERNO"			
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then					
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO| uniq` 
-					echo "lista_subdominios $lista_subdominios"
-					for subdominio in $lista_subdominios; do													
-						echo -e "\t[+] subdominio: $subdominio"							
-						#wget --timeout=20 --tries=1 http://$subdominio -O webClone/http-$subdominio.html
+					echo "lista_subdominios $lista_subdominios"					
+						for subdominio in $lista_subdominios; do													
+							if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
+								echo -e "\t[+] subdominio: $subdominio"							
+								#wget --timeout=20 --tries=1 http://$subdominio -O webClone/http-$subdominio.html
 
-						$proxychains curl.pl --url  http://$subdominio > webClone/http-$subdominio.html												
-    
-						sed -i "s/\/index.php//g" webClone/http-$subdominio.html
-						sed -i "s/https/http/g" webClone/http-$subdominio.html						
-						sed -i "s/www.//g" webClone/http-$subdominio.html	
-						
-						#Borrar lineas que cambian en cada peticion
-						egrep -v "lae-portfolio-header|script|visitas|contador" webClone/http-$subdominio.html > webClone/http2-$subdominio.html
-						mv webClone/http2-$subdominio.html webClone/http-$subdominio.html
-																																		
-						checksumline=`md5sum webClone/http-$subdominio.html` 							
-						md5=`echo $checksumline | awk {'print $1'}` 													
-						egrep -iq $md5 webClone/checksumsEscaneados.txt
-						noEscaneado=$?
-						 
-						egrep -iq "no Route matched with those values" webClone/http-$subdominio.html
-						greprc=$?
-						if [[ $greprc -eq 0  ]];then 
-							noEscaneado=1
-						fi	
-						
-						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused|GoAhead-Webs" .enumeracion/"$subdominio"_"$port"_webData.txt
-						hostOK=$?	
-						echo -e "\t\t hostOK $hostOK"
-						
-						egrep -qi "403" .enumeracion/"$subdominio"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
-						accesoDenegado=$?	
-						
-						
-						# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
-						echo -e "\t[+]noEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
-						 #noEscaneado 1 hostOK 0 accesoDenegado 1 (0=acceso negado)
-						if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
-							echo "\t[+] Realizando tests adicionales "
-							echo $checksumline >> webClone/checksumsEscaneados.txt
-						
-							if [[ $internet == "s" && "$MODE" == "assessment" ]]; then
-								echo -e "\t[+] identificar si el host esta protegido por un WAF "
-								wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+								$proxychains curl.pl --url  http://$subdominio > webClone/http-$subdominio.html												
+			
+								sed -i "s/\/index.php//g" webClone/http-$subdominio.html
+								sed -i "s/https/http/g" webClone/http-$subdominio.html						
+								sed -i "s/www.//g" webClone/http-$subdominio.html	
+								
+								#Borrar lineas que cambian en cada peticion
+								egrep -v "lae-portfolio-header|script|visitas|contador" webClone/http-$subdominio.html > webClone/http2-$subdominio.html
+								mv webClone/http2-$subdominio.html webClone/http-$subdominio.html
+																																				
+								checksumline=`md5sum webClone/http-$subdominio.html` 							
+								md5=`echo $checksumline | awk {'print $1'}` 													
+								egrep -iq $md5 webClone/checksumsEscaneados.txt
+								noEscaneado=$?
+								
+								egrep -iq "no Route matched with those values" webClone/http-$subdominio.html
+								greprc=$?
+								if [[ $greprc -eq 0  ]];then 
+									noEscaneado=1
+								fi	
+								
+								egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused|GoAhead-Webs" .enumeracion/"$subdominio"_"$port"_webData.txt
+								hostOK=$?	
+								echo -e "\t\t hostOK $hostOK"
+								
+								egrep -qi "403" .enumeracion/"$subdominio"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
+								accesoDenegado=$?	
+								
+								
+								# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
+								echo -e "\t[+]noEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
+								#noEscaneado 1 hostOK 0 accesoDenegado 1 (0=acceso negado)
+								if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
+									echo "\t[+] Realizando tests adicionales "
+									echo $checksumline >> webClone/checksumsEscaneados.txt
+								
+									if [[ $internet == "s" && "$MODE" == "assessment" ]]; then
+										echo -e "\t[+] identificar si el host esta protegido por un WAF "
+										wafw00f http://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+										grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
 
-								echo -e "\t\t[+] Detectando si hay balanceador de carga"							
-								lbd $subdominio > logs/enumeracion/"$subdominio"_web_balanceador.txt
-								grep "does Load-balancing" logs/enumeracion/"$subdominio"_web_balanceador.txt > .enumeracion/"$subdominio"_web_balanceador.txt	
-							fi							
-    							
-
-  							###  if the server is apache ######
-							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
-								enumeracionApache "http" $subdominio $port								
-							else
-								echo -e "\t\t[+] No es Apache o no debemos escanear"
-							fi						
-							####################################	
-							
-											
-							#######  if the server is SharePoint ######
-							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
-								enumeracionSharePoint "http" $subdominio $port								
-							else
-								echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
-							fi										
-							####################################	
-							
-
-							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
-								enumeracionIIS "http" $subdominio $port								
-							else
-								echo -e "\t\t[+] No es IIS o no debemos escanear"									   
-							fi
+										echo -e "\t\t[+] Detectando si hay balanceador de carga"							
+										lbd $subdominio > logs/enumeracion/"$subdominio"_web_balanceador.txt
+										grep "does Load-balancing" logs/enumeracion/"$subdominio"_web_balanceador.txt > .enumeracion/"$subdominio"_web_balanceador.txt	
+									fi							
 										
-							####################################	
-		
-		
-							#######  if the server is tomcat ######
-							egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
-							greprc=$?				
-							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes																							
-								enumeracionTomcat "http" $subdominio $port																							
-							else
-								echo -e "\t\t[+] No es tomcat o no debemos escanear"
-							fi
-										
-							####################################
-							echo -e "\t\t[+] Enumerar CMSs"
-							enumeracionCMS "http" $subdominio $port	
-							####################################
 
-							# if not technology not reconigzed
-							
-							serverType=`cat .enumeracion/"$subdominio"_"$port"_webData.txt | cut -d "~" -f2`
-							echo -e "\t\t[+] serverType $serverType"					
-							if [  -z "$serverType" ]; then
-								enumeracionDefecto "http" $subdominio $port
-							fi																									
-							grep '\.action' .enumeracion/* | awk '{print $2}' >> servicios/Apache-Struts-files.txt									
-														
-															
-						else
-							echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
-						fi												
-					done #subdominio
+									###  if the server is apache ######
+									egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
+									greprc=$?
+									if [[ $greprc -eq 0  ]];then # si el banner es Apache																							
+										enumeracionApache "http" $subdominio $port								
+									else
+										echo -e "\t\t[+] No es Apache o no debemos escanear"
+									fi						
+									####################################	
+									
+													
+									#######  if the server is SharePoint ######
+									grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
+									greprc=$?
+									if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
+										enumeracionSharePoint "http" $subdominio $port								
+									else
+										echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+									fi										
+									####################################	
+									
 
+									#######  if the server is IIS ######
+									grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
+									greprc=$?
+									if [[ $greprc -eq 0  ]];then # si el banner es IIS 																															
+										enumeracionIIS "http" $subdominio $port								
+									else
+										echo -e "\t\t[+] No es IIS o no debemos escanear"									   
+									fi
+												
+									####################################	
+				
+				
+									#######  if the server is tomcat ######
+									egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
+									greprc=$?				
+									if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes																							
+										enumeracionTomcat "http" $subdominio $port																							
+									else
+										echo -e "\t\t[+] No es tomcat o no debemos escanear"
+									fi
+												
+									####################################
+									echo -e "\t\t[+] Enumerar CMSs"
+									enumeracionCMS "http" $subdominio $port	
+									####################################
+
+									# if not technology not reconigzed
+									
+									serverType=`cat .enumeracion/"$subdominio"_"$port"_webData.txt | cut -d "~" -f2`
+									echo -e "\t\t[+] serverType $serverType"					
+									if [  -z "$serverType" ]; then
+										enumeracionDefecto "http" $subdominio $port
+									fi																									
+									grep '\.action' .enumeracion/* | awk '{print $2}' >> servicios/Apache-Struts-files.txt									
+																
+																	
+								else
+									echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
+								fi												
+							fi #hosting
+						done #subdominio
+					
 
 					####################################
 					if [ "$PROXYCHAINS" == "n" ]; then 
@@ -3604,8 +3609,8 @@ then
 				echo "$ip,$DOMINIO_INTERNO,vhost" >> $prefijo$IP_LIST_FILE
 			fi		
 		done
-
-		if [ "$MODE" == "hacking" ]; then 							
+		
+		if [ "$MODE" == "hacking" && "$hosting" == 'n' ]; then 							
 			echo -e "\t [+] Seeking virtual hosts"
 
 			if [ $internet == "n" ]; then 
@@ -3663,8 +3668,10 @@ then
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO | uniq` 				
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
-						echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
-						$proxychains webData.pl -t $subdominio -p $port -s https -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 4 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 
+						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
+							echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
+							$proxychains webData.pl -t $subdominio -p $port -s https -e todo -d / -l logs/enumeracion/"$subdominio"_"$port"_webData.txt -r 4 > .enumeracion/"$subdominio"_"$port"_webData.txt 2>/dev/null 
+						fi
 					done
 				fi
 				################################	
@@ -3708,105 +3715,106 @@ then
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO| uniq` 
 					#echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
-						echo -e "\t[+] subdominio: $subdominio"	
-																		
-						#wget --timeout=20 --tries=1 --no-check-certificate  https://$subdominio -O webClone/https-$subdominio.html
-						$proxychains curl.pl --url  https://$subdominio > webClone/https-$subdominio.html
-						sed -i "s/\/index.php//g" webClone/https-$subdominio.html 2>/dev/null
-						sed -i "s/https/http/g" webClone/https-$subdominio.html 2>/dev/null		
-						sed -i "s/www.//g" webClone/https-$subdominio.html 2>/dev/null # borrar subdominio www.dominio.com						
-												
-						#Borrar lineas que cambian en cada peticion
-						egrep -v "lae-portfolio-header|script|visitas|contador" webClone/https-$subdominio.html > webClone/https2-$subdominio.html
-						mv webClone/https2-$subdominio.html webClone/https-$subdominio.html
-						
-						checksumline=`md5sum webClone/https-$subdominio.html` 							
-						md5=`echo $checksumline | awk {'print $1'}` 													
-						egrep -iq $md5 webClone/checksumsEscaneados.txt
-						noEscaneado=$?
-
-						egrep -iq "no Route matched with those values" webClone/https-$subdominio.html
-						greprc=$?
-						if [[ $greprc -eq 0  ]];then # si el host es kong
-							noEscaneado=1
-						fi	
-						
-						egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused" .enumeracion/"$subdominio"_"$port"_webData.txt
-						hostOK=$?	
-						
-						egrep -qi "403" .enumeracion/"$subdominio"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
-						accesoDenegado=$?	
-						
-						
-						# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
-						echo -e "\t\tnoEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
-						
-						if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
-							echo "Realizando tests adicionales "
-							echo $checksumline >> webClone/checksumsEscaneados.txt												
+						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
+							echo -e "\t[+] subdominio: $subdominio"	
+																			
+							#wget --timeout=20 --tries=1 --no-check-certificate  https://$subdominio -O webClone/https-$subdominio.html
+							$proxychains curl.pl --url  https://$subdominio > webClone/https-$subdominio.html
+							sed -i "s/\/index.php//g" webClone/https-$subdominio.html 2>/dev/null
+							sed -i "s/https/http/g" webClone/https-$subdominio.html 2>/dev/null		
+							sed -i "s/www.//g" webClone/https-$subdominio.html 2>/dev/null # borrar subdominio www.dominio.com						
+													
+							#Borrar lineas que cambian en cada peticion
+							egrep -v "lae-portfolio-header|script|visitas|contador" webClone/https-$subdominio.html > webClone/https2-$subdominio.html
+							mv webClone/https2-$subdominio.html webClone/https-$subdominio.html
 							
+							checksumline=`md5sum webClone/https-$subdominio.html` 							
+							md5=`echo $checksumline | awk {'print $1'}` 													
+							egrep -iq $md5 webClone/checksumsEscaneados.txt
+							noEscaneado=$?
 
-							if [ $internet == "s" ]; then 
-								echo -e "\t[+] identificar si el host esta protegido por un WAF "
-								wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
-								grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+							egrep -iq "no Route matched with those values" webClone/https-$subdominio.html
+							greprc=$?
+							if [[ $greprc -eq 0  ]];then # si el host es kong
+								noEscaneado=1
 							fi	
 							
-						
-														
-							###  if the server is apache ######
-							egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es Apache y no se enumero antes																
-								enumeracionApache "https" $subdominio $port
-							fi						
-							####################################	
-
-							#######  if the server is SharePoint ######
-							grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
-								enumeracionSharePoint "https" $subdominio $port
-							else
-								echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
-							fi										
-							####################################
+							egrep -qi "301 Moved|302 Found|500 Proxy Error|HTTPSredirect|400 Bad Request|Document Moved|Index of|timed out|Connection refused|Connection refused" .enumeracion/"$subdominio"_"$port"_webData.txt
+							hostOK=$?	
 							
-							#######  if the server is IIS ######
-							grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
-							greprc=$?
-							if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
-								enumeracionIIS "https" $subdominio $port								   
-							fi
-										
-							####################################	
-		
-		
-							#######  if the server is tomcat ######
-							egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
-							greprc=$?				
-							if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes								
-								enumeracionTomcat "https" $subdominio $port																							
-							fi
-										
-							####################################
+							egrep -qi "403" .enumeracion/"$subdominio"_"$port"_webData.txt #403 - Prohibido: acceso denegado.
+							accesoDenegado=$?	
+							
+							
+							# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
+							echo -e "\t\tnoEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
+							
+							if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
+								echo "Realizando tests adicionales "
+								echo $checksumline >> webClone/checksumsEscaneados.txt												
 								
-							enumeracionCMS "https" $subdominio $port																						
-							testSSL "https" $subdominio $port	
 
-							# if not technology not reconigzed
+								if [ $internet == "s" ]; then 
+									echo -e "\t[+] identificar si el host esta protegido por un WAF "
+									wafw00f https://$subdominio:$port > logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt
+									grep "is behind" logs/enumeracion/"$subdominio"_"$port"_wafw00f.txt > .enumeracion/"$subdominio"_"$port"_wafw00f.txt								
+								fi	
+								
 							
-							serverType=`cat .enumeracion/"$subdominio"_"$port"_webData.txt | cut -d "~" -f2`
-							echo -e "\t\t[+] serverType $serverType"
-							
-							if [  -z "$serverType" ]; then
-								enumeracionDefecto "https" $subdominio $port
-							fi								
-							grep '\.action' .enumeracion/* | awk '{print $2}' >> servicios/Apache-Struts-files.txt
-						else
-								echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
-						fi														
-						
+															
+								###  if the server is apache ######
+								egrep -i "apache|nginx|kong" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs" # solo el segundo egrep poner "-q"
+								greprc=$?
+								if [[ $greprc -eq 0  ]];then # si el banner es Apache y no se enumero antes																
+									enumeracionApache "https" $subdominio $port
+								fi						
+								####################################	
+
+								#######  if the server is SharePoint ######
+								grep -i SharePoint .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|cisco|Router|BladeSystem|oracle|302 Found|Coyote|Express|AngularJS|Zimbra|Pfsense|GitLab|Roundcube|Zentyal|Taiga|NodeJS|Nextcloud|Open Source Routing Machine|ownCloud|GoAhead-Webs"  # no redirecciona
+								greprc=$?
+								if [[ $greprc -eq 0  ]];then # si el banner es SharePoint 																															
+									enumeracionSharePoint "https" $subdominio $port
+								else
+									echo -e "\t\t[+] No es SharePoint o no debemos escanear"									   
+								fi										
+								####################################
+								
+								#######  if the server is IIS ######
+								grep -i IIS .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found|AngularJS|BladeSystem|cisco|Cloudflare|Coyote|Express|GitLab|GoAhead-Webs|Nextcloud|NodeJS|Open Source Routing Machine|oracle|Outlook|owa|ownCloud|Pfsense|Roundcube|Router|SharePoint|Taiga|Zentyal|Zimbra"  # no redirecciona
+								greprc=$?
+								if [[ $greprc -eq 0  ]];then # si el banner es IIS y no se enumero antes															
+									enumeracionIIS "https" $subdominio $port								   
+								fi
+											
+								####################################	
+			
+			
+								#######  if the server is tomcat ######
+								egrep -i "GlassFish|Coyote|Tomcat|Resin|JBoss|WildFly" .enumeracion/"$subdominio"_"$port"_webData.txt | egrep -qiv "302 Found" 
+								greprc=$?				
+								if [[ $greprc -eq 0  ]];then # si el banner es Java y no se enumero antes								
+									enumeracionTomcat "https" $subdominio $port																							
+								fi
+											
+								####################################
+									
+								enumeracionCMS "https" $subdominio $port																						
+								testSSL "https" $subdominio $port	
+
+								# if not technology not reconigzed
+								
+								serverType=`cat .enumeracion/"$subdominio"_"$port"_webData.txt | cut -d "~" -f2`
+								echo -e "\t\t[+] serverType $serverType"
+								
+								if [  -z "$serverType" ]; then
+									enumeracionDefecto "https" $subdominio $port
+								fi								
+								grep '\.action' .enumeracion/* | awk '{print $2}' >> servicios/Apache-Struts-files.txt
+							else
+									echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
+							fi														
+						fi #hosting
 					done # subdominios 
 			  fi # revisar por dominio
 				################################
