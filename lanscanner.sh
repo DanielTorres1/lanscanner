@@ -1057,12 +1057,13 @@ xterm -hold -e monitor.sh $live_hosts 2>/dev/null &
 total_hosts=`wc -l .datos/total-host-vivos.txt | sed 's/.datos\/total-host-vivos.txt//g'| tr -d ' ' `
 echo -e  "TOTAL HOST VIVOS ENCONTRADOS: ($total_hosts) hosts" 
 #cat $live_hosts
-if [ -z "$internet" ]; then			
+if [[ "$internet" == NULL  ]]; then 	
 	if [[ -f "logs/enumeracion/subdominios.txt" ]]; then			
-		internet="s"
 		echo -e "[+] Se detecto que estamos escaneando IPs públicas."	  
+		internet="s"		
 		VECTOR="EXTERNO"
 	else
+		echo -e "[+] Se detecto que estamos escaneando IPs privadas."	  
 		internet="n"
 		VECTOR="INTERNO"
 		
