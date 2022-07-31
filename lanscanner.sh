@@ -452,10 +452,15 @@ function enumeracionCMS () {
         greprc=$?
         if [[ $greprc -eq 0 ]];then 		            
             url=`cat logs/vulnerabilidades/"$host"_"$port"_wpscan.txt | perl -lne 'print $& if /http(.*?)\. /' |sed 's/\. //g'`
-			echo -e "\t\t[+] Redireccion en wordpress ($url)"
+			echo -e "\t\t[+] url $url ($host: $port)"
+            if [[ ${url} == *"$host"*  ]];then 
+				echo -e "\t\t[+] Redireccion en wordpress $url ($host: $port)"
+				$proxychains wpscan --disable-tls-checks --enumerate u  --random-user-agent --format json --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
+            	$proxychains wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
+			else
+				echo -e "\t\t[+] Ya lo escaneamos por dominio" 
+			fi
             
-            $proxychains wpscan --disable-tls-checks --enumerate u  --random-user-agent --format json --url $url > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
-            $proxychains wpscan --disable-tls-checks --random-user-agent --url $url --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
             
         fi
 
@@ -673,7 +678,7 @@ function cloneSite ()
         do 		
             tipo_archivo=`file $archivo`
             # tipos de archivos : https://docs.microsoft.com/en-us/previous-versions//cc179224(v=technet.10)
-            if [[ ${tipo_archivo} == *"PDF"*  ]];then 													
+            if [[ ${tipo_archivo} == *"PDF"*  ]];then 
                 mv $archivo documentos_renombrados/$contador.pdf 
             fi		
         
