@@ -247,7 +247,7 @@ function enumeracionIIS () {
 
 		echo -e "\t\t[+] Revisando la existencia de backdoors ($host - IIS)"								
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorIIS -s $proto -q 1 > logs/vulnerabilidades/"$host"_iis_webshell.txt
-		egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_iis_webshell.txt >> .vulnerabilidades/"$host"_iis_webshell.txt
+		egrep --color=never "^200|^302|^401" logs/vulnerabilidades/"$host"_iis_webshell.txt >> .vulnerabilidades/"$host"_iis_webshell.txt
 		sleep 1
 
 		echo -e "\t\t[+] Revisando backups de archivos de configuración ($host - IIS)"
@@ -290,7 +290,7 @@ function enumeracionApache () {
 
 	echo -e "\t\t[+] Revisando archivos peligrosos ($host - Apache/nginx)"
     $proxychains web-buster.pl -t $host -p $port -h $hilos_web -d / -m archivosPeligrosos -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
-    egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
+    egrep --color=never "^200|^302|^401" logs/vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  >> .vulnerabilidades/"$host"_"$port"_archivosPeligrosos.txt  
     sleep 1
 
 	if [ "$PROXYCHAINS" == "n" ]; then 
@@ -318,12 +318,12 @@ function enumeracionApache () {
 		
 		echo -e "\t\t[+] Revisando la existencia de backdoors ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m backdoorApache -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_webshell.txt 
-		egrep --color=never "^200|^301|^302|^401"  logs/vulnerabilidades/"$host"_"$port"_webshell.txt  >> .vulnerabilidades/"$host"_"$port"_webshell.txt 								
+		egrep --color=never "^200|^302|^401"  logs/vulnerabilidades/"$host"_"$port"_webshell.txt  >> .vulnerabilidades/"$host"_"$port"_webshell.txt 								
 		sleep 1
 		
 		echo -e "\t\t[+] Revisando si el registro de usuarios esta habilitado ($host - Apache/nginx)"
 		web-buster.pl -t $host -p $port -h $hilos_web -d / -m registroHabilitado -s $proto -q 1 > logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt 
-		egrep --color=never "^200|^301|^302|^401" logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt  | awk '{print $2}' >> .vulnerabilidades/"$host"_"$port"_registroHabilitado.txt
+		egrep --color=never "Registro habilitado" logs/vulnerabilidades/"$host"_"$port"_registroHabilitado.txt  >> .vulnerabilidades/"$host"_"$port"_registroHabilitado.txt
 		sleep 1
 		
 		echo -e "\t\t[+] Revisando la presencia de archivos phpinfo, logs, errors ($host - Apache/nginx)"
@@ -713,7 +713,7 @@ function cloneSite ()
         done # fin revisar archivos sin extension
         
         #### mover archivos con metadata para extraerlos ########
-        echo -e "\t[+] Extraer metadatos con exiftool"										
+        echo -e "\t\t[+] Extraer metadatos con exiftool"										
         find . -name "*.pdf" -exec mv {} "../archivos" \;
         find . -name "*.xls" -exec mv {} "../archivos" \;
         find . -name "*.doc" -exec mv {} "../archivos" \;
@@ -3342,7 +3342,7 @@ then
 								
 								
 								# 1= no coincide (no redirecciona a otro dominio o es error de proxy)			
-								echo -e "\t[+]noEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
+								echo -e "\t\t[+]noEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
 								#noEscaneado 1 hostOK 0 accesoDenegado 1 (0=acceso negado)
 								if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
 									echo "\t[+] Realizando tests adicionales "
@@ -3449,7 +3449,7 @@ then
 
 				
 				#################  Realizar el escaneo por IP  ##############	
-				echo -e "[+]Escaneo solo por IP (http) $ip:$port"
+				echo -e "\n[+]\tEscaneo solo por IP (http) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  http://$ip -O webClone/http-$ip.html
 				$proxychains curl.pl --url  http://$ip > webClone/http-$ip.html
 				sed -i "s/\/index.php//g" webClone/http-$ip.html
@@ -3595,7 +3595,7 @@ then
 		DOMINIO_INTERNO=$DOMINIO_EXTERNO
 	fi
 
-
+	echo -e "\t DOMINIO_INTERNO $DOMINIO_INTERNO"
 	# Extraer informacion web y SSL
 	for line in $(cat servicios/web-ssl.txt); do    
 		ip=`echo $line | cut -f1 -d":"`
@@ -3606,7 +3606,7 @@ then
 		$proxychains get_ssl_cert.py $ip $port  2>/dev/null > logs/enumeracion/"$ip"_"$port"_cert.txt 
 		cp logs/enumeracion/"$ip"_"$port"_cert.txt  .enumeracion/"$ip"_"$port"_cert.txt 
 
-		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'` | sed "s/*.//g"
+		SUBDOMINIOS_INTERNOS=`cat .enumeracion/"$ip"_"$port"_cert.txt | tr "'" '"'| jq | grep subdomain | awk '{print $2}' | tr -d '",'| sed "s/*.//g" |  grep --color=never $DOMINIO_INTERNO| uniq` 
 		for SUBDOMINIO_INTERNO in $SUBDOMINIOS_INTERNOS; do	
 			if [[ ${SUBDOMINIO_INTERNO} == *"enterpriseregistration.windows.net"*  ]];then 
 				echo "$SUBDOMINIO_INTERNO" >> .enumeracion/"$ip"_"$port"_azureAD.txt 
@@ -3842,8 +3842,8 @@ then
 				####################################
 				
 				
-				############### Escaneo por IP ############
-				echo -e "[+]Escaneo solo por IP (https) $ip:$port"
+				############### Escaneo por IP ############				
+				echo -e "\n[+]\tEscaneo solo por IP (https) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  https://$ip -O webClone/https-$ip.html
 				$proxychains curl.pl --url  https://$ip > webClone/https-$ip.html
 				sed -i "s/\/index.php//g" webClone/https-$ip.html 2>/dev/null
@@ -5578,7 +5578,7 @@ insert_data
 #####################################################################################################
 
 
-if [ "$PROXYCHAINS" == "n" ]; then 
+if [ "$PROXYCHAINS" == "n" && "$internet" == 'n' ]; then 	
 	IFS=$'\n'  # make newlines the only separator
 	echo -e "$OKBLUE #################### Realizar escaneo de directorios (2do nivel) a los directorios descubiertos ######################$RESET"	    
 	for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null | uniq ); do	
