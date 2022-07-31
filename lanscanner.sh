@@ -439,9 +439,10 @@ function enumeracionCMS () {
     greprc=$?
     if [[ $greprc -eq 0 ]];then 		
         wpscan  --update  >/dev/null   
-        echo -e "\t\t[+] Wordpress user enumeration ($host)"
-        $proxychains wpscan --disable-tls-checks  --enumerate u  --random-user-agent --output json --url "$proto"://$host --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
-		echo -e "\t\t[+] Revisando vulnerabilidades de wordpress ($host)"
+        echo -e "\t\t[+] Wordpress user enumeration ("$proto"://"$host":"$port")"
+		echo "$proxychains wpscan --disable-tls-checks  --enumerate u  --random-user-agent --output json --url "$proto"://"$host":"$port" --format json"
+        $proxychains wpscan --disable-tls-checks  --enumerate u  --random-user-agent --output json --url "$proto"://"$host":"$port" --format json > logs/vulnerabilidades/"$host"_"$port"_wpUsers.json
+		echo -e "\t\t[+] Revisando vulnerabilidades de wordpress "
         $proxychains wpscan --disable-tls-checks  --random-user-agent --url "$proto"://$host/ --enumerate ap,cb,dbe --api-token vFOFqWfKPapIbUPvqQutw5E1MTwKtqdauixsjoo197U --plugins-detection aggressive  > logs/vulnerabilidades/"$host"_"$port"_wpscan.txt
         
 
