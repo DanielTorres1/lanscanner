@@ -3199,7 +3199,7 @@ then
 		fi
 
 		
-		if [ "$MODE" == "hacking" && "$hosting" == 'n' ]; then 	
+		if [[ "$MODE" == "hacking" && "$hosting" == 'n' ]]; then 	
 
 			if [ $internet == "n" ]; then 
 				echo -e "\t[+] Buscando domain"
@@ -3617,7 +3617,7 @@ then
 			fi		
 		done
 		
-		if [ "$MODE" == "hacking" && "$hosting" == 'n' ]; then 							
+		if [[ "$MODE" == "hacking" && "$hosting" == 'n' ]]; then 							
 			echo -e "\t [+] Seeking virtual hosts"
 
 			if [ $internet == "n" ]; then 
@@ -3673,7 +3673,7 @@ then
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO | uniq` 				
-					#echo "lista_subdominios $lista_subdominios"
+					echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
 							echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
@@ -3720,7 +3720,7 @@ then
 				######## revisar por dominio #######
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO| uniq` 
-					#echo "lista_subdominios $lista_subdominios"
+					echo "lista_subdominios $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
 							echo -e "\t[+] subdominio: $subdominio"	
