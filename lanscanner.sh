@@ -3671,6 +3671,7 @@ then
 				sleep 0.5;	
 				
 				######## revisar por dominio #######
+				echo "archivo = $prefijo$IP_LIST_FILE"
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO | uniq` 				
 					echo "lista_subdominios $lista_subdominios"
@@ -4333,13 +4334,25 @@ then
 		#if [ "$smtp_user_enum_instancias" -gt 1 ]
 		if [ "$num_lines" -le 3 ] ; then		
 
-			for line in $(cat servicios/cgi.txt); do
-				ip=`echo $line |  cut -d ":" -f 2 | tr -d /`
+			for line in $(cat servicios/cgi.txt); do 
+				ip=`echo $line |  cut -d ":" -f 2 | tr -d /` # line = https://200.225.41.149:80/cgi-sys/defaultwebpage.cgi
 				port_path=`echo $line | cut -d ":" -f 3`
 				port=`echo $port_path | cut -d "/" -f 1`
 				path="/"`echo $port_path | cut -d "/" -f 2-8`
+
+				if [[  ${ip} == *"cgi"* ]]; then
+
+					proto=`echo $line |  cut -d "/" -f 1`
+					ip=`echo $line |  cut -d "/" -f 3` # line = https://200.225.41.149/cgi-sys/defaultwebpage.cgi					
+					path="/"`echo $line |  cut -d "/" -f 4-8`
+					if [[  ${proto} == *"https"* ]]; then
+						port="443"
+					else
+						port="80"
+					fi
+				fi
 				
-				echo -e "[+] Escaneando $ip:$port"	
+				echo -e "[+] Escaneando $ip:$port"
 				echo -e "\t \t[+] Revisando vulnerabilidad Shellsock ip=$ip path=$path"
 					
 				echo "$proxychains  nmap -sV -p $port --script http-shellshock.nse --script-args uri=$path $ip" >> logs/vulnerabilidades/"$ip"_"$port"_shellshock.txt
@@ -5578,7 +5591,7 @@ insert_data
 #####################################################################################################
 
 
-if [ "$PROXYCHAINS" == "n" && "$internet" == 'n' ]; then 	
+if [[ "$PROXYCHAINS" == "n" && "$internet" == 'n' ]]; then 	
 	IFS=$'\n'  # make newlines the only separator
 	echo -e "$OKBLUE #################### Realizar escaneo de directorios (2do nivel) a los directorios descubiertos ######################$RESET"	    
 	for line in $(cat .enumeracion2/*webdirectorios.txt 2>/dev/null | uniq ); do	
@@ -5895,13 +5908,23 @@ then
 	for line in $(cat servicios/admin-web.txt); do
 		echo -e "\n\t########### $line #######"		
 		####### Identificar tipo de panel de admin				
-		ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb
-		port=`echo $ip_port | cut -d ":" -f 2`		
-		ip_port=`echo $line | cut -d "/" -f 3` # 190.129.69.107:80			
-
+		proto=`echo $line | cut -d "/" -f 1 `
+		ip_port=`echo $line | cut -d "/" -f 3` # 190.129.69.107:80
+		if [[ ${ip_port} == *":"* ]]; then
+			port=`echo $ip_port | cut -d ":" -f 2`	
+		else
+			if [[  ${proto} == *"https"* ]]; then
+				port="443"
+			else
+				port="80"
+			fi
+		fi
+		ip=`echo $ip_port | cut -d ":" -f 1` #puede ser subdominio tb					
 		path=`echo $line | cut -d "/" -f 4-5`		
-		echo "webData.pl -t $ip -d "/$path/" -p $port -e todo -l /dev/null -r 4" 2>/dev/null	
-		web_fingerprint=`webData.pl -t $ip -d "/$path/" -p $port -e todo -l /dev/null -r 4 2>/dev/null`	
+
+
+		echo "webData.pl -t $ip -d "/$path" -p $port -e todo -l /dev/null -r 4" 2>/dev/null	
+		web_fingerprint=`webData.pl -t $ip -d "/$path" -p $port -e todo -l /dev/null -r 4 2>/dev/null`	
 		web_fingerprint=`echo "$web_fingerprint" | tr '[:upper:]' '[:lower:]' | tr -d ";"` # a minusculas y eliminar  ;		
 		#############
 			
