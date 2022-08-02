@@ -2243,7 +2243,8 @@ then
 
 	
 	#null session
-	interlace -tL servicios/smb_uniq.txt -threads 5 -c "$proxychains rpcclient -U ''%'' -N -c srvinfo _target_ >  logs/vulnerabilidades/_target__445_nullsession.txt" --silent	
+	interlace -tL servicios/smb_uniq.txt -threads 5 -c "$proxychains rpcclient -U ''%'' -N -c enumdomusers _target_ >  logs/vulnerabilidades/_target__445_nullsession.txt" --silent	
+	# enum4linux -a [ip]
 
 	# rpcclient>srvinfo
 	# rpcclient>enumdomusers
@@ -2309,6 +2310,7 @@ then
 	
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c 'echo smbclient --list //_target_/ -U ""%"" > logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null' --silent
 	interlace -tL servicios/smb_uniq.txt -threads 5 -c "$proxychains smbclient --list //_target_/ -U ' '%' ' >> logs/vulnerabilidades/_target__445_compartidoSMBClient.txt 2>/dev/null" --silent
+	#smbclient //200.87.100.10/ -U ' '%' '
 
 	#get shell
 	# psexec.py <DOMAIN>/<USER>:<PASSWORD>@<IP>
@@ -3415,22 +3417,20 @@ then
 										enumeracionDefecto "http" $subdominio $port
 									fi																									
 									grep '\.action' .enumeracion/* | egrep -v '301|302' |  awk '{print $2}' >> servicios/Apache-Struts-files.txt
-																
-																	
+
+
+									####################################
+									if [ "$PROXYCHAINS" == "n" ]; then 
+										echo -e "\t\t[+] Clonar sitios"
+										cloneSite "http" $subdominio $port	
+									fi  					
+									####################################	
+																																	
 								else
 									echo -e "\t\t[+] Redirección, error de proxy detectado o sitio ya escaneado \n"	
 								fi												
 							fi #hosting
-						done #subdominio
-					
-
-					####################################
-					if [ "$PROXYCHAINS" == "n" ]; then 
-						echo -e "\t\t[+] Clonar sitios"
-						cloneSite "http" $subdominio $port	
-					fi  					
-					####################################	
-													    								
+						done #subdominio																							    								
 				fi #rev por dominio
 				################################
 				
@@ -3449,7 +3449,7 @@ then
 
 				
 				#################  Realizar el escaneo por IP  ##############	
-				echo -e "\n[+]\tEscaneo solo por IP (http) $ip:$port"
+				echo -e "\n\t[+]Escaneo solo por IP (http) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  http://$ip -O webClone/http-$ip.html
 				$proxychains curl.pl --url  http://$ip > webClone/http-$ip.html
 				sed -i "s/\/index.php//g" webClone/http-$ip.html
@@ -3534,6 +3534,8 @@ then
 
 					#######  if the server is IoT ######
 					enumeracionIOT	"http" $ip $port
+
+					######### clone #####
 					if [ "$PROXYCHAINS" == "n" ]; then 
 						cloneSite "http" $ip $port	
 					fi  
@@ -3671,10 +3673,12 @@ then
 				sleep 0.5;	
 				
 				######## revisar por dominio #######
-				echo "archivo = $prefijo$IP_LIST_FILE"
+				echo "grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO | uniq "
+				echo "DOMINIO_INTERNO  $DOMINIO_INTERNO "
 				if grep -q "," "$prefijo$IP_LIST_FILE" 2>/dev/null; then			
 					lista_subdominios=`grep --color=never $ip $prefijo$IP_LIST_FILE | egrep 'subdomain|vhost'| cut -d "," -f2 | grep --color=never $DOMINIO_INTERNO | uniq` 				
-					echo "lista_subdominios $lista_subdominios"
+					
+					echo "lista_subdominios-ssl $lista_subdominios"
 					for subdominio in $lista_subdominios; do
 						if [[  ${subdominio} != *"cpanel."* && ${subdominio} != *"cpcalendars."* && ${subdominio} != *"cpcontacts."*  && ${subdominio} != *"ftp."* && ${subdominio} != *"webdisk."* && ${subdominio} != *"webmail."* && ${subdominio} != *"autodiscover."* && ${subdominio} != *"whm."* ]];then 
 							echo -e "\t\t[+] Obteniendo informacion web (subdominio: $subdominio)"	
@@ -3844,7 +3848,7 @@ then
 				
 				
 				############### Escaneo por IP ############				
-				echo -e "\n[+]\tEscaneo solo por IP (https) $ip:$port"
+				echo -e "\n\t[+]Escaneo solo por IP (https) $ip:$port"
 				#wget --timeout=20 --tries=1 --no-check-certificate  https://$ip -O webClone/https-$ip.html
 				$proxychains curl.pl --url  https://$ip > webClone/https-$ip.html
 				sed -i "s/\/index.php//g" webClone/https-$ip.html 2>/dev/null
@@ -4268,7 +4272,7 @@ then
 		
 		if [ "$MODE" == "hacking" ]; then 
 			echo -e "[+] Obteniendo extensiones $ip:$port"		
-			$proxychains svwar -m INVITE -e1-500 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 2>/dev/null
+			$proxychains svwar -m INVITE -e1000-9999 $ip > logs/enumeracion/"$ip"_voip_extensions.txt 2>/dev/null
 			grep reqauth logs/enumeracion/"$ip"_voip_extensions.txt > .enumeracion/"$ip"_voip_extensions.txt
 		fi	
 				
@@ -4488,8 +4492,8 @@ then
 		if [[ $greprc -eq 0 ]] ; then	
 			echo -e "\t[+] Probando enum4linux"
 			###### Enum4linux ######
-			echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
-			$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/vulnerabilidades/"$ip"_445_enum4linux.txt &
+			echo "enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv \"unknown\""  > logs/enumeracion/"$ip"_445_enum4linux.txt 
+			$proxychains enum4linux -R 0-25,500-525,1000-1025,3000-3025 $ip 2>/dev/null | grep -iv "unknown" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g" >> logs/enumeracion/"$ip"_445_enum4linux.txt &
 			#######################
 
 			###### zerologon ######
@@ -5530,7 +5534,7 @@ find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # borrar archivos vacio
 					sleep 1										
 				fi		
 				#######################		
-				$proxychains  snmpwalk -v2c -c $community $ip .1 > logs/vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null &
+				$proxychains  snmpwalk -v2c -c $community $ip .1 > logs/enumeracion/"$ip"_161_snmpwalk.txt 2>/dev/null &
 				break
 			
 			else
@@ -5556,7 +5560,7 @@ find servicios -size  0 -print0 |xargs -0 rm 2>/dev/null # borrar archivos vacio
 	##############################
 
 	cp logs/vulnerabilidades/*_161_snmpCommunity.txt .vulnerabilidades/ 2>/dev/null
-	cp logs/vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null .vulnerabilidades/"$ip"_161_snmpwalk.txt 2>/dev/null 
+	cp logs/enumeracion/"$ip"_161_snmpwalk.txt 2>/dev/null .enumeracion/"$ip"_161_snmpwalk.txt 2>/dev/null 
 	insert_data
 	##################################
 
@@ -5665,22 +5669,22 @@ then
 	while read ip       
 	do     	
 		echo "checking IP $ip "		
-		egrep -iq "Server doesn't allow session|RID cycling not possible" logs/vulnerabilidades/"$ip"_445_enum4linux.txt 
+		egrep -iq "Server doesn't allow session|RID cycling not possible" logs/enumeracion/"$ip"_445_enum4linux.txt 
 		greprc=$?
 		if [[ $greprc -eq 0  ]];then
 			echo -e "\t[-] No Null session "
 		else
 			echo -e "\t[+] Null session detected"
-			grep --color=never -i  "Group" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  >> .vulnerabilidades/"$ip"_445_enum4linux.txt
-			grep --color=never -i  "User" logs/vulnerabilidades/"$ip"_445_enum4linux.txt  >> .vulnerabilidades/"$ip"_445_enum4linux.txt			
+			grep --color=never -i  "Group" logs/enumeracion/"$ip"_445_enum4linux.txt  >> .enumeracion/"$ip"_445_enum4linuxUsers.txt
+			grep --color=never -i  "User" logs/enumeracion/"$ip"_445_enum4linux.txt  >> .enumeracion/"$ip"_445_enum4linuxUsers.txt			
 
-			grep -a '\-1000' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-1001' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-1002' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-1003' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-3000' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-3001' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
-			grep -a '\-3002' .vulnerabilidades/"$ip"_445_enum4linux.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1000' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1001' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1002' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-1003' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3000' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3001' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
+			grep -a '\-3002' .enumeracion/"$ip"_445_enum4linuxUsers.txt | cut -d '\' -f2 | cut -d " " -f1 >> .enumeracion/"$ip"_445_users.txt
 		fi			
 	done <servicios/servers.txt
 fi
