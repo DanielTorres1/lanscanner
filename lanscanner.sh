@@ -3762,7 +3762,7 @@ then
 							echo -e "\t\tnoEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
 							
 							if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios
-								echo "Realizando tests adicionales "
+								echo -e "\t[+]Realizando tests adicionales "	
 								echo $checksumline >> webClone/checksumsEscaneados.txt												
 								
 
@@ -3876,7 +3876,7 @@ then
 				echo -e "\t\tnoEscaneado $noEscaneado hostOK $hostOK accesoDenegado $accesoDenegado (0=acceso negado)"
 						
 				if [[ ($hostOK -eq 1 &&  $noEscaneado -eq 1) || ($accesoDenegado -eq 0)]];then  # El sitio no fue escaneado antes/no redirecciona a otro dominio. Si sale acceso denegado escanear por directorios								
-					echo "Realizando tests adicionales " 
+					echo -e "\t[+]Realizando tests adicionales "
 					echo $checksumline >> webClone/checksumsEscaneados.txt
 					
 
